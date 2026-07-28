@@ -19,4 +19,4 @@ coverage-probe:
 	$(VENV)/python scripts/check_coverage.py
 
 migrate:
-	cd services/api && ../../$(VENV)/alembic upgrade head
+	cd services/api && PYTHONPATH=. ../../$(VENV)/alembic upgrade head
