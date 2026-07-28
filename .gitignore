@@ -4,3 +4,9 @@ __pycache__/
 .env
 *.pyc
 .next/
+data/
+*.egg-info/
+tests/e2e/node_modules/
+tests/fixtures/
+test-results/
+playwright-report/

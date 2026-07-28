@@ -1,0 +1,25 @@
+{
+  "permissions": {
+    "allow": [
+      "WebSearch",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\\\\n\" \"https://graph.mapillary.com/images?bbox=59.55,36.28,59.56,36.29&limit=1\")",
+      "Bash(curl -s \"https://tiles.mapillary.com/maps/vtp/mly1_public/2/14/10300/6250?access_token=MLY|\" -o /dev/null -w \"%{http_code}\\\\n\")",
+      "Bash(git init *)",
+      "Bash(git add *)",
+      "Bash(git commit -q -m 'docs: add bina sign detection v1 design spec *)",
+      "WebFetch(domain:www.mapillary.com)",
+      "Bash(git commit -q -m 'docs: add bina v1 implementation plan *)",
+      "Bash(git checkout *)",
+      "Bash(python3 -m venv .venv)",
+      "Bash(.venv/bin/pip install *)",
+      "Bash(.venv/bin/python -c \"import fastapi, sqlalchemy, respx, mapbox_vector_tile, PIL; print\\('deps ok'\\)\")",
+      "Bash(../../.venv/bin/pytest ../../tests/test_config.py -v)",
+      "Bash(../../.venv/bin/pytest ../../tests/test_config.py)",
+      "Bash(.venv/bin/pytest tests/test_config.py -v)",
+      "Bash(make coverage-probe *)",
+      "Bash(echo \"exit=$?\")",
+      "Bash(docker compose *)",
+      "Bash(git commit -q -m 'feat: scaffold api package, database config, and Mapillary coverage probe *)"
+    ]
+  }
+}
