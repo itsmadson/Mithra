@@ -11,3 +11,4 @@ tests/fixtures/
 test-results/
 playwright-report/
 .claude/settings.local.json*
+tests/e2e/package-lock.json
