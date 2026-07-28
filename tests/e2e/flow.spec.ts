@@ -15,8 +15,26 @@ test("the English home page loads left-to-right", async ({ page }) => {
 
 test("the results page shows per-class counts", async ({ page }) => {
   await page.goto(`/fa/jobs/${JOB_ID}`);
-  await expect(page.getByText("تابلو نام معبر")).toBeVisible();
-  await expect(page.getByText("2", { exact: true }).first()).toBeVisible();
+
+  // The class name also appears once per matching table row, so scope the
+  // assertion to the counts panel rather than the whole page.
+  const tile = page.locator("section div", { hasText: /^تابلو نام معبر$/ }).locator("..");
+  await expect(tile).toContainText("2");
+
+  // Every class renders even at zero — a missing row would read as
+  // "not measured" rather than "measured, none found".
+  const counts = page.locator("section").first();
+  await expect(counts).toContainText("تابلو ورودی شهر");
+  await expect(counts).toContainText("تابلو اطلاعاتی");
+
+  // The seeded job has one crop_failed-style unknown; the total and the
+  // unclassified count must both be present.
+  await expect(counts).toContainText("مجموع تابلوها");
+});
+
+test("the results table lists the individual signs", async ({ page }) => {
+  await page.goto(`/fa/jobs/${JOB_ID}`);
+  await expect(page.getByRole("cell", { name: "تابلو نام معبر" })).toHaveCount(2);
 });
 
 test("export links are present once the job is finished", async ({ page }) => {
