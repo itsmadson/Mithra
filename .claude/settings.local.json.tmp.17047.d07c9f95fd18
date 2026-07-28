@@ -25,7 +25,10 @@
       "Bash(git commit -q -m 'feat: split user bboxes into Mapillary-legal tiles *)",
       "Bash(.venv/bin/pytest tests/test_mapillary.py)",
       "Bash(.venv/bin/pytest tests/test_mapillary.py -v)",
-      "Bash(git commit -q -m 'feat: add Mapillary graph API client *)"
+      "Bash(git commit -q -m 'feat: add Mapillary graph API client *)",
+      "Bash(.venv/bin/pytest tests/test_geometry.py)",
+      "Bash(.venv/bin/pytest tests/test_geometry.py -v)",
+      "Bash(git commit -q -m 'feat: decode Mapillary detection geometry to pixel bboxes *)"
     ]
   }
 }
