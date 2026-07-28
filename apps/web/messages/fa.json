@@ -1,0 +1,26 @@
+{
+  "app": { "name": "بینا", "tagline": "شمارش و دسته‌بندی تابلوهای شهری" },
+  "map": { "drawBox": "برای کشیدن کادر، کلید Shift را نگه دارید و بکشید", "clear": "پاک کردن", "submit": "شروع تحلیل" },
+  "job": {
+    "status": "وضعیت",
+    "queued": "در صف",
+    "running": "در حال اجرا",
+    "succeeded": "کامل شد",
+    "partial": "ناقص",
+    "failed": "ناموفق",
+    "total": "مجموع تابلوها",
+    "failedCount": "طبقه‌بندی‌نشده",
+    "tiles": "کاشی‌ها",
+    "noImagery": "تصویری در این محدوده موجود نیست"
+  },
+  "classes": {
+    "direction_guide": "تابلو مسیرنما",
+    "street_name": "تابلو نام معبر",
+    "city_entry": "تابلو ورودی شهر",
+    "informational": "تابلو اطلاعاتی",
+    "unknown": "نامشخص"
+  },
+  "table": { "class": "نوع", "confidence": "اطمینان", "location": "موقعیت", "review": "نیازمند بازبینی" },
+  "export": { "csv": "خروجی CSV", "geojson": "خروجی GeoJSON" },
+  "label": { "title": "برچسب‌گذاری", "question": "این تابلو از چه نوعی است؟", "empty": "چیزی برای بازبینی نیست", "skip": "رد کردن" }
+}

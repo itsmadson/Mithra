@@ -1,0 +1,26 @@
+{
+  "app": { "name": "Bina", "tagline": "Count and classify urban signs" },
+  "map": { "drawBox": "Hold Shift and drag to draw a box", "clear": "Clear", "submit": "Run analysis" },
+  "job": {
+    "status": "Status",
+    "queued": "Queued",
+    "running": "Running",
+    "succeeded": "Complete",
+    "partial": "Partial",
+    "failed": "Failed",
+    "total": "Total signs",
+    "failedCount": "Unclassified",
+    "tiles": "Tiles",
+    "noImagery": "No imagery available in this area"
+  },
+  "classes": {
+    "direction_guide": "Direction / guide sign",
+    "street_name": "Street name sign",
+    "city_entry": "City entry sign",
+    "informational": "Informational sign",
+    "unknown": "Unknown"
+  },
+  "table": { "class": "Type", "confidence": "Confidence", "location": "Location", "review": "Needs review" },
+  "export": { "csv": "Export CSV", "geojson": "Export GeoJSON" },
+  "label": { "title": "Labeling", "question": "What type of sign is this?", "empty": "Nothing to review", "skip": "Skip" }
+}
