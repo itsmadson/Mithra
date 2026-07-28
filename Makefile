@@ -1,6 +1,9 @@
 VENV := .venv/bin
 
-.PHONY: up down test coverage-probe migrate web-test e2e
+.PHONY: up down dev test coverage-probe migrate web-test e2e
+
+dev:
+	./scripts/dev.sh
 
 up:
 	docker compose up -d

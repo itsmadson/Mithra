@@ -5,7 +5,7 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from bina_api.db import get_session
-from bina_api.models import Job, Sign, SignReason
+from bina_api.models import Job, JobReason, JobStatus, Sign, SignReason
 from bina_api.schemas import JobCreate, JobCreated, JobStatusOut
 
 router = APIRouter(prefix="/api/jobs", tags=["jobs"])
@@ -29,7 +29,21 @@ def create_job(payload: JobCreate, session: Session = Depends(get_session)) -> J
     job = Job(bbox_west=west, bbox_south=south, bbox_east=east, bbox_north=north)
     session.add(job)
     session.commit()
-    enqueue(str(job.id))
+
+    # The row is committed first so there is an id to hand to the queue. If the
+    # queue is unreachable, nothing will ever pick this job up, so it is marked
+    # failed here rather than left sitting in `queued` looking like it is still
+    # waiting its turn.
+    try:
+        enqueue(str(job.id))
+    except Exception as exc:  # noqa: BLE001 - any queue failure has one outcome
+        job.status = JobStatus.FAILED
+        job.reason = JobReason.ENQUEUE_FAILED
+        session.commit()
+        raise HTTPException(
+            status_code=503, detail="job queue unavailable, job not started"
+        ) from exc
+
     return JobCreated(id=job.id, status=job.status)
 
 

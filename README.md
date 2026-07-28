@@ -43,30 +43,26 @@ make web-test    # frontend suite
 make e2e         # browser suite (seeds its own data, no token needed)
 ```
 
-Dev servers:
+Run the whole stack (API on 8010, RQ worker, web on 3000):
 
 ```bash
-# API
-PYTHONPATH=services/api:services/worker:packages/ml \
-  MAPILLARY_TOKEN='MLY|...' \
-  DATABASE_URL='postgresql+psycopg://bina:bina@localhost:5432/bina' \
-  .venv/bin/uvicorn bina_api.main:app --port 8010
-
-# worker (needed for jobs to actually run)
-PYTHONPATH=services/api:services/worker:packages/ml \
-  MAPILLARY_TOKEN='MLY|...' \
-  DATABASE_URL='postgresql+psycopg://bina:bina@localhost:5432/bina' \
-  .venv/bin/rq worker
-
-# web
-cd apps/web && NEXT_PUBLIC_API_URL=http://localhost:8010 npm run dev
+make up                                   # Postgres + Redis
+make migrate                              # once
+MAPILLARY_TOKEN='MLY|...' make dev
 ```
 
 Then open `http://localhost:3000/fa`. Hold **Shift** and drag on the map to draw a box.
 
-> **The test suites drop and recreate every table in `DATABASE_URL`.** Running `make test`
-> against a database holding real jobs destroys them. Point `DATABASE_URL` at a throwaway
-> database before running tests, or give tests their own.
+Without `MAPILLARY_TOKEN` the UI is fully browsable and existing results render, but the
+worker is skipped and submitted jobs stay queued. `make dev` says so on startup.
+
+> Mapillary answers a bad or missing token with **HTTP 500, not 401**. Since 500 is a
+> retryable status, an invalid token burns the full retry budget on every tile and the job
+> lands in `partial` with `Mapillary returned 500` on each tile, rather than failing fast
+> as an auth error. If you see that, check the token before suspecting coverage.
+
+Tests run against a separate `bina_test` database, created automatically on first run, so
+`make test` never touches your development data. Override with `BINA_TEST_DATABASE_URL`.
 
 ## Layout
 

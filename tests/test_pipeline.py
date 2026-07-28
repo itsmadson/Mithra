@@ -6,13 +6,14 @@ from PIL import Image
 from sqlalchemy import create_engine, select, text
 from sqlalchemy.orm import Session
 
+from tests.conftest import DB_URL
+
 from bina_api.db import Base
 from bina_api.models import Job, JobReason, JobStatus, Sign, SignReason
 from bina_ml import Prediction
 from bina_worker.mapillary import MapillaryRateLimited
 from bina_worker.pipeline import run_job
 
-DB_URL = "postgresql+psycopg://bina:bina@localhost:5432/bina"
 
 
 @pytest.fixture

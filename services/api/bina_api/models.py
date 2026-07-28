@@ -36,6 +36,7 @@ class SignReason:
 class JobReason:
     NO_IMAGERY = "no_imagery"
     AUTH_FAILED = "auth_failed"
+    ENQUEUE_FAILED = "enqueue_failed"
 
 
 class Job(Base):

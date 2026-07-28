@@ -1,13 +1,14 @@
 import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy import create_engine, text
+from sqlalchemy import create_engine, select, text
 from sqlalchemy.orm import Session
+
+from tests.conftest import DB_URL
 
 from bina_api.db import Base, get_session
 from bina_api.main import app
-from bina_api.models import Job, JobStatus, Sign
+from bina_api.models import Job, JobReason, JobStatus, Sign
 
-DB_URL = "postgresql+psycopg://bina:bina@localhost:5432/bina"
 
 
 @pytest.fixture
@@ -38,6 +39,28 @@ def test_creating_a_job_returns_queued_and_enqueues_work(client):
     assert response.status_code == 201
     assert response.json()["status"] == JobStatus.QUEUED
     assert len(client.enqueued) == 1
+
+
+def test_enqueue_failure_does_not_leave_an_orphan_queued_job(client, monkeypatch):
+    """A job that was never enqueued must not sit in `queued` forever.
+
+    The row is committed before the enqueue so the id exists to hand to the
+    queue. If the queue is unreachable, nothing will ever pick the job up, so
+    it has to be marked failed rather than left looking like it is waiting.
+    """
+
+    def unreachable(job_id):
+        raise ConnectionError("Error 111 connecting to localhost:6379")
+
+    monkeypatch.setattr("bina_api.routes.jobs.enqueue", unreachable)
+
+    response = client.post("/api/jobs", json={"bbox": [59.60, 36.29, 59.61, 36.30]})
+    assert response.status_code == 503
+
+    with Session(client.engine) as session:
+        job = session.scalars(select(Job)).one()
+        assert job.status == JobStatus.FAILED
+        assert job.reason == JobReason.ENQUEUE_FAILED
 
 
 def test_inverted_bbox_is_rejected(client):
