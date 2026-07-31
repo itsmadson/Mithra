@@ -14,10 +14,10 @@ import psycopg
 import pytest
 from sqlalchemy import create_engine, text
 
-DEV_DATABASE_URL = "postgresql+psycopg://bina:bina@localhost:5432/bina"
+DEV_DATABASE_URL = "postgresql+psycopg://bina:bina@localhost:5434/bina"
 TEST_DATABASE_URL = os.environ.get(
     "BINA_TEST_DATABASE_URL",
-    "postgresql+psycopg://bina:bina@localhost:5432/bina_test",
+    "postgresql+psycopg://bina:bina@localhost:5434/bina_test",
 )
 
 DB_URL = TEST_DATABASE_URL
@@ -30,7 +30,7 @@ def _database_name(url: str) -> str:
 def _ensure_database_exists() -> None:
     """CREATE DATABASE cannot run inside a transaction, hence raw psycopg."""
     name = _database_name(TEST_DATABASE_URL)
-    admin_dsn = "postgresql://bina:bina@localhost:5432/postgres"
+    admin_dsn = "postgresql://bina:bina@localhost:5434/postgres"
     with psycopg.connect(admin_dsn, autocommit=True) as conn:
         exists = conn.execute(
             "SELECT 1 FROM pg_database WHERE datname = %s", (name,)

@@ -43,7 +43,7 @@ make web-test    # frontend suite
 make e2e         # browser suite (seeds its own data, no token needed)
 ```
 
-Run the whole stack (API on 8010, RQ worker, web on 3000):
+Run the whole stack (API on 8020, RQ worker, web on 3100):
 
 ```bash
 make up                                   # Postgres + Redis
@@ -51,7 +51,13 @@ make migrate                              # once
 MAPILLARY_TOKEN='MLY|...' make dev
 ```
 
-Then open `http://localhost:3000/fa`. Hold **Shift** and drag on the map to draw a box.
+Then open `http://localhost:3100/fa`. Hold **Shift** and drag on the map to draw a box.
+
+Every port here is deliberately off the common default — Postgres 5434, Redis 6381, API
+8020, web 3100 — because this machine already runs other projects on 5432, 5433, 6379,
+3000, and 8000. A collision does not announce itself: the app connects to whatever else
+is listening and fails with an authentication error or serves someone else's page.
+Override with `API_PORT`, `WEB_PORT`, `DATABASE_URL`, or `REDIS_URL`.
 
 Without `MAPILLARY_TOKEN` the UI is fully browsable and existing results render, but the
 worker is skipped and submitted jobs stay queued. `make dev` says so on startup.

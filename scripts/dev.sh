@@ -9,12 +9,12 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
 
 VENV="$ROOT/.venv/bin"
-API_PORT="${API_PORT:-8010}"
-WEB_PORT="${WEB_PORT:-3000}"
+API_PORT="${API_PORT:-8020}"
+WEB_PORT="${WEB_PORT:-3100}"
 
 export PYTHONPATH="services/api:services/worker:packages/ml"
-export DATABASE_URL="${DATABASE_URL:-postgresql+psycopg://bina:bina@localhost:5432/bina}"
-export REDIS_URL="${REDIS_URL:-redis://localhost:6379/0}"
+export DATABASE_URL="${DATABASE_URL:-postgresql+psycopg://bina:bina@localhost:5434/bina}"
+export REDIS_URL="${REDIS_URL:-redis://localhost:6381/0}"
 export NEXT_PUBLIC_API_URL="http://localhost:${API_PORT}"
 
 # The API validates the token's shape at import time, so it needs *a* value to
@@ -47,7 +47,7 @@ echo "==> checking services"
 if ! "$VENV/python" -c "
 import sys, psycopg
 try:
-    psycopg.connect('postgresql://bina:bina@localhost:5432/bina').close()
+    psycopg.connect('postgresql://bina:bina@localhost:5434/bina').close()
 except Exception as exc:
     sys.exit(f'postgres unreachable: {exc}')
 "; then

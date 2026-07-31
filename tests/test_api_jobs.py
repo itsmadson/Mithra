@@ -50,7 +50,7 @@ def test_enqueue_failure_does_not_leave_an_orphan_queued_job(client, monkeypatch
     """
 
     def unreachable(job_id):
-        raise ConnectionError("Error 111 connecting to localhost:6379")
+        raise ConnectionError("Error 111 connecting to localhost:6381")
 
     monkeypatch.setattr("bina_api.routes.jobs.enqueue", unreachable)
 

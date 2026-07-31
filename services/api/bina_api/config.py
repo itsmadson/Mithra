@@ -7,7 +7,7 @@ class Settings(BaseSettings):
 
     mapillary_token: SecretStr
     database_url: str
-    redis_url: str = "redis://localhost:6379/0"
+    redis_url: str = "redis://localhost:6381/0"
     https_proxy: str | None = None
     crop_dir: str = "./data/crops"
     low_confidence_threshold: float = 0.45

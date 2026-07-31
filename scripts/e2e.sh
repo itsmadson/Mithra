@@ -15,12 +15,12 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
 
 VENV="$ROOT/.venv/bin"
-API_PORT="${API_PORT:-8010}"
-WEB_PORT="${WEB_PORT:-3000}"
+API_PORT="${API_PORT:-8020}"
+WEB_PORT="${WEB_PORT:-3100}"
 
 export PYTHONPATH="services/api:services/worker:packages/ml"
 export MAPILLARY_TOKEN="${MAPILLARY_TOKEN:-MLY|e2e|placeholder}"
-export DATABASE_URL="${DATABASE_URL:-postgresql+psycopg://bina:bina@localhost:5432/bina}"
+export DATABASE_URL="${DATABASE_URL:-postgresql+psycopg://bina:bina@localhost:5434/bina}"
 export NEXT_PUBLIC_API_URL="http://localhost:${API_PORT}"
 
 api_pid=""

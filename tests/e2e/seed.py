@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 from bina_api.db import Base
 from bina_api.models import Job, JobStatus, Sign
 
-DB_URL = "postgresql+psycopg://bina:bina@localhost:5432/bina"
+DB_URL = "postgresql+psycopg://bina:bina@localhost:5434/bina"
 JOB_ID = uuid.UUID("11111111-1111-1111-1111-111111111111")
 
 
