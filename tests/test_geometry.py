@@ -76,6 +76,34 @@ def test_bbox_is_ordered_left_top_right_bottom():
     assert left < right and top < bottom
 
 
+def test_tile_y_axis_is_flipped_into_image_space():
+    """Mapbox vector tile y increases upward; image y increases downward.
+
+    Verified against a real Mapillary detection: a no-stopping sign whose tile
+    geometry spans y 1849..1911 sits at image y 614..632 in a 1152px-tall
+    image, which is (extent - y) scaled, not y scaled. Without the flip the
+    crop landed on foliage and road surface, and the classifier scored those
+    as traffic signs.
+    """
+    # A box low in TILE space must land high in IMAGE space (near the bottom).
+    encoded = encode([(100, 0), (300, 0), (300, 100), (100, 100), (100, 0)])
+    _, top, _, bottom = decode_detection_geometry(encoded, 1000, 1000)
+    assert top > 800, f"expected near the image bottom, got top={top}"
+    assert bottom > top
+
+
+def test_flip_matches_the_observed_real_detection():
+    """The exact numbers from the live Mapillary detection used to diagnose this."""
+    encoded = encode(
+        [(2003, 1849), (2032, 1849), (2032, 1911), (2003, 1911), (2003, 1849)]
+    )
+    left, top, right, bottom = decode_detection_geometry(encoded, 2048, 1152)
+    assert left == pytest.approx(1001, abs=2)
+    assert right == pytest.approx(1017, abs=2)
+    assert top == pytest.approx(614, abs=2)
+    assert bottom == pytest.approx(632, abs=2)
+
+
 def test_garbage_base64_raises_decode_error():
     with pytest.raises(GeometryDecodeError):
         decode_detection_geometry("not-valid-base64!!", 1024, 768)

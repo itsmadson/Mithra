@@ -47,8 +47,13 @@ def decode_detection_geometry(
     if not points:
         raise GeometryDecodeError("detection geometry contained no coordinates")
 
+    # Vector tile y increases upward, image y increases downward, so y must be
+    # inverted. Confirmed against a live detection: a no-stopping sign spanning
+    # tile y 1849..1911 sits at image y 614..632 in a 1152px image. Skipping the
+    # flip put every crop on the mirrored part of the frame — foliage and road
+    # instead of signs — while still producing plausible-looking output.
     xs = [p[0] / extent * image_width for p in points]
-    ys = [p[1] / extent * image_height for p in points]
+    ys = [(extent - p[1]) / extent * image_height for p in points]
 
     left = max(0, int(min(xs)))
     top = max(0, int(min(ys)))
