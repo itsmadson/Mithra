@@ -65,6 +65,39 @@ def test_padding_is_clamped_at_the_image_edge():
     assert crop.height <= 600
 
 
+def test_crop_uses_the_downloaded_image_size_not_the_reported_one():
+    """Mapillary's metadata width/height describe the ORIGINAL capture.
+
+    We download thumb_2048_url, which is a scaled-down copy. Decoding the
+    detection geometry against the original dimensions put the box outside the
+    thumbnail, and PIL pads out-of-bounds crops with black rather than failing.
+    That silently produced blank crops for 53 of 76 signs in a real Mashhad
+    run, and the classifier dutifully classified black rectangles.
+    """
+    quarter, three_quarters = EXTENT // 4, EXTENT * 3 // 4
+    encoded = encode_box(quarter, quarter, three_quarters, three_quarters)
+
+    # The downloaded bytes are a 400x300 thumbnail of a 4000x3000 original.
+    thumbnail = make_image(400, 300)
+    crop = crop_detection(thumbnail, encoded, 4000, 3000, padding=0.0)
+
+    assert crop.width <= 400
+    assert crop.height <= 300
+    assert crop.width == pytest.approx(200, abs=4)
+    assert crop.height == pytest.approx(150, abs=4)
+
+
+def test_crop_of_a_uniform_image_is_not_blank_padding():
+    """A crop inside the image must carry the image's pixels, not black padding."""
+    from PIL import ImageStat
+
+    quarter, three_quarters = EXTENT // 4, EXTENT * 3 // 4
+    encoded = encode_box(quarter, quarter, three_quarters, three_quarters)
+    crop = crop_detection(make_image(400, 300), encoded, 4000, 3000, padding=0.0)
+    # make_image paints a uniform (10, 20, 30); black padding would read 0.
+    assert ImageStat.Stat(crop.convert("L")).mean[0] > 5
+
+
 def test_corrupt_image_bytes_raise_crop_error():
     with pytest.raises(CropError):
         crop_detection(b"not an image", encode_box(100, 100, 300, 300), 800, 600)
