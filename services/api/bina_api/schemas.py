@@ -29,6 +29,9 @@ class JobStatusOut(BaseModel):
     id: uuid.UUID
     status: str
     reason: str | None
+    # The requested area, so a client can frame the map on it without a second
+    # round trip and can show what was surveyed even when nothing was found.
+    bbox: list[float]
     tile_count: int
     failed_tile_count: int
     counts: dict[str, int]
@@ -45,6 +48,11 @@ class SignOut(BaseModel):
     crop_url: str | None
     needs_review: bool
     mapillary_value: str | None
+    # Provenance: which Mapillary image this sign was cropped from, and which
+    # model version produced the class. Without these a count cannot be audited.
+    image_id: str | None = None
+    model_version: str | None = None
+    reason: str | None = None
 
 
 class SignList(BaseModel):

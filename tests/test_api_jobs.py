@@ -200,3 +200,44 @@ def test_enqueue_sets_a_timeout_long_enough_for_a_real_job(monkeypatch):
     assert captured["func"] == "bina_worker.pipeline.enqueue_job"
     assert captured["args"] == ("job-1",)
     assert captured["kwargs"]["job_timeout"] == JOB_TIMEOUT_SECONDS
+
+
+def test_signs_expose_detection_provenance(client):
+    """A count that cannot be traced back to an image is not auditable."""
+    with Session(client.engine) as session:
+        job = Job(bbox_west=59.60, bbox_south=36.29, bbox_east=59.61, bbox_north=36.30)
+        session.add(job)
+        session.commit()
+        session.add(
+            Sign(
+                job_id=job.id,
+                mapillary_feature_id="f1",
+                image_id="1020361045275024",
+                geom="SRID=4326;POINT(59.601 36.294)",
+                sign_class="direction_guide",
+                confidence=0.81,
+                model_version="clip-zeroshot-ViT-B-32-v1",
+                mapillary_value="information--general-directions--g1",
+                reason="ok",
+            )
+        )
+        session.commit()
+        job_id = str(job.id)
+
+    item = client.get(f"/api/jobs/{job_id}/signs").json()["items"][0]
+    assert item["image_id"] == "1020361045275024"
+    assert item["model_version"] == "clip-zeroshot-ViT-B-32-v1"
+    assert item["mapillary_value"] == "information--general-directions--g1"
+    assert item["reason"] == "ok"
+
+
+def test_job_status_returns_the_requested_bbox(client):
+    """The client frames its map on this; without it an empty result has no context."""
+    with Session(client.engine) as session:
+        job = Job(bbox_west=59.600, bbox_south=36.293, bbox_east=59.609, bbox_north=36.302)
+        session.add(job)
+        session.commit()
+        job_id = str(job.id)
+
+    body = client.get(f"/api/jobs/{job_id}").json()
+    assert body["bbox"] == pytest.approx([59.600, 36.293, 59.609, 36.302])

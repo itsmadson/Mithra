@@ -1,26 +1,282 @@
 @import "tailwindcss";
 
+/*
+ * Bina — dark survey console.
+ *
+ * The use scene decides the theme: an operator works through hundreds of sign
+ * crops in one sitting, comparing small photographs against a map. A dark
+ * surface keeps the photographs the brightest thing on screen, which is where
+ * attention belongs, and holds up in a vehicle or a dim office.
+ */
+
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  /* Neutrals: a cool slate ramp, not pure black — pure black makes the crops
+     glare and flattens the depth between panel layers. */
+  --bg: #0c1116;
+  --panel: #131a22;
+  --panel-2: #182029;
+  --line: #232e3a;
+  --line-strong: #31404f;
+
+  --fg: #e7edf3;
+  --fg-muted: #9aa9b8;
+  --fg-faint: #6b7c8c;
+
+  --accent: #4da3ff;
+  --accent-ink: #06121f;
+
+  /* Sign classes. Chosen for separation on a dark basemap and for distinctness
+     under the common colour-vision deficiencies: these differ in lightness as
+     well as hue, so the pins stay tellable apart in greyscale too. */
+  --c-direction: #4da3ff;
+  --c-street: #ffb547;
+  --c-city: #5fd39a;
+  --c-info: #b78bff;
+  --c-unknown: #7b8b9c;
+
+  --danger: #ff6b6b;
+  --warn: #ffb547;
+  --ok: #5fd39a;
+
+  --radius: 10px;
+  --radius-sm: 7px;
+
+  /* Depth carries an offset and a soft blur — a zero-offset halo is decoration. */
+  --shadow: 0 8px 24px -12px rgb(0 0 0 / 0.75), 0 2px 6px -3px rgb(0 0 0 / 0.5);
+  --shadow-lg: 0 24px 60px -24px rgb(0 0 0 / 0.85), 0 4px 12px -6px rgb(0 0 0 / 0.6);
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+:root[data-theme="light"] {
+  --bg: #f4f6f8;
+  --panel: #ffffff;
+  --panel-2: #f8fafc;
+  --line: #e2e8f0;
+  --line-strong: #cbd5e1;
+
+  --fg: #14202b;
+  --fg-muted: #4d6178;
+  --fg-faint: #6b7f93;
+
+  --accent: #0b6bd3;
+  --accent-ink: #ffffff;
+
+  --c-direction: #0b6bd3;
+  --c-street: #a35f00;
+  --c-city: #0d6d49;
+  --c-info: #6135bd;
+  --c-unknown: #61728a;
+
+  --shadow: 0 8px 24px -14px rgb(15 30 45 / 0.25), 0 2px 6px -3px rgb(15 30 45 / 0.12);
+  --shadow-lg: 0 24px 60px -28px rgb(15 30 45 / 0.3), 0 4px 12px -6px rgb(15 30 45 / 0.16);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  padding: 0;
+  margin: 0;
+  height: 100%;
+}
+
+/* Named faces first, then system-ui. Persian sets from whatever the machine
+   has — Vazirmatn if installed, otherwise Sahel or Tahoma, both of which shape
+   Persian correctly. No webfont fetch, so the build works offline. */
+html[lang="fa"] body {
+  font-family: Vazirmatn, Sahel, Samim, "Iranian Sans", Tahoma, "Segoe UI",
+    system-ui, "Noto Naskh Arabic", sans-serif;
+}
+
+html[lang="en"] body {
+  font-family: Inter, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--bg);
+  color: var(--fg);
+  /* Tabular figures so coordinates and counts align column to column. */
+  font-variant-numeric: tabular-nums;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Persian sets a little larger than Latin at the same nominal size. */
+html[lang="fa"] body {
+  font-size: 15.5px;
+  line-height: 1.75;
+}
+
+html[lang="en"] body {
+  font-size: 15px;
+  line-height: 1.6;
+}
+
+::selection {
+  background: color-mix(in oklab, var(--accent) 35%, transparent);
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* MapLibre's own chrome, restyled to belong to the console rather than sitting
+   on top of it as a foreign widget. */
+.maplibregl-ctrl-attrib,
+.maplibregl-ctrl-attrib a {
+  background: color-mix(in oklab, var(--panel) 88%, transparent) !important;
+  color: var(--fg-faint) !important;
+  font-size: 10px !important;
+}
+
+.maplibregl-ctrl-group {
+  background: var(--panel) !important;
+  border: 1px solid var(--line) !important;
+  box-shadow: var(--shadow) !important;
+}
+
+.maplibregl-ctrl-group button + button {
+  border-top: 1px solid var(--line) !important;
+}
+
+.maplibregl-ctrl-group button span {
+  filter: invert(var(--icon-invert, 1));
+}
+
+:root[data-theme="light"] .maplibregl-ctrl-group button span {
+  --icon-invert: 0;
+}
+
+.maplibregl-popup-content {
+  padding: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.maplibregl-popup-tip {
+  display: none !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/*
+ * Sign pins and the survey rectangle.
+ *
+ * These are plain DOM, not map layers: MapLibre's GeoJSON worker never returns
+ * tiles under this bundler, so vector layers render nothing at all. Written as
+ * ordinary rules rather than utilities because unlayered CSS reliably outranks
+ * MapLibre's own marker styles, which is the same cascade-layer trap that
+ * collapsed the map container.
+ */
+
+.bina-pin {
+  --pin: var(--c-unknown);
+  width: 13px;
+  height: 13px;
+  padding: 0;
+  border: 1.5px solid var(--bg);
+  border-radius: 999px;
+  background: var(--pin);
+  cursor: pointer;
+  position: relative;
+  box-shadow: 0 0 0 4px color-mix(in oklab, var(--pin) 22%, transparent);
+  transition: transform 160ms ease-out, box-shadow 160ms ease-out;
+}
+
+.bina-pin:hover {
+  transform: scale(1.35);
+  box-shadow: 0 0 0 6px color-mix(in oklab, var(--pin) 30%, transparent);
+  z-index: 5;
+}
+
+/* Low-confidence signs read as hollow, so an operator can see at a glance
+   which parts of a survey are still guesses. */
+.bina-pin[data-review="true"] {
+  background: color-mix(in oklab, var(--pin) 28%, var(--bg));
+  border-style: dashed;
+}
+
+.bina-pin[data-selected="true"] {
+  transform: scale(1.45);
+  box-shadow:
+    0 0 0 3px var(--bg),
+    0 0 0 5px var(--pin);
+  z-index: 6;
+}
+
+/* The crop preview rides with its pin and appears on hover, so scanning the
+   map shows the actual photographs rather than abstract dots. */
+.bina-pin-preview {
+  position: absolute;
+  bottom: calc(100% + 10px);
+  left: 50%;
+  translate: -50% 0;
+  display: block;
+  padding: 3px;
+  border: 1px solid var(--line-strong);
+  border-radius: 9px;
+  background: var(--panel);
+  box-shadow: var(--shadow-lg);
+  opacity: 0;
+  scale: 0.94;
+  transform-origin: bottom center;
+  pointer-events: none;
+  transition: opacity 160ms ease-out, scale 160ms ease-out;
+}
+
+.bina-pin:hover .bina-pin-preview,
+.bina-pin:focus-visible .bina-pin-preview {
+  opacity: 1;
+  scale: 1;
+}
+
+.bina-pin-preview img {
+  display: block;
+  max-width: 168px;
+  max-height: 140px;
+  border-radius: 6px;
+}
+
+.bina-bbox {
+  position: absolute;
+  pointer-events: none;
+  border: 1px dashed color-mix(in oklab, var(--accent) 70%, transparent);
+  background: color-mix(in oklab, var(--accent) 6%, transparent);
+  border-radius: 3px;
+}
+
+/*
+ * Darkening the basemap.
+ *
+ * A filter on the tile canvas rather than a map layer: layer ordering proved
+ * unreliable here, and this way the DOM markers — which live outside the
+ * canvas — keep their full saturation and stay the brightest thing on screen.
+ */
+:root[data-theme="dark"] .maplibregl-canvas {
+  filter: brightness(0.34) contrast(1.22) saturate(0.75);
+}
+
+:root[data-theme="light"] .maplibregl-canvas {
+  filter: saturate(0.85);
+}
+
+/*
+ * The map is always laid out left-to-right, even on the Persian side.
+ *
+ * MapLibre positions markers absolutely with `auto` insets and a transform. In
+ * a dir="rtl" document that resolves the static position against the right
+ * edge, so every pin landed hundreds of pixels off from the geography it
+ * marks. Coordinates are not text; only the surrounding UI mirrors.
+ */
+.maplibregl-map {
+  direction: ltr;
 }

@@ -32,6 +32,9 @@ def list_signs(
         Sign.crop_path,
         Sign.needs_review,
         Sign.mapillary_value,
+        Sign.image_id,
+        Sign.model_version,
+        Sign.reason,
     ).where(Sign.job_id == job_id)
     if sign_class is not None:
         statement = statement.where(Sign.sign_class == sign_class)
@@ -48,6 +51,9 @@ def list_signs(
             crop_url=f"/api/crops/{row[0]}" if row[5] else None,
             needs_review=row[6],
             mapillary_value=row[7],
+            image_id=row[8],
+            model_version=row[9],
+            reason=row[10],
         )
         for row in session.execute(statement.limit(limit)).all()
     ]

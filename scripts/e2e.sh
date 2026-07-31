@@ -26,9 +26,15 @@ export NEXT_PUBLIC_API_URL="http://localhost:${API_PORT}"
 api_pid=""
 web_pid=""
 
+# Kill whole process groups, not the direct children. `npm run start` execs a
+# shell that spawns next-server, so killing the pid we captured left the real
+# server holding the port; the following run then bound nothing and silently
+# tested the previous build.
 cleanup() {
-  [ -n "$api_pid" ] && kill "$api_pid" 2>/dev/null || true
-  [ -n "$web_pid" ] && kill "$web_pid" 2>/dev/null || true
+  for pid in "$api_pid" "$web_pid"; do
+    [ -n "$pid" ] || continue
+    kill -- "-$pid" 2>/dev/null || kill "$pid" 2>/dev/null || true
+  done
 }
 trap cleanup EXIT
 
@@ -39,11 +45,11 @@ echo "==> building web"
 (cd apps/web && npm run build >/dev/null)
 
 echo "==> starting api on :${API_PORT}"
-"$VENV/uvicorn" bina_api.main:app --port "$API_PORT" >/tmp/bina-e2e-api.log 2>&1 &
+setsid "$VENV/uvicorn" bina_api.main:app --port "$API_PORT" >/tmp/bina-e2e-api.log 2>&1 &
 api_pid=$!
 
 echo "==> starting web on :${WEB_PORT}"
-(cd apps/web && npm run start -- --port "$WEB_PORT" >/tmp/bina-e2e-web.log 2>&1) &
+setsid bash -c "cd apps/web && npm run start -- --port $WEB_PORT" >/tmp/bina-e2e-web.log 2>&1 &
 web_pid=$!
 
 wait_for() {

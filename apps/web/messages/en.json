@@ -1,17 +1,35 @@
 {
-  "app": { "name": "Bina", "tagline": "Count and classify urban signs" },
-  "map": { "drawBox": "Hold Shift and drag to draw a box", "clear": "Clear", "submit": "Run analysis" },
+  "app": {
+    "name": "Bina",
+    "tagline": "Count and classify urban signs from street-level imagery"
+  },
+  "home": {
+    "heading": "Choose an area on the map",
+    "help": "Hold Shift and drag across the map to set the survey box.",
+    "selected": "Selected area",
+    "area": "Approx. area",
+    "km2": "km²",
+    "submit": "Run analysis",
+    "submitting": "Submitting…",
+    "clear": "Clear",
+    "tooLarge": "That area is larger than the limit. Draw a smaller box.",
+    "recent": "Recent analyses"
+  },
   "job": {
-    "status": "Status",
+    "loading": "Loading…",
+    "titleWithCount": "{count} signs detected",
     "queued": "Queued",
     "running": "Running",
     "succeeded": "Complete",
     "partial": "Partial",
     "failed": "Failed",
-    "total": "Total signs",
-    "failedCount": "Unclassified",
-    "tiles": "Tiles",
-    "noImagery": "No imagery available in this area"
+    "preparing": "Preparing",
+    "tiles": "tiles",
+    "tilesDone": "{done} of {total} tiles",
+    "progressLabel": "Analysis progress",
+    "foundSoFar": "{count} signs found so far",
+    "failedNote": "{count} signs could not be classified and are counted as unknown",
+    "noImagery": "No street-level imagery in this area. That means no coverage, not no signs."
   },
   "classes": {
     "direction_guide": "Direction / guide sign",
@@ -20,7 +38,64 @@
     "informational": "Informational sign",
     "unknown": "Unknown"
   },
-  "table": { "class": "Type", "confidence": "Confidence", "location": "Location", "review": "Needs review" },
-  "export": { "csv": "Export CSV", "geojson": "Export GeoJSON" },
-  "label": { "title": "Labeling", "question": "What type of sign is this?", "empty": "Nothing to review", "skip": "Skip" }
+  "mapillaryCategory": {
+    "regulatory": "Regulatory",
+    "information": "Information",
+    "warning": "Warning",
+    "complementary": "Complementary",
+    "marking": "Marking",
+    "construction": "Construction",
+    "object": "Object"
+  },
+  "signReason": {
+    "ok": "No issues",
+    "crop_failed": "Crop failed",
+    "no_detection": "No detection found in image",
+    "classify_failed": "Classification failed"
+  },
+  "filter": {
+    "hint": "Click to show or hide. Double-click for this class only"
+  },
+  "list": {
+    "searchPlaceholder": "Search sign name or image id",
+    "reviewOnly": "Needs review",
+    "empty": "No signs match these filters",
+    "emptyHint": "Adjust the filters or clear the search.",
+    "unlabelled": "Unlabelled"
+  },
+  "detail": {
+    "confidence": "Confidence",
+    "needsReview": "The model is unsure about this one; it is queued for labeling.",
+    "evidence": "Detection evidence",
+    "evidenceHelp": "This sign was cropped from the street-level image below and classified by the model named here. Mapillary's own category is independent evidence you can check our class against.",
+    "mapillaryLabel": "Sign type (Mapillary)",
+    "mapillaryCategory": "Mapillary category",
+    "model": "Model version",
+    "status": "Processing status",
+    "coords": "Coordinates",
+    "sourceImage": "Source image id",
+    "openSource": "View the source image on Mapillary",
+    "cropAlt": "Cropped sign image",
+    "noCrop": "No image was stored for this sign"
+  },
+  "export": {
+    "csv": "Export CSV",
+    "geojson": "Export GeoJSON"
+  },
+  "label": {
+    "title": "Labeling",
+    "question": "What type of sign is this?",
+    "empty": "Nothing to review",
+    "emptyHint": "Every low-confidence sign has been checked.",
+    "skip": "Skip",
+    "progress": "{current} of {total}",
+    "hint": "Least confident signs are shown first."
+  },
+  "error": {
+    "title": "Could not load the data"
+  },
+  "a11y": {
+    "close": "Close",
+    "toggleTheme": "Switch between light and dark"
+  }
 }

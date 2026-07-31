@@ -12,6 +12,7 @@ export interface JobStatus {
   id: string;
   status: "queued" | "running" | "succeeded" | "partial" | "failed";
   reason: string | null;
+  bbox: [number, number, number, number];
   tile_count: number;
   failed_tile_count: number;
   counts: Partial<Record<SignClass, number>>;
@@ -28,6 +29,12 @@ export interface Sign {
   crop_url: string | null;
   needs_review: boolean;
   mapillary_value: string | null;
+  /** Provenance — which Mapillary image the crop came from. */
+  image_id: string | null;
+  /** Which model version produced sign_class. */
+  model_version: string | null;
+  /** ok | crop_failed | no_detection | classify_failed */
+  reason: string | null;
 }
 
 export const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";

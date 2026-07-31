@@ -83,6 +83,7 @@ def get_job(job_id: uuid.UUID, session: Session = Depends(get_session)) -> JobSt
         id=job.id,
         status=job.status,
         reason=job.reason,
+        bbox=[job.bbox_west, job.bbox_south, job.bbox_east, job.bbox_north],
         tile_count=job.tile_count,
         failed_tile_count=job.failed_tile_count,
         counts=counts,
