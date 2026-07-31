@@ -20,6 +20,10 @@ IMAGE_FIELDS = "id,width,height,thumb_2048_url,captured_at,geometry"
 
 RETRY_STATUSES = {429, 500, 502, 503, 504}
 
+# The value Mapillary reports in a map feature's object_type for traffic signs.
+# Other observed values are 'panoptic' and 'mvd_fast', which are street objects.
+SIGN_OBJECT_TYPE = "trafficsign"
+
 
 class MapillaryError(Exception):
     """Base for all Mapillary transport failures."""
@@ -82,17 +86,33 @@ class MapillaryClient:
         )
 
     def get_sign_features(self, bbox: Bbox, limit: int = 2000) -> list[dict]:
+        """Return only the map features that are actually traffic signs.
+
+        The object_types query parameter below is sent for documentation value,
+        but Mapillary ignores it: 'trafficsign', 'traffic_sign', 'points', and
+        omitting it entirely all return identical payloads. The filtering
+        therefore happens here, against each feature's object_type field.
+
+        This is not a marginal cleanup. One central Mashhad tile returns 454
+        features, of which 58 are signs; the other 396 are panoptic and mvd_fast
+        detections of street furniture. Trusting the server-side filter would
+        overcount by roughly eight times.
+        """
         west, south, east, north = bbox
         payload = self._get(
             "/map_features",
             {
                 "bbox": f"{west},{south},{east},{north}",
-                "object_types": "trafficsign",
+                "object_types": SIGN_OBJECT_TYPE,
                 "fields": FEATURE_FIELDS,
                 "limit": limit,
             },
         )
-        return payload.get("data", [])
+        return [
+            feature
+            for feature in payload.get("data", [])
+            if feature.get("object_type") == SIGN_OBJECT_TYPE
+        ]
 
     def get_detections(self, image_id: str) -> list[dict]:
         payload = self._get(f"/{image_id}/detections", {"fields": DETECTION_FIELDS})

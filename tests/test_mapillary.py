@@ -40,6 +40,58 @@ def test_requests_only_the_traffic_sign_layer(client):
 
 
 @respx.mock
+def test_non_sign_features_are_filtered_out(client):
+    """Mapillary ignores the object_types query parameter.
+
+    Verified against the live API: passing 'trafficsign', 'traffic_sign',
+    'points', or nothing at all returns byte-identical results. In one central
+    Mashhad tile that is 454 features of which only 58 are actually signs — the
+    rest are panoptic and mvd_fast detections of street furniture. Filtering has
+    to happen here, or a survey reports an eightfold overcount.
+    """
+    respx.get(f"{GRAPH}/map_features").mock(
+        return_value=httpx.Response(
+            200,
+            json={
+                "data": [
+                    {
+                        "id": "sign",
+                        "object_value": "regulatory--stop--g1",
+                        "object_type": "trafficsign",
+                        "geometry": {"type": "Point", "coordinates": [59.601, 36.294]},
+                    },
+                    {
+                        "id": "streetlight",
+                        "object_value": "object--street-light",
+                        "object_type": "panoptic",
+                        "geometry": {"type": "Point", "coordinates": [59.602, 36.295]},
+                    },
+                    {
+                        "id": "bench",
+                        "object_value": "object--bench",
+                        "object_type": "mvd_fast",
+                        "geometry": {"type": "Point", "coordinates": [59.603, 36.296]},
+                    },
+                ]
+            },
+        )
+    )
+    features = client.get_sign_features(BBOX)
+    assert [f["id"] for f in features] == ["sign"]
+
+
+@respx.mock
+def test_features_without_an_object_type_are_dropped(client):
+    respx.get(f"{GRAPH}/map_features").mock(
+        return_value=httpx.Response(
+            200,
+            json={"data": [{"id": "mystery", "object_value": "regulatory--stop--g1"}]},
+        )
+    )
+    assert client.get_sign_features(BBOX) == []
+
+
+@respx.mock
 def test_returns_feature_dicts(client):
     respx.get(f"{GRAPH}/map_features").mock(
         return_value=httpx.Response(
