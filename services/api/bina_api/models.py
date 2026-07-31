@@ -37,6 +37,7 @@ class JobReason:
     NO_IMAGERY = "no_imagery"
     AUTH_FAILED = "auth_failed"
     ENQUEUE_FAILED = "enqueue_failed"
+    WORKER_ERROR = "worker_error"
 
 
 class Job(Base):

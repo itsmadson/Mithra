@@ -169,3 +169,34 @@ def test_signs_expose_coordinates(client):
     item = client.get(f"/api/jobs/{job_id}/signs").json()["items"][0]
     assert item["lon"] == pytest.approx(59.601)
     assert item["lat"] == pytest.approx(36.294)
+
+
+def test_enqueue_sets_a_timeout_long_enough_for_a_real_job(monkeypatch):
+    """RQ defaults to a 180 second job timeout, which real jobs exceed.
+
+    A central Mashhad tile alone holds ~58 signs, each needing an image
+    download and a CLIP forward pass. The default killed the job mid-run.
+    """
+    from bina_api.routes.jobs import JOB_TIMEOUT_SECONDS, enqueue
+
+    assert JOB_TIMEOUT_SECONDS >= 3600
+
+    captured = {}
+
+    class FakeQueue:
+        def __init__(self, connection=None):
+            captured["connected"] = True
+
+        def enqueue(self, func, *args, **kwargs):
+            captured["func"] = func
+            captured["args"] = args
+            captured["kwargs"] = kwargs
+
+    monkeypatch.setattr("redis.Redis.from_url", lambda url: object())
+    monkeypatch.setattr("rq.Queue", FakeQueue)
+
+    enqueue("job-1")
+
+    assert captured["func"] == "bina_worker.pipeline.enqueue_job"
+    assert captured["args"] == ("job-1",)
+    assert captured["kwargs"]["job_timeout"] == JOB_TIMEOUT_SECONDS

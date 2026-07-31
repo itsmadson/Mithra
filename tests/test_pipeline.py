@@ -162,6 +162,35 @@ def test_feature_with_no_detection_is_counted_as_unknown(session, job, tmp_path)
     assert sign.reason == SignReason.NO_DETECTION
 
 
+def test_worker_crash_marks_the_job_failed_rather_than_leaving_it_running(
+    session, job, monkeypatch, tmp_path
+):
+    """A job whose worker dies must not sit in `running` forever.
+
+    Observed for real: RQ's default job timeout is 180 seconds, which a job that
+    downloads and classifies dozens of images blows through. The worker raised
+    JobTimeoutException mid-run and the row stayed `running` with nothing left
+    to advance it, which is indistinguishable from a job still making progress.
+    """
+
+    def boom(*a, **k):
+        raise RuntimeError("worker killed")
+
+    monkeypatch.setattr("bina_worker.pipeline.crop_detection", boom)
+    monkeypatch.setattr(
+        "bina_worker.pipeline._classify_feature",
+        lambda *a, **k: (_ for _ in ()).throw(RuntimeError("worker killed")),
+    )
+
+    with pytest.raises(RuntimeError):
+        run_job(session, job.id, FakeClient(), FakeClassifier(), tmp_path)
+
+    session.refresh(job)
+    assert job.status == JobStatus.FAILED
+    assert job.reason == JobReason.WORKER_ERROR
+    assert job.finished_at is not None
+
+
 def test_low_confidence_prediction_is_flagged_for_review(session, job, monkeypatch, tmp_path):
     class Unsure:
         version = "unsure-v1"

@@ -11,15 +11,26 @@ from bina_api.schemas import JobCreate, JobCreated, JobStatusOut
 router = APIRouter(prefix="/api/jobs", tags=["jobs"])
 
 
+# RQ defaults to a 180 second job timeout. A single Mapillary-legal tile in
+# central Mashhad holds around 58 signs, each needing an image download and a
+# CLIP forward pass, so the default killed real jobs part-way through and left
+# them stuck looking like they were still running.
+JOB_TIMEOUT_SECONDS = 6 * 60 * 60
+
+
 def enqueue(job_id: str) -> None:
     """Indirection so tests can substitute a recorder for the queue."""
-    from redis import Redis
-    from rq import Queue
+    import redis
+    import rq
 
     from bina_api.config import get_settings
 
-    Queue(connection=Redis.from_url(get_settings().redis_url)).enqueue(
-        "bina_worker.pipeline.enqueue_job", job_id
+    queue = rq.Queue(connection=redis.Redis.from_url(get_settings().redis_url))
+    queue.enqueue(
+        "bina_worker.pipeline.enqueue_job",
+        job_id,
+        job_timeout=JOB_TIMEOUT_SECONDS,
+        result_ttl=24 * 60 * 60,
     )
 
 

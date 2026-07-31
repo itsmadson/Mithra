@@ -79,6 +79,34 @@ def run_job(
     if job is None:
         raise ValueError(f"job {job_id} not found")
 
+    try:
+        _run_job(session, job, client, classifier, crop_dir, low_confidence_threshold)
+    except BaseException:
+        # Deliberately BaseException: RQ enforces its job timeout by raising
+        # JobTimeoutException, and a killed worker must not leave the row in
+        # `running`, which is indistinguishable from a job still progressing.
+        session.rollback()
+        job = session.get(Job, job_id)
+        if job is not None and job.status not in (
+            JobStatus.SUCCEEDED,
+            JobStatus.PARTIAL,
+            JobStatus.FAILED,
+        ):
+            job.status = JobStatus.FAILED
+            job.reason = JobReason.WORKER_ERROR
+            job.finished_at = datetime.now(UTC)
+            session.commit()
+        raise
+
+
+def _run_job(
+    session: Session,
+    job: Job,
+    client,
+    classifier,
+    crop_dir: Path,
+    low_confidence_threshold: float,
+) -> None:
     job.status = JobStatus.RUNNING
     tiles = split_bbox((job.bbox_west, job.bbox_south, job.bbox_east, job.bbox_north))
     job.tile_count = len(tiles)
