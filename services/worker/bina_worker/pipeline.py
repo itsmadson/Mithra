@@ -28,10 +28,16 @@ def _classify_feature(feature, client, classifier, crop_dir: Path):
     image_ids = [i["id"] for i in feature.get("images", {}).get("data", [])]
     for image_id in image_ids:
         try:
-            all_detections = client.get_detections(image_id)
+            # A single image carries hundreds of detections — one real Mashhad
+            # image held 486, nearly all curbs and fences. Only a detection
+            # whose value matches this sign may be cropped. There is no
+            # fallback: cropping an arbitrary object and filing it as a sign is
+            # worse than recording that the sign was not located.
             detections = [
-                d for d in all_detections if d.get("value") == feature.get("object_value")
-            ] or all_detections
+                d
+                for d in client.get_detections(image_id)
+                if d.get("value") == feature.get("object_value")
+            ]
             if not detections:
                 continue
             meta = client.get_image_meta(image_id)

@@ -155,6 +155,58 @@ def test_crop_failure_still_counts_the_sign_as_unknown(session, job, monkeypatch
     assert sign.needs_review is True
 
 
+def test_a_non_matching_detection_is_never_cropped_as_the_sign(
+    session, job, monkeypatch, tmp_path
+):
+    """Only a detection whose value matches the sign may be cropped.
+
+    A single Mapillary image carries hundreds of detections — one real image
+    held 486, nearly all of them curbs and fences. Falling back to the first
+    available detection when none matched cropped a curb or a car window and
+    filed it as a traffic sign. Observed directly in a Mashhad run.
+    """
+    cropped: list[str] = []
+
+    def record(image_bytes, geometry, *a, **k):
+        cropped.append(geometry)
+        return Image.new("RGB", (64, 64))
+
+    monkeypatch.setattr("bina_worker.pipeline.crop_detection", record)
+
+    client = FakeClient(
+        detections=[
+            {"id": "d1", "geometry": "CURB", "value": "construction--barrier--curb"},
+            {"id": "d2", "geometry": "FENCE", "value": "construction--barrier--fence"},
+        ]
+    )
+    run_job(session, job.id, client, FakeClassifier(), tmp_path)
+
+    assert cropped == [], "cropped a detection that is not the sign"
+    sign = session.scalar(select(Sign))
+    assert sign.sign_class == "unknown"
+    assert sign.reason == SignReason.NO_DETECTION
+
+
+def test_the_matching_detection_is_the_one_cropped(session, job, monkeypatch, tmp_path):
+    cropped: list[str] = []
+
+    def record(image_bytes, geometry, *a, **k):
+        cropped.append(geometry)
+        return Image.new("RGB", (64, 64))
+
+    monkeypatch.setattr("bina_worker.pipeline.crop_detection", record)
+
+    client = FakeClient(
+        detections=[
+            {"id": "d1", "geometry": "CURB", "value": "construction--barrier--curb"},
+            {"id": "d2", "geometry": "THE_SIGN", "value": "information--parking--g1"},
+        ]
+    )
+    run_job(session, job.id, client, FakeClassifier(), tmp_path)
+
+    assert cropped == ["THE_SIGN"]
+
+
 def test_feature_with_no_detection_is_counted_as_unknown(session, job, tmp_path):
     run_job(session, job.id, FakeClient(detections=[]), FakeClassifier(), tmp_path)
     sign = session.scalar(select(Sign))
