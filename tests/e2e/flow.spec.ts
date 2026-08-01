@@ -211,3 +211,12 @@ test("the dashboard links through to a survey", async ({ page }) => {
   await link.click();
   await expect(page).toHaveURL(/\/fa\/jobs\//);
 });
+
+test("the dashboard shows how far the labels are from training a model", async ({
+  page,
+}) => {
+  await page.goto("/fa");
+  await expect(page.getByText("پیشرفت آموزش مدل")).toBeVisible();
+  // Each trainable class reports its progress against the minimum.
+  await expect(page.getByText(/\/ ۲۵|\/ 25/).first()).toBeVisible({ timeout: 15_000 });
+});

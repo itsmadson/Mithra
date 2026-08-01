@@ -188,6 +188,10 @@
     "signCount": "{count} signs",
     "reviewCount": "({count} to review)",
     "untitled": "Untitled",
-    "empty": "No data yet."
+    "empty": "No data yet.",
+    "training": "Training progress",
+    "trainingHint": "Labels collected toward replacing the current model",
+    "trainingHow": "When every class is complete, a new model can be trained and measured against the one in service.",
+    "trainingReady": "Enough labels. Train with scripts/train_probe.py."
   }
 }

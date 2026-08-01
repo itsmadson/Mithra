@@ -236,6 +236,54 @@ export default function DashboardPage() {
             </Panel>
           </div>
 
+          <Panel title={t("dashboard.training")} hint={t("dashboard.trainingHint")}>
+            {data && (
+              <div className="grid gap-2.5">
+                {CLASS_ORDER.filter((cls) => cls !== "unknown").map((cls) => {
+                  const have = data.labels.by_class[cls] ?? 0;
+                  const need = data.labels.needed_per_class;
+                  const done = have >= need;
+                  return (
+                    <div key={cls}>
+                      <div className="flex items-baseline justify-between gap-3 text-[12px]">
+                        <span className="flex min-w-0 items-center gap-2">
+                          <span
+                            className="size-2 shrink-0 rounded-[2px]"
+                            style={{ background: CLASS_COLOR[cls as SignClass] }}
+                            aria-hidden
+                          />
+                          <span className="truncate text-[var(--fg-muted)]">
+                            {t(`classes.${cls}`)}
+                          </span>
+                        </span>
+                        <span
+                          className="shrink-0 tabular-nums"
+                          style={{ color: done ? "var(--c-city)" : "var(--fg-muted)" }}
+                        >
+                          {n(have)} / {n(need)}
+                        </span>
+                      </div>
+                      <div className="mt-1 h-1.5 rounded-full bg-[var(--panel-2)]">
+                        <div
+                          className="h-full rounded-full transition-[width] duration-300"
+                          style={{
+                            width: `${Math.min(100, (have / need) * 100)}%`,
+                            background: done ? "var(--c-city)" : "var(--accent)",
+                          }}
+                        />
+                      </div>
+                    </div>
+                  );
+                })}
+                <p className="mt-1 text-[11px] leading-relaxed text-[var(--fg-muted)]">
+                  {Object.keys(data.labels.short_by).length === 0
+                    ? t("dashboard.trainingReady")
+                    : t("dashboard.trainingHow")}
+                </p>
+              </div>
+            )}
+          </Panel>
+
           <Panel title={t("dashboard.recent")} hint={t("dashboard.recentHint")}>
             {data?.recent.length ? (
               <div className="grid gap-px overflow-hidden rounded-[var(--radius-sm)] bg-[var(--line)]">

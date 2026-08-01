@@ -52,34 +52,18 @@ class ClipZeroShotClassifier:
         self.version = f"clip-zeroshot-{model_name}-{pretrained}-v1"
 
     @functools.cached_property
-    def _loaded(self):
-        import open_clip
+    def _text_matrix(self):
+        """One averaged text embedding per class, computed once."""
+        from bina_ml.encoder import encode_texts
 
-        model, _, preprocess = open_clip.create_model_and_transforms(
-            self._model_name, pretrained=self._pretrained
-        )
-        model.eval()
-        tokenizer = open_clip.get_tokenizer(self._model_name)
-
-        # One averaged text embedding per class, computed once.
-        with torch.no_grad():
-            class_embeddings = []
-            for sign_class in SIGN_CLASSES:
-                tokens = tokenizer(PROMPTS[sign_class])
-                features = model.encode_text(tokens)
-                features = features / features.norm(dim=-1, keepdim=True)
-                averaged = features.mean(dim=0)
-                class_embeddings.append(averaged / averaged.norm())
-            text_matrix = torch.stack(class_embeddings)
-        return model, preprocess, text_matrix
+        return torch.stack([encode_texts(PROMPTS[cls]) for cls in SIGN_CLASSES])
 
     def predict(self, image: Image) -> Prediction:
-        model, preprocess, text_matrix = self._loaded
-        tensor = preprocess(image.convert("RGB")).unsqueeze(0)
-        with torch.no_grad():
-            features = model.encode_image(tensor)
-            features = features / features.norm(dim=-1, keepdim=True)
-            probabilities = (100.0 * features @ text_matrix.T).softmax(dim=-1)[0]
+        from bina_ml.encoder import encode_image
+
+        # The same encoder the probe trains on, so the two are comparable.
+        features = torch.from_numpy(encode_image(image)).unsqueeze(0)
+        probabilities = (100.0 * features @ self._text_matrix.T).softmax(dim=-1)[0]
 
         best = int(probabilities.argmax())
         confidence = float(probabilities[best])

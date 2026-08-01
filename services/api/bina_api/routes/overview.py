@@ -23,6 +23,15 @@ router = APIRouter(prefix="/api/overview", tags=["overview"])
 # here so the histogram's threshold marker matches the queue the operator sees.
 REVIEW_THRESHOLD = 0.55
 
+# Imported rather than restated: if training's minimum moves, the progress the
+# dashboard reports moves with it.
+try:
+    from bina_ml import SIGN_CLASSES as TRAINABLE_CLASSES
+    from bina_ml.probe import MIN_PER_CLASS
+except ImportError:  # pragma: no cover - the API can run without the ml package
+    TRAINABLE_CLASSES = ("direction_guide", "street_name", "city_entry", "informational")
+    MIN_PER_CLASS = 25
+
 
 def _day_series(rows: Sequence, days: int) -> list[dict]:
     """Fill the gaps.
@@ -181,6 +190,18 @@ def overview(
         )
         or 0
     )
+    # Labels per class, against what training needs. A queue that fills without
+    # ever reaching a trainable set is a treadmill, and the operator doing the
+    # labelling is the person who deserves to see the distance left.
+    labels_by_class = dict(
+        session.execute(
+            select(Label.sign_class, func.count())
+            .join(Sign, Sign.id == Label.sign_id)
+            .where(Sign.job_id.in_(mine))
+            .group_by(Label.sign_class)
+        ).all()
+    )
+
     labels_total = (
         session.scalar(
             select(func.count())
@@ -212,7 +233,18 @@ def overview(
             "running": by_status.get(JobStatus.RUNNING, 0) + by_status.get(JobStatus.QUEUED, 0),
             "failed": by_status.get(JobStatus.FAILED, 0),
         },
-        "labels": {"total": labels_total, "per_day": labels_per_day},
+        "labels": {
+            "total": labels_total,
+            "per_day": labels_per_day,
+            "by_class": labels_by_class,
+            "needed_per_class": MIN_PER_CLASS,
+            # The classes still short of a trainable count, and by how much.
+            "short_by": {
+                cls: MIN_PER_CLASS - labels_by_class.get(cls, 0)
+                for cls in TRAINABLE_CLASSES
+                if labels_by_class.get(cls, 0) < MIN_PER_CLASS
+            },
+        },
         "activity": {"signs_per_day": signs_per_day, "days": days},
         "confidence": {"buckets": confidence_buckets, "threshold": REVIEW_THRESHOLD},
         "top_surveys": top_surveys,

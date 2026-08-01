@@ -268,7 +268,13 @@ export interface Overview {
     running: number;
     failed: number;
   };
-  labels: { total: number; per_day: { date: string; count: number }[] };
+  labels: {
+    total: number;
+    per_day: { date: string; count: number }[];
+    by_class: Record<string, number>;
+    needed_per_class: number;
+    short_by: Record<string, number>;
+  };
   activity: { signs_per_day: { date: string; count: number }[]; days: number };
   confidence: {
     buckets: { from: number; to: number; count: number }[];

@@ -31,3 +31,44 @@ def test_prediction_carries_the_model_version():
     prediction = get_classifier().predict(Image.new("RGB", (32, 32)))
     assert prediction.model_version == "fake-v1"
     assert prediction.sign_class != UNKNOWN
+
+
+def test_a_configured_probe_is_served_instead_of_zero_shot(tmp_path, monkeypatch):
+    """Promotion is a deployment decision: point the variable at a file."""
+    import numpy as np
+
+    from bina_ml import SIGN_CLASSES
+    from bina_ml.probe import ProbeWeights, save
+    from bina_ml.registry import get_classifier, reset_registry
+
+    weights = ProbeWeights(
+        weight=np.zeros((len(SIGN_CLASSES), 512), dtype=np.float32),
+        bias=np.zeros(len(SIGN_CLASSES), dtype=np.float32),
+        classes=list(SIGN_CLASSES),
+        label_count=120,
+    )
+    path = tmp_path / "probe.npz"
+    save(weights, path)
+
+    reset_registry()
+    monkeypatch.setenv("BINA_PROBE_PATH", str(path))
+    try:
+        assert get_classifier().version == weights.version
+    finally:
+        reset_registry()
+
+
+def test_an_unloadable_probe_falls_back_rather_than_failing(tmp_path, monkeypatch, capsys):
+    """A worker that refuses to start finds no signs at all — worse than old ones."""
+    from bina_ml.registry import get_classifier, reset_registry
+
+    broken = tmp_path / "broken.npz"
+    broken.write_bytes(b"not a model")
+
+    reset_registry()
+    monkeypatch.setenv("BINA_PROBE_PATH", str(broken))
+    try:
+        assert "zeroshot" in get_classifier().version
+        assert "could not be loaded" in capsys.readouterr().err
+    finally:
+        reset_registry()
