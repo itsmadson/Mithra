@@ -8,11 +8,48 @@ export const SIGN_CLASSES = [
 ] as const;
 export type SignClass = (typeof SIGN_CLASSES)[number] | "unknown";
 
+export type JobState = "queued" | "running" | "succeeded" | "partial" | "failed";
+
+export interface JobSummary {
+  id: string;
+  name: string;
+  kind: "bbox" | "street";
+  status: JobState;
+  reason: string | null;
+  total: number;
+  failed_count: number;
+  tile_count: number;
+  failed_tile_count: number;
+  created_at: string;
+  finished_at: string | null;
+}
+
+export interface StreetHit {
+  osm_id: number;
+  osm_type: string;
+  display_name: string;
+  name: string;
+  name_fa: string;
+  name_en: string;
+  category: string;
+  type: string;
+  lat: number;
+  lon: number;
+}
+
 export interface JobStatus {
   id: string;
-  status: "queued" | "running" | "succeeded" | "partial" | "failed";
+  name: string;
+  kind: "bbox" | "street";
+  status: JobState;
   reason: string | null;
   bbox: [number, number, number, number];
+  /** Street surveys carry the centreline they followed. */
+  geometry: GeoJSON.Geometry | null;
+  buffer_m: number;
+  osm_id: number | null;
+  created_at: string;
+  finished_at: string | null;
   tile_count: number;
   failed_tile_count: number;
   counts: Partial<Record<SignClass, number>>;
@@ -51,11 +88,48 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   return response.json() as Promise<T>;
 }
 
-export function createJob(bbox: Bbox) {
+export function createBboxJob(bbox: Bbox, name?: string) {
   return request<{ id: string; status: string }>("/api/jobs", {
     method: "POST",
-    body: JSON.stringify({ bbox }),
+    body: JSON.stringify({ bbox, name }),
   });
+}
+
+/** The primary path: survey a street, not a rectangle. */
+export function createStreetJob(street: StreetHit, bufferM: number, name?: string) {
+  return request<{ id: string; status: string }>("/api/jobs", {
+    method: "POST",
+    body: JSON.stringify({
+      osm_id: street.osm_id,
+      street_name: street.name || street.name_fa || street.display_name,
+      lat: street.lat,
+      lon: street.lon,
+      buffer_m: bufferM,
+      name,
+    }),
+  });
+}
+
+export function listJobs(limit = 50, offset = 0) {
+  return request<{ items: JobSummary[]; total: number }>(
+    `/api/jobs?limit=${limit}&offset=${offset}`,
+  );
+}
+
+export function deleteJob(id: string) {
+  return fetch(`${API_BASE}/api/jobs/${id}`, { method: "DELETE" });
+}
+
+export function searchStreets(q: string, signal?: AbortSignal) {
+  return request<{ items: StreetHit[] }>(
+    `/api/streets/search?q=${encodeURIComponent(q)}`,
+    { signal },
+  );
+}
+
+/** GeoJSON the map renders directly and any GIS client can consume. */
+export function featuresUrl(id: string) {
+  return `${API_BASE}/api/jobs/${id}/features`;
 }
 
 export function getJob(id: string) {

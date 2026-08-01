@@ -9,14 +9,44 @@ import uuid
 from datetime import UTC, datetime
 from pathlib import Path
 
+from shapely.geometry import shape
 from sqlalchemy.orm import Session
 
-from bina_api.models import Job, JobReason, JobStatus, JobTile, Sign, SignReason
+from bina_api.models import Job, JobKind, JobReason, JobStatus, JobTile, Sign, SignReason
+from bina_worker.corridor import (
+    corridor_bbox,
+    corridor_geojson,
+    corridor_tiles,
+    within_corridor,
+)
+from bina_worker.osm import OsmError, fetch_named_street_geometry, fetch_way_geometry
 from bina_worker.cropper import CropError, crop_detection
 from bina_worker.mapillary import MapillaryAuthError, MapillaryError
 from bina_worker.tiler import split_bbox
 
 UNKNOWN = "unknown"
+
+
+def _resolve_street(job) -> list[list[tuple[float, float]]]:
+    """Every way segment carrying this street's name, not just the one clicked.
+
+    A named street in OSM is split at junctions and surface changes, so the way
+    the operator picked in the search results is typically a few hundred metres
+    of a road that runs for kilometres. Surveying only that way would silently
+    report a fraction of the street.
+    """
+    anchor_lat = (job.bbox_south + job.bbox_north) / 2
+    anchor_lon = (job.bbox_west + job.bbox_east) / 2
+
+    if job.name:
+        try:
+            return fetch_named_street_geometry(job.name, anchor_lat, anchor_lon)
+        except OsmError:
+            pass  # fall back to the single way below
+
+    if job.osm_id is None:
+        raise OsmError("job has neither a street name nor an OSM way id")
+    return [fetch_way_geometry(job.osm_id)]
 
 
 def _point(coordinates: list[float]) -> str:
@@ -114,7 +144,36 @@ def _run_job(
     low_confidence_threshold: float,
 ) -> None:
     job.status = JobStatus.RUNNING
-    tiles = split_bbox((job.bbox_west, job.bbox_south, job.bbox_east, job.bbox_north))
+    session.commit()
+
+    # A street survey resolves its geometry first: the tiles follow the road,
+    # and signs are afterwards checked against the centreline so a tile that
+    # happens to clip a neighbouring street does not contribute its signs.
+    segments: list[list[tuple[float, float]]] | None = None
+    if job.kind == JobKind.STREET:
+        try:
+            segments = _resolve_street(job)
+        except OsmError as exc:
+            job.status = JobStatus.FAILED
+            job.reason = JobReason.STREET_NOT_FOUND
+            job.finished_at = datetime.now(UTC)
+            session.commit()
+            raise ValueError(f"street lookup failed for job {job.id}: {exc}") from exc
+
+        west, south, east, north = corridor_bbox(segments, job.buffer_m)
+        job.bbox_west, job.bbox_south, job.bbox_east, job.bbox_north = (
+            west,
+            south,
+            east,
+            north,
+        )
+        job.geom = f"SRID=4326;{shape(corridor_geojson(segments)).wkt}"
+        tiles = corridor_tiles(segments, job.buffer_m)
+    else:
+        tiles = split_bbox(
+            (job.bbox_west, job.bbox_south, job.bbox_east, job.bbox_north)
+        )
+
     job.tile_count = len(tiles)
     job.failed_tile_count = 0
     session.commit()
@@ -147,6 +206,14 @@ def _run_job(
             feature_id = feature["id"]
             if feature_id in seen:
                 continue
+
+            # Outside the corridor means it belongs to another street, not to
+            # this survey. Skipped before classification so no work is wasted.
+            if segments is not None:
+                lon, lat = feature["geometry"]["coordinates"][:2]
+                if not within_corridor(segments, job.buffer_m, lon, lat):
+                    continue
+
             seen.add(feature_id)
 
             (

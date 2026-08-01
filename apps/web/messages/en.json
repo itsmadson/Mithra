@@ -97,5 +97,28 @@
   "a11y": {
     "close": "Close",
     "toggleTheme": "Switch between light and dark"
+  },
+  "surveys": {
+    "title": "Surveys",
+    "count": "{count} surveys",
+    "signs": "signs",
+    "untitled": "Untitled",
+    "emptyTitle": "No surveys yet",
+    "emptyBody": "Pick a street in the panel beside this to start scanning it."
+  },
+  "compose": {
+    "title": "New survey",
+    "subtitle": "Choose a street to count the signs along it.",
+    "streetLabel": "Street",
+    "streetPlaceholder": "Type a street name",
+    "noHits": "No street found with that name.",
+    "bufferLabel": "Corridor width",
+    "bufferHelp": "How far from the centreline a sign still counts as belonging to this street. Widen it for dual carriageways.",
+    "start": "Start scan",
+    "starting": "Submitting…",
+    "bboxHint": "Scanning follows OpenStreetMap geometry."
+  },
+  "jobReason": {
+    "street_not_found": "Street not found in OpenStreetMap"
   }
 }

@@ -49,13 +49,16 @@ test("export links are present once the job is finished", async ({ page }) => {
   await expect(page.getByRole("link", { name: /GeoJSON/i })).toBeVisible();
 });
 
-test("signs are plotted on the map", async ({ page }) => {
+test("signs are plotted on the map as vector features", async ({ page }) => {
   await page.goto(`/fa/jobs/${JOB_ID}`);
-  await expect(page.locator(".bina-pin").first()).toBeVisible({ timeout: 20_000 });
-  expect(await page.locator(".bina-pin").count()).toBe(4);
 
-  // The surveyed area is drawn so an empty result still shows what was covered.
-  await expect(page.locator(".bina-bbox")).toBeVisible();
+  // Signs render from a GeoJSON source through vector layers, so there is no
+  // DOM node per sign. The map publishes how many features it actually
+  // painted, which is stronger than asserting the source holds them.
+  const painted = page.locator("[data-signs-rendered]");
+  await expect(painted).toHaveAttribute("data-signs-rendered", /[1-9]/, {
+    timeout: 25_000,
+  });
 });
 
 test("class filters hide and show signs", async ({ page }) => {

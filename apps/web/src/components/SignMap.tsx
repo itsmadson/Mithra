@@ -1,55 +1,112 @@
 "use client";
 
-import { MapLibreMap, Marker, NavigationControl } from "maplibre-gl";
-import { useEffect, useRef, useState } from "react";
-import { API_BASE, type Bbox, type Sign } from "../lib/api";
+import maplibregl, { Map as MapLibreMap, Popup, type GeoJSONSource } from "maplibre-gl";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { API_BASE, type Bbox, type Sign, type SignClass } from "../lib/api";
 import { SIGNS_ATTRIBUTION, basemapStyle } from "../lib/basemap";
 import { CLASS_HEX } from "../lib/signClass";
 
 /**
- * Signs are drawn as DOM markers rather than as a GeoJSON circle layer.
+ * Signs render from a GeoJSON source through data-driven vector layers, which
+ * is the standard way and the one that scales: styling is a paint expression
+ * over feature properties, hit-testing is queryRenderedFeatures, and the same
+ * FeatureCollection the map draws is what the API serves and exports.
  *
- * MapLibre parses GeoJSON sources in a Web Worker, and under this project's
- * bundler that worker never returns tiles: isSourceLoaded stayed false, no
- * error was raised, and every vector layer silently rendered nothing while the
- * raster basemap drew fine. Markers are plain elements on the main thread, so
- * they are immune to that whole class of failure — and at survey scale
- * (hundreds of signs inside one bbox) they cost nothing.
- *
- * The bbox outline is a projected overlay for the same reason, which leaves the
- * map with no vector layers at all.
+ * An earlier revision used DOM markers because MapLibre 6's GeoJSON worker
+ * never returned tiles under this bundler — silently, with raster fine and
+ * every vector layer empty. That was a workaround for a packaging bug, not a
+ * design decision; pinning MapLibre to 5.x fixes the worker and the markers are
+ * gone.
  */
 
-const MAX_MARKERS = 1200;
+const HALO = "signs-halo";
+const DOT = "signs-dot";
+const SELECTED = "signs-selected";
+
+function colorExpression(theme: "dark" | "light") {
+  const expression: unknown[] = ["match", ["get", "sign_class"]];
+  (Object.keys(CLASS_HEX) as SignClass[]).forEach((cls) => {
+    expression.push(cls, CLASS_HEX[cls][theme]);
+  });
+  expression.push(CLASS_HEX.unknown[theme]);
+  return expression;
+}
+
+function toFeatureCollection(signs: Sign[]): GeoJSON.FeatureCollection {
+  return {
+    type: "FeatureCollection",
+    features: signs.map((s) => ({
+      type: "Feature",
+      id: s.id,
+      properties: {
+        id: s.id,
+        sign_class: s.sign_class,
+        confidence: s.confidence,
+        needs_review: s.needs_review ? 1 : 0,
+        crop_url: s.crop_url ?? "",
+        mapillary_value: s.mapillary_value ?? "",
+      },
+      geometry: { type: "Point", coordinates: [s.lon, s.lat] },
+    })),
+  };
+}
+
+function bboxFeature(bbox: Bbox): GeoJSON.FeatureCollection {
+  const [w, s, e, n] = bbox;
+  return {
+    type: "FeatureCollection",
+    features: [
+      {
+        type: "Feature",
+        properties: {},
+        geometry: {
+          type: "Polygon",
+          coordinates: [
+            [
+              [w, s],
+              [e, s],
+              [e, n],
+              [w, n],
+              [w, s],
+            ],
+          ],
+        },
+      },
+    ],
+  };
+}
 
 export default function SignMap({
   signs,
   bbox,
+  geometry,
   selectedId,
   onSelect,
   theme,
 }: {
   signs: Sign[];
   bbox: Bbox | null;
+  /** Optional survey geometry (a street corridor) drawn instead of the bbox. */
+  geometry?: GeoJSON.Geometry | null;
   selectedId: string | null;
   onSelect: (id: string | null) => void;
   theme: "dark" | "light";
 }) {
   const container = useRef<HTMLDivElement>(null);
   const map = useRef<MapLibreMap | null>(null);
-  const markers = useRef(new Map<string, Marker>());
+  const popup = useRef<Popup | null>(null);
   const onSelectRef = useRef(onSelect);
   onSelectRef.current = onSelect;
 
   const [ready, setReady] = useState(false);
-  const [box, setBox] = useState<{ left: number; top: number; w: number; h: number } | null>(
-    null,
-  );
+  const data = useMemo(() => toFeatureCollection(signs), [signs]);
+  const dataRef = useRef(data);
+  dataRef.current = data;
 
   useEffect(() => {
     if (!container.current || map.current) return;
 
-    const instance = new MapLibreMap({
+    const instance = new maplibregl.Map({
       container: container.current,
       style: basemapStyle(theme, SIGNS_ATTRIBUTION),
       center: [59.6062, 36.2972],
@@ -57,15 +114,123 @@ export default function SignMap({
       attributionControl: { compact: true },
     });
     map.current = instance;
-    instance.addControl(new NavigationControl({ showCompass: false }), "top-right");
+    instance.addControl(new maplibregl.NavigationControl({ showCompass: false }), "top-right");
+    instance.addControl(new maplibregl.ScaleControl({ maxWidth: 90, unit: "metric" }), "bottom-left");
 
-    // Clicking bare map clears the selection; markers stop propagation.
-    instance.on("click", () => onSelectRef.current(null));
-    instance.on("load", () => setReady(true));
+    instance.on("load", () => {
+      instance.addSource("area", { type: "geojson", data: { type: "FeatureCollection", features: [] } });
+      instance.addLayer({
+        id: "area-fill",
+        type: "fill",
+        source: "area",
+        paint: { "fill-color": "#4da3ff", "fill-opacity": 0.07 },
+      });
+      instance.addLayer({
+        id: "area-line",
+        type: "line",
+        source: "area",
+        paint: {
+          "line-color": "#4da3ff",
+          "line-width": 1.4,
+          "line-dasharray": [3, 2],
+          "line-opacity": 0.75,
+        },
+      });
+
+      instance.addSource("signs", { type: "geojson", data: dataRef.current });
+
+      instance.addLayer({
+        id: HALO,
+        type: "circle",
+        source: "signs",
+        paint: {
+          "circle-radius": ["interpolate", ["linear"], ["zoom"], 12, 8, 18, 22],
+          "circle-color": colorExpression(theme) as never,
+          "circle-opacity": 0.18,
+          "circle-blur": 0.7,
+        },
+      });
+
+      instance.addLayer({
+        id: DOT,
+        type: "circle",
+        source: "signs",
+        paint: {
+          "circle-radius": ["interpolate", ["linear"], ["zoom"], 12, 4, 18, 10],
+          "circle-color": colorExpression(theme) as never,
+          "circle-stroke-width": 1.5,
+          "circle-stroke-color": theme === "dark" ? "#0c1116" : "#ffffff",
+          // Unreviewed low-confidence signs read as translucent, so an operator
+          // can see which parts of a survey are still guesses.
+          "circle-opacity": ["case", ["==", ["get", "needs_review"], 1], 0.45, 1],
+        },
+      });
+
+      instance.addLayer({
+        id: SELECTED,
+        type: "circle",
+        source: "signs",
+        filter: ["==", ["get", "id"], ""],
+        paint: {
+          "circle-radius": ["interpolate", ["linear"], ["zoom"], 12, 9, 18, 17],
+          "circle-color": "rgba(0,0,0,0)",
+          "circle-stroke-width": 2,
+          "circle-stroke-color": theme === "dark" ? "#e7edf3" : "#14202b",
+        },
+      });
+
+      instance.on("click", DOT, (event) => {
+        const id = event.features?.[0]?.properties?.id as string | undefined;
+        if (id) onSelectRef.current(id);
+      });
+      instance.on("click", (event) => {
+        if (instance.queryRenderedFeatures(event.point, { layers: [DOT] }).length === 0) {
+          onSelectRef.current(null);
+        }
+      });
+
+      instance.on("mousemove", DOT, (event) => {
+        instance.getCanvas().style.cursor = "pointer";
+        const feature = event.features?.[0];
+        if (!feature) return;
+        const props = feature.properties as Record<string, string>;
+        const [lng, lat] = (feature.geometry as GeoJSON.Point).coordinates;
+        const crop = props.crop_url
+          ? `<img src="${API_BASE}${props.crop_url}" alt="" class="bina-pop-img" />`
+          : "";
+        popup.current ??= new maplibregl.Popup({
+          closeButton: false,
+          closeOnClick: false,
+          offset: 14,
+          className: "bina-pop",
+        });
+        popup.current
+          .setLngLat([lng, lat])
+          .setHTML(`<div class="bina-pop-card">${crop}</div>`)
+          .addTo(instance);
+      });
+      instance.on("mouseleave", DOT, () => {
+        instance.getCanvas().style.cursor = "";
+        popup.current?.remove();
+      });
+
+      setReady(true);
+    });
+
+    // Vector layers leave nothing in the DOM to assert on, so the count of
+    // actually-painted sign features is published on the container. It is the
+    // only honest signal that rendering worked end to end: a source can hold
+    // features while the layer paints none.
+    instance.on("idle", () => {
+      if (!container.current) return;
+      container.current.dataset.signsRendered = String(
+        instance.queryRenderedFeatures({ layers: [DOT] }).length,
+      );
+    });
 
     return () => {
-      markers.current.forEach((m) => m.remove());
-      markers.current.clear();
+      popup.current?.remove();
+      popup.current = null;
       instance.remove();
       map.current = null;
       setReady(false);
@@ -73,130 +238,51 @@ export default function SignMap({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Markers are reconciled by id rather than rebuilt wholesale, so pins do not
-  // flicker while a running job keeps adding to the list.
+  useEffect(() => {
+    if (!ready) return;
+    (map.current?.getSource("signs") as GeoJSONSource | undefined)?.setData(data);
+  }, [data, ready]);
+
   useEffect(() => {
     const instance = map.current;
     if (!instance || !ready) return;
+    const source = instance.getSource("area") as GeoJSONSource | undefined;
+    if (!source) return;
 
-    const wanted = new Map(signs.slice(0, MAX_MARKERS).map((s) => [s.id, s]));
-
-    markers.current.forEach((marker, id) => {
-      if (!wanted.has(id)) {
-        marker.remove();
-        markers.current.delete(id);
-      }
-    });
-
-    wanted.forEach((sign, id) => {
-      const color = CLASS_HEX[sign.sign_class][theme];
-      const existing = markers.current.get(id);
-
-      if (existing) {
-        const el = existing.getElement();
-        el.dataset.selected = String(id === selectedId);
-        el.style.setProperty("--pin", color);
-        existing.setLngLat([sign.lon, sign.lat]);
-        return;
-      }
-
-      const el = document.createElement("button");
-      el.type = "button";
-      el.className = "bina-pin";
-      el.style.setProperty("--pin", color);
-      el.dataset.selected = String(id === selectedId);
-      el.dataset.review = String(sign.needs_review);
-      el.setAttribute("aria-label", sign.sign_class);
-      el.addEventListener("click", (event) => {
-        event.stopPropagation();
-        onSelectRef.current(id);
+    if (geometry) {
+      source.setData({
+        type: "FeatureCollection",
+        features: [{ type: "Feature", properties: {}, geometry }],
       });
-
-      if (sign.crop_url) {
-        const preview = document.createElement("span");
-        preview.className = "bina-pin-preview";
-        const img = document.createElement("img");
-        img.src = `${API_BASE}${sign.crop_url}`;
-        img.alt = "";
-        img.loading = "lazy";
-        preview.appendChild(img);
-        el.appendChild(preview);
-      }
-
-      markers.current.set(
-        id,
-        new Marker({ element: el }).setLngLat([sign.lon, sign.lat]).addTo(instance),
-      );
-    });
-  }, [signs, ready, theme, selectedId]);
-
-  // Keep the bbox rectangle glued to the map.
-  //
-  // Measured on `render` rather than on `move`/`moveend`: the camera also
-  // changes from fitBounds and from container resizes that emit no move event,
-  // and a rectangle measured one frame too early stays wrong forever. The
-  // equality guard stops this from setting state on every frame.
-  const lastBox = useRef<string>("");
-
-  useEffect(() => {
-    const instance = map.current;
-    if (!instance || !ready || !bbox) {
-      setBox(null);
-      lastBox.current = "";
+    } else if (bbox) {
+      source.setData(bboxFeature(bbox));
+    } else {
+      source.setData({ type: "FeatureCollection", features: [] });
       return;
     }
-    const area = bbox;
 
-    function project() {
-      if (!instance) return;
-      const a = instance.project([area[0], area[3]]);
-      const b = instance.project([area[2], area[1]]);
-      const next = {
-        left: Math.min(a.x, b.x),
-        top: Math.min(a.y, b.y),
-        w: Math.abs(b.x - a.x),
-        h: Math.abs(b.y - a.y),
-      };
-      const key = `${Math.round(next.left)},${Math.round(next.top)},${Math.round(next.w)},${Math.round(next.h)}`;
-      if (key === lastBox.current) return;
-      lastBox.current = key;
-      setBox(next);
+    if (bbox) {
+      instance.fitBounds(
+        [
+          [bbox[0], bbox[1]],
+          [bbox[2], bbox[3]],
+        ],
+        { padding: 72, duration: 0 },
+      );
     }
-
-    instance.fitBounds(
-      [
-        [area[0], area[1]],
-        [area[2], area[3]],
-      ],
-      { padding: 72, duration: 0 },
-    );
-    instance.on("render", project);
-    return () => {
-      instance.off("render", project);
-    };
-  }, [bbox, ready]);
+  }, [bbox, geometry, ready]);
 
   useEffect(() => {
     const instance = map.current;
-    if (!instance || !selectedId) return;
+    if (!instance || !ready || !instance.getLayer(SELECTED)) return;
+    instance.setFilter(SELECTED, ["==", ["get", "id"], selectedId ?? ""]);
+    if (!selectedId) return;
     const sign = signs.find((s) => s.id === selectedId);
     if (sign) instance.easeTo({ center: [sign.lon, sign.lat], duration: 420 });
-  }, [selectedId, signs]);
+  }, [selectedId, signs, ready]);
 
-  return (
-    <div style={{ position: "absolute", inset: 0 }}>
-      {/* Inline positioning on purpose: Tailwind v4 emits utilities inside a
-          cascade layer, and MapLibre's unlayered `.maplibregl-map { position:
-          relative }` outranks any layered rule regardless of import order,
-          which collapsed this container to zero height. */}
-      <div ref={container} style={{ position: "absolute", inset: 0 }} />
-      {box && (
-        <div
-          aria-hidden
-          className="bina-bbox"
-          style={{ left: box.left, top: box.top, width: box.w, height: box.h }}
-        />
-      )}
-    </div>
-  );
+  // Inline positioning: Tailwind v4 emits utilities inside a cascade layer, and
+  // MapLibre's unlayered `.maplibregl-map { position: relative }` outranks any
+  // layered rule regardless of import order, collapsing this to zero height.
+  return <div ref={container} style={{ position: "absolute", inset: 0 }} />;
 }

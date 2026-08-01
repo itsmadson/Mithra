@@ -241,3 +241,154 @@ def test_job_status_returns_the_requested_bbox(client):
 
     body = client.get(f"/api/jobs/{job_id}").json()
     assert body["bbox"] == pytest.approx([59.600, 36.293, 59.609, 36.302])
+
+
+def test_street_survey_is_created_without_a_bbox(client):
+    """A survey is defined by a معبر; the corridor bbox is the worker's job."""
+    response = client.post(
+        "/api/jobs",
+        json={
+            "street_name": "خیابان امام رضا",
+            "osm_id": 44641660,
+            "lat": 36.2857,
+            "lon": 59.6138,
+            "buffer_m": 30,
+        },
+    )
+    assert response.status_code == 201
+
+    with Session(client.engine) as session:
+        job = session.scalars(select(Job)).one()
+        assert job.kind == "street"
+        assert job.name == "خیابان امام رضا"
+        assert job.osm_id == 44641660
+        assert job.buffer_m == 30
+
+
+def test_a_survey_cannot_be_both_a_street_and_a_bbox(client):
+    response = client.post(
+        "/api/jobs",
+        json={
+            "street_name": "x",
+            "lat": 36.3,
+            "lon": 59.6,
+            "bbox": [59.60, 36.29, 59.61, 36.30],
+        },
+    )
+    assert response.status_code == 422
+
+
+def test_a_survey_must_be_one_or_the_other(client):
+    assert client.post("/api/jobs", json={}).status_code == 422
+
+
+def test_a_street_survey_needs_an_anchor_point(client):
+    response = client.post("/api/jobs", json={"street_name": "x", "osm_id": 1})
+    assert response.status_code == 422
+
+
+def test_buffer_width_is_bounded(client):
+    response = client.post(
+        "/api/jobs",
+        json={"street_name": "x", "lat": 36.3, "lon": 59.6, "buffer_m": 5000},
+    )
+    assert response.status_code == 422
+
+
+def test_job_list_is_newest_first_and_carries_counts(client):
+    with Session(client.engine) as session:
+        for i in range(3):
+            job = Job(
+                name=f"survey {i}",
+                bbox_west=59.60,
+                bbox_south=36.29,
+                bbox_east=59.61,
+                bbox_north=36.30,
+            )
+            session.add(job)
+            session.commit()
+            if i == 2:
+                session.add(
+                    Sign(
+                        job_id=job.id,
+                        mapillary_feature_id="f1",
+                        geom="SRID=4326;POINT(59.601 36.294)",
+                        sign_class="street_name",
+                        confidence=0.8,
+                        model_version="v1",
+                    )
+                )
+                session.commit()
+
+    body = client.get("/api/jobs").json()
+    assert body["total"] == 3
+    assert [i["name"] for i in body["items"]] == ["survey 2", "survey 1", "survey 0"]
+    assert body["items"][0]["total"] == 1
+    assert body["items"][1]["total"] == 0
+
+
+def test_a_survey_can_be_deleted(client):
+    with Session(client.engine) as session:
+        job = Job(bbox_west=59.60, bbox_south=36.29, bbox_east=59.61, bbox_north=36.30)
+        session.add(job)
+        session.commit()
+        job_id = str(job.id)
+
+    assert client.delete(f"/api/jobs/{job_id}").status_code == 204
+    assert client.get(f"/api/jobs/{job_id}").status_code == 404
+
+
+def test_features_endpoint_serves_geojson(client):
+    with Session(client.engine) as session:
+        job = Job(bbox_west=59.60, bbox_south=36.29, bbox_east=59.61, bbox_north=36.30)
+        session.add(job)
+        session.commit()
+        session.add(
+            Sign(
+                job_id=job.id,
+                mapillary_feature_id="f1",
+                image_id="img1",
+                geom="SRID=4326;POINT(59.601 36.294)",
+                sign_class="direction_guide",
+                confidence=0.81,
+                model_version="clip-v1",
+                mapillary_value="information--general-directions--g1",
+            )
+        )
+        session.commit()
+        job_id = str(job.id)
+
+    response = client.get(f"/api/jobs/{job_id}/features")
+    assert response.status_code == 200
+    assert "geo+json" in response.headers["content-type"]
+
+    body = response.json()
+    assert body["type"] == "FeatureCollection"
+    feature = body["features"][0]
+    assert feature["geometry"] == {"type": "Point", "coordinates": [59.601, 36.294]}
+    assert feature["properties"]["sign_class"] == "direction_guide"
+    assert feature["properties"]["image_id"] == "img1"
+
+
+def test_features_can_be_filtered_by_class(client):
+    with Session(client.engine) as session:
+        job = Job(bbox_west=59.60, bbox_south=36.29, bbox_east=59.61, bbox_north=36.30)
+        session.add(job)
+        session.commit()
+        for i, cls in enumerate(["direction_guide", "street_name"]):
+            session.add(
+                Sign(
+                    job_id=job.id,
+                    mapillary_feature_id=f"f{i}",
+                    geom="SRID=4326;POINT(59.601 36.294)",
+                    sign_class=cls,
+                    confidence=0.8,
+                    model_version="v1",
+                )
+            )
+        session.commit()
+        job_id = str(job.id)
+
+    body = client.get(f"/api/jobs/{job_id}/features?sign_class=street_name").json()
+    assert len(body["features"]) == 1
+    assert body["features"][0]["properties"]["sign_class"] == "street_name"

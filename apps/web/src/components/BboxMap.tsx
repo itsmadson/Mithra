@@ -1,7 +1,6 @@
 "use client";
 
-// maplibre-gl v6 ships named exports only; there is no default export.
-import { MapLibreMap, NavigationControl, type GeoJSONSource } from "maplibre-gl";
+import maplibregl, { Map as MapLibreMap, type GeoJSONSource } from "maplibre-gl";
 import { useEffect, useRef } from "react";
 import type { Bbox } from "../lib/api";
 import { MASHHAD_CENTER, bboxToPolygon, normalizeBbox } from "../lib/bbox";
@@ -24,7 +23,7 @@ export default function BboxMap({
 
   useEffect(() => {
     if (!container.current || map.current) return;
-    const instance = new MapLibreMap({
+    const instance = new maplibregl.Map({
       container: container.current,
       style: basemapStyle(theme, OSM_ATTRIBUTION),
       center: MASHHAD_CENTER,
@@ -32,7 +31,7 @@ export default function BboxMap({
       attributionControl: { compact: true },
     });
     map.current = instance;
-    instance.addControl(new NavigationControl({ showCompass: false }), "top-right");
+    instance.addControl(new maplibregl.NavigationControl({ showCompass: false }), "top-right");
 
     instance.on("load", () => {
       instance.addSource("bbox", {

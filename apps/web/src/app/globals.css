@@ -169,90 +169,46 @@ html[lang="en"] body {
 }
 
 /*
- * Sign pins and the survey rectangle.
- *
- * These are plain DOM, not map layers: MapLibre's GeoJSON worker never returns
- * tiles under this bundler, so vector layers render nothing at all. Written as
- * ordinary rules rather than utilities because unlayered CSS reliably outranks
- * MapLibre's own marker styles, which is the same cascade-layer trap that
- * collapsed the map container.
+ * Map popup. Unlayered on purpose: MapLibre's own popup styles are unlayered
+ * too, and Tailwind's layered utilities lose to them regardless of order.
  */
-
-.bina-pin {
-  --pin: var(--c-unknown);
-  width: 13px;
-  height: 13px;
-  padding: 0;
-  border: 1.5px solid var(--bg);
-  border-radius: 999px;
-  background: var(--pin);
-  cursor: pointer;
-  position: relative;
-  box-shadow: 0 0 0 4px color-mix(in oklab, var(--pin) 22%, transparent);
-  transition: transform 160ms ease-out, box-shadow 160ms ease-out;
+.bina-pop .maplibregl-popup-content {
+  padding: 0 !important;
+  background: transparent !important;
 }
 
-.bina-pin:hover {
-  transform: scale(1.35);
-  box-shadow: 0 0 0 6px color-mix(in oklab, var(--pin) 30%, transparent);
-  z-index: 5;
-}
-
-/* Low-confidence signs read as hollow, so an operator can see at a glance
-   which parts of a survey are still guesses. */
-.bina-pin[data-review="true"] {
-  background: color-mix(in oklab, var(--pin) 28%, var(--bg));
-  border-style: dashed;
-}
-
-.bina-pin[data-selected="true"] {
-  transform: scale(1.45);
-  box-shadow:
-    0 0 0 3px var(--bg),
-    0 0 0 5px var(--pin);
-  z-index: 6;
-}
-
-/* The crop preview rides with its pin and appears on hover, so scanning the
-   map shows the actual photographs rather than abstract dots. */
-.bina-pin-preview {
-  position: absolute;
-  bottom: calc(100% + 10px);
-  left: 50%;
-  translate: -50% 0;
-  display: block;
+.bina-pop-card {
   padding: 3px;
   border: 1px solid var(--line-strong);
   border-radius: 9px;
   background: var(--panel);
   box-shadow: var(--shadow-lg);
-  opacity: 0;
-  scale: 0.94;
-  transform-origin: bottom center;
-  pointer-events: none;
-  transition: opacity 160ms ease-out, scale 160ms ease-out;
 }
 
-.bina-pin:hover .bina-pin-preview,
-.bina-pin:focus-visible .bina-pin-preview {
-  opacity: 1;
-  scale: 1;
-}
-
-.bina-pin-preview img {
+.bina-pop-img {
   display: block;
   max-width: 168px;
   max-height: 140px;
   border-radius: 6px;
 }
 
-.bina-bbox {
-  position: absolute;
-  pointer-events: none;
-  border: 1px dashed color-mix(in oklab, var(--accent) 70%, transparent);
-  background: color-mix(in oklab, var(--accent) 6%, transparent);
-  border-radius: 3px;
-}
+
+
+
+
+/* Low-confidence signs read as hollow, so an operator can see at a glance
+   which parts of a survey are still guesses. */
+
+
+
+
+/* The crop preview rides with its pin and appears on hover, so scanning the
+   map shows the actual photographs rather than abstract dots. */
+
+
+
+
+
 
 /*
  * Darkening the basemap.

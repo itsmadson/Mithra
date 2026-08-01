@@ -3,6 +3,7 @@ from datetime import datetime
 
 from geoalchemy2 import Geometry
 from sqlalchemy import (
+    BigInteger,
     Boolean,
     DateTime,
     Float,
@@ -16,6 +17,13 @@ from sqlalchemy.dialects.postgresql import UUID as PgUUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from bina_api.db import Base
+
+
+class JobKind:
+    """How the surveyed area was chosen."""
+
+    BBOX = "bbox"
+    STREET = "street"
 
 
 class JobStatus:
@@ -38,6 +46,7 @@ class JobReason:
     AUTH_FAILED = "auth_failed"
     ENQUEUE_FAILED = "enqueue_failed"
     WORKER_ERROR = "worker_error"
+    STREET_NOT_FOUND = "street_not_found"
 
 
 class Job(Base):
@@ -46,10 +55,28 @@ class Job(Base):
     id: Mapped[uuid.UUID] = mapped_column(
         PgUUID(as_uuid=True), primary_key=True, default=uuid.uuid4
     )
+    # A survey has a name because a list of UUIDs is not a dashboard. For a
+    # street survey this is the street; for a bbox it is generated from the
+    # coordinates.
+    name: Mapped[str] = mapped_column(String(200), default="")
+    kind: Mapped[str] = mapped_column(String(16), default=JobKind.BBOX, index=True)
+
+    # The bbox is always populated, including for street surveys, where it is
+    # the extent of the buffered corridor. It is what the map frames on.
     bbox_west: Mapped[float] = mapped_column(Float)
     bbox_south: Mapped[float] = mapped_column(Float)
     bbox_east: Mapped[float] = mapped_column(Float)
     bbox_north: Mapped[float] = mapped_column(Float)
+
+    # Street surveys keep the centreline they followed and how wide a corridor
+    # counted as "on this street", so a count can be re-checked against the
+    # exact geometry that produced it.
+    osm_id: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
+    buffer_m: Mapped[int] = mapped_column(Integer, default=25)
+    geom: Mapped[str | None] = mapped_column(
+        Geometry("MULTILINESTRING", srid=4326), nullable=True
+    )
+
     status: Mapped[str] = mapped_column(String(16), default=JobStatus.QUEUED, index=True)
     reason: Mapped[str | None] = mapped_column(String(32), nullable=True)
     tile_count: Mapped[int] = mapped_column(Integer, default=0)

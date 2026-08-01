@@ -127,10 +127,10 @@ export default function JobPage({ params }: { params: Promise<{ id: string }> })
       <TopBar
         theme={theme}
         setTheme={setTheme}
-        title={job ? t("job.titleWithCount", { count: job.total }) : t("job.loading")}
+        title={job ? job.name || t("job.titleWithCount", { count: job.total }) : t("job.loading")}
         subtitle={
           job
-            ? `${t(`job.${job.status}`)} · ${t("job.tilesDone", {
+            ? `${t("job.titleWithCount", { count: job.total })} · ${t(`job.${job.status}`)} · ${t("job.tilesDone", {
                 done: job.tile_count - job.failed_tile_count,
                 total: job.tile_count,
               })}`
@@ -218,6 +218,7 @@ export default function JobPage({ params }: { params: Promise<{ id: string }> })
             key={theme}
             signs={filtered}
             bbox={bbox}
+            geometry={job?.geometry ?? null}
             selectedId={selectedId}
             onSelect={setSelectedId}
             theme={theme}
