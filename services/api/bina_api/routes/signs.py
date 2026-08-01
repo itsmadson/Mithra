@@ -5,9 +5,9 @@ from geoalchemy2.functions import ST_X, ST_Y
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from bina_api.auth import current_user
+from bina_api.auth import current_user, same_org, visible_jobs
 from bina_api.db import get_session
-from bina_api.models import Job, Sign
+from bina_api.models import Job, Sign, User
 from bina_api.schemas import SignList, SignOut
 
 router = APIRouter(prefix="/api/jobs", tags=["signs"])
@@ -25,7 +25,7 @@ def list_all_signs(
     limit: int = Query(default=500, le=5000),
     offset: int = Query(default=0, ge=0),
     session: Session = Depends(get_session),
-    _user=Depends(current_user),
+    user: User = Depends(current_user),
 ) -> SignList:
     statement = select(
         Sign.id,
@@ -39,7 +39,7 @@ def list_all_signs(
         Sign.image_id,
         Sign.model_version,
         Sign.reason,
-    ).order_by(Sign.created_at.desc())
+    ).where(Sign.job_id.in_(visible_jobs(user))).order_by(Sign.created_at.desc())
 
     if sign_class is not None:
         statement = statement.where(Sign.sign_class == sign_class)
@@ -73,9 +73,10 @@ def list_signs(
     needs_review: bool | None = Query(default=None),
     limit: int = Query(default=1000, le=5000),
     session: Session = Depends(get_session),
-    _user=Depends(current_user),
+    user: User = Depends(current_user),
 ) -> SignList:
-    if session.get(Job, job_id) is None:
+    job = session.get(Job, job_id)
+    if job is None or not same_org(user, job):
         raise HTTPException(status_code=404, detail="job not found")
 
     statement = select(

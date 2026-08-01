@@ -19,6 +19,27 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from bina_api.db import Base
 
 
+class Organisation(Base):
+    """A municipality, a contractor, a department.
+
+    Surveys belong to an organisation rather than to the person who ran them,
+    because the work outlives the employee: staff change, and the inventory a
+    city paid for must not leave with them.
+    """
+
+    __tablename__ = "organisations"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        PgUUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    name: Mapped[str] = mapped_column(String(160))
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+
+    users: Mapped[list["User"]] = relationship(back_populates="organisation")
+
+
 class UserRole:
     """Two roles is all the product distinguishes today.
 
@@ -36,6 +57,9 @@ class User(Base):
     id: Mapped[uuid.UUID] = mapped_column(
         PgUUID(as_uuid=True), primary_key=True, default=uuid.uuid4
     )
+    org_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("organisations.id", ondelete="CASCADE"), nullable=True, index=True
+    )
     email: Mapped[str] = mapped_column(String(320), unique=True, index=True)
     name: Mapped[str] = mapped_column(String(120), default="")
     password_hash: Mapped[str] = mapped_column(String(255))
@@ -51,6 +75,7 @@ class User(Base):
     sessions: Mapped[list["Session"]] = relationship(
         back_populates="user", cascade="all, delete-orphan"
     )
+    organisation: Mapped[Organisation | None] = relationship(back_populates="users")
 
 
 class Session(Base):
@@ -125,6 +150,11 @@ class Job(Base):
     # Backfilling them to an arbitrary account would be a lie about who ran them.
     owner_id: Mapped[uuid.UUID | None] = mapped_column(
         ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True
+    )
+    # Who the survey belongs to. This is the tenancy boundary: every read is
+    # filtered by it, so one organisation never sees another's inventory.
+    org_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("organisations.id", ondelete="CASCADE"), nullable=True, index=True
     )
 
     # The bbox is always populated, including for street surveys, where it is

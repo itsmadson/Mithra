@@ -11,7 +11,7 @@ from sqlalchemy import delete, select
 from sqlalchemy.orm import Session as DbSession
 
 from bina_api.db import get_session
-from bina_api.models import Session, User, UserRole
+from bina_api.models import Job, Organisation, Session, User, UserRole
 from bina_api.security import (
     SESSION_COOKIE,
     hash_session_token,
@@ -95,3 +95,23 @@ def current_admin(user: User = Depends(current_user)) -> User:
 def has_any_user(db: DbSession) -> bool:
     """First-run detection, so the very first account can be created unauthenticated."""
     return db.scalar(select(User.id).limit(1)) is not None
+
+
+def visible_jobs(user: User):
+    """The job ids this user is allowed to see, as a subquery.
+
+    Tenancy is enforced by filtering, not by trusting the caller to pass their
+    own organisation id: a request that can name another organisation's survey
+    still gets nothing back.
+
+    Surveys with no organisation predate tenancy. They stay visible to everyone
+    rather than disappearing, because hiding an existing inventory behind a
+    migration would look like data loss; new surveys always carry an owner.
+    """
+    return select(Job.id).where(
+        (Job.org_id == user.org_id) | (Job.org_id.is_(None))
+    )
+
+
+def same_org(user: User, job: Job) -> bool:
+    return job.org_id is None or job.org_id == user.org_id

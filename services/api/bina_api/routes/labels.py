@@ -6,9 +6,9 @@ from pydantic import BaseModel, field_validator
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from bina_api.auth import current_user
+from bina_api.auth import current_user, same_org, visible_jobs
 from bina_api.db import get_session
-from bina_api.models import Label, Sign
+from bina_api.models import Label, Sign, User
 from bina_api.schemas import SignList, SignOut
 from bina_ml import ALL_CLASSES
 
@@ -31,7 +31,7 @@ class LabelCreate(BaseModel):
 def queue(
     limit: int = Query(default=50, le=500),
     session: Session = Depends(get_session),
-    _user=Depends(current_user),
+    user: User = Depends(current_user),
 ) -> SignList:
     rows = session.execute(
         select(
@@ -44,7 +44,7 @@ def queue(
             Sign.needs_review,
             Sign.mapillary_value,
         )
-        .where(Sign.needs_review.is_(True))
+        .where(Sign.needs_review.is_(True), Sign.job_id.in_(visible_jobs(user)))
         .order_by(Sign.confidence.asc())
         .limit(limit)
     ).all()
@@ -69,17 +69,19 @@ def queue(
 def create_label(
     payload: LabelCreate,
     session: Session = Depends(get_session),
-    _user=Depends(current_user),
+    user: User = Depends(current_user),
 ) -> dict[str, str]:
     sign = session.get(Sign, payload.sign_id)
-    if sign is None:
+    # Labelling another organisation's sign would write into their training
+    # data, so an out-of-scope sign is simply not there.
+    if sign is None or not same_org(user, sign.job):
         raise HTTPException(status_code=404, detail="sign not found")
 
     session.add(
         Label(
             sign_id=sign.id,
             sign_class=payload.sign_class,
-            labelled_by_id=_user.id,
+            labelled_by_id=user.id,
         )
     )
     sign.sign_class = payload.sign_class

@@ -18,7 +18,7 @@ from bina_api.auth import (
     start_session,
 )
 from bina_api.db import get_session
-from bina_api.models import User, UserRole
+from bina_api.models import Organisation, User, UserRole
 from bina_api.security import (
     WeakPassword,
     hash_password,
@@ -38,6 +38,9 @@ class Registration(BaseModel):
     email: EmailStr
     password: str = Field(min_length=1, max_length=200)
     name: str = Field(default="", max_length=120)
+    # Only meaningful on the very first registration, which creates the
+    # organisation everyone else then joins.
+    org_name: str = Field(default="", max_length=160)
 
 
 class UserOut(BaseModel):
@@ -48,6 +51,8 @@ class UserOut(BaseModel):
     is_active: bool
     created_at: datetime
     last_login_at: datetime | None
+    org_id: uuid.UUID | None
+    org_name: str | None
 
 
 def _out(user: User) -> UserOut:
@@ -59,6 +64,8 @@ def _out(user: User) -> UserOut:
         is_active=user.is_active,
         created_at=user.created_at,
         last_login_at=user.last_login_at,
+        org_id=user.org_id,
+        org_name=user.organisation.name if user.organisation else None,
     )
 
 
@@ -87,8 +94,18 @@ def register(
     registration is an unlocked door.
     """
     first_account = not has_any_user(db)
-    if not first_account:
-        current_admin(current_user(current_user_optional(request, db)))
+    org_id = None
+    if first_account:
+        # The first account brings its organisation into being. Everything
+        # created afterwards belongs to it.
+        org = Organisation(name=payload.org_name or payload.name or "Bina")
+        db.add(org)
+        db.flush()
+        org_id = org.id
+    else:
+        admin = current_admin(current_user(current_user_optional(request, db)))
+        # An administrator can only add people to their own organisation.
+        org_id = admin.org_id
 
     try:
         password_hash = hash_password(payload.password)
@@ -100,6 +117,7 @@ def register(
         name=payload.name,
         password_hash=password_hash,
         role=UserRole.ADMIN if first_account else UserRole.OPERATOR,
+        org_id=org_id,
     )
     db.add(user)
     try:
@@ -153,7 +171,10 @@ def me(user: User = Depends(current_user)) -> UserOut:
 def list_users(
     _: User = Depends(current_admin), db: DbSession = Depends(get_session)
 ) -> dict:
-    users = db.scalars(select(User).order_by(User.created_at)).all()
+    """Only this organisation's people."""
+    users = db.scalars(
+        select(User).where(User.org_id == _.org_id).order_by(User.created_at)
+    ).all()
     return {"items": [_out(u) for u in users]}
 
 
@@ -170,7 +191,7 @@ def update_user(
     db: DbSession = Depends(get_session),
 ) -> UserOut:
     user = db.get(User, user_id)
-    if user is None:
+    if user is None or user.org_id != admin.org_id:
         raise HTTPException(status_code=404, detail="user not found")
 
     # An administrator locking themselves out is a support call, not a feature.

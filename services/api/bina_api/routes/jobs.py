@@ -6,7 +6,7 @@ from geoalchemy2.functions import ST_AsGeoJSON
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from bina_api.auth import current_user
+from bina_api.auth import current_user, same_org, visible_jobs
 from bina_api.db import get_session
 from bina_api.models import Job, JobKind, JobReason, JobStatus, Sign, SignReason, User
 from bina_api.schemas import (
@@ -77,6 +77,7 @@ def create_job(
             bbox_east=east,
             bbox_north=north,
             owner_id=user.id,
+            org_id=user.org_id,
         )
     else:
         # The corridor geometry is resolved by the worker, which owns the OSM
@@ -94,6 +95,7 @@ def create_job(
             bbox_east=lon + 0.001,
             bbox_north=lat + 0.001,
             owner_id=user.id,
+            org_id=user.org_id,
         )
 
     session.add(job)
@@ -121,25 +123,34 @@ def list_jobs(
     limit: int = Query(default=50, ge=1, le=200),
     offset: int = Query(default=0, ge=0),
     session: Session = Depends(get_session),
-    _user=Depends(current_user),
+    user: User = Depends(current_user),
 ) -> JobList:
-    """Newest first. This is the dashboard's home view."""
-    total = session.scalar(select(func.count()).select_from(Job)) or 0
+    """Newest first, and only this organisation's surveys."""
+    mine = visible_jobs(user)
+    total = session.scalar(select(func.count()).select_from(Job).where(Job.id.in_(mine))) or 0
 
     # One grouped query for the per-job totals rather than N queries in a loop.
     sign_totals = dict(
-        session.execute(select(Sign.job_id, func.count()).group_by(Sign.job_id)).all()
+        session.execute(
+            select(Sign.job_id, func.count())
+            .where(Sign.job_id.in_(mine))
+            .group_by(Sign.job_id)
+        ).all()
     )
     failed_totals = dict(
         session.execute(
             select(Sign.job_id, func.count())
-            .where(Sign.reason != SignReason.OK)
+            .where(Sign.job_id.in_(mine), Sign.reason != SignReason.OK)
             .group_by(Sign.job_id)
         ).all()
     )
 
     jobs = session.scalars(
-        select(Job).order_by(Job.created_at.desc()).limit(limit).offset(offset)
+        select(Job)
+        .where(Job.id.in_(mine))
+        .order_by(Job.created_at.desc())
+        .limit(limit)
+        .offset(offset)
     ).all()
 
     return JobList(
@@ -167,10 +178,12 @@ def list_jobs(
 def get_job(
     job_id: uuid.UUID,
     session: Session = Depends(get_session),
-    _user: User = Depends(current_user),
+    user: User = Depends(current_user),
 ) -> JobStatusOut:
     job = session.get(Job, job_id)
-    if job is None:
+    # Another organisation's survey is reported as absent rather than
+    # forbidden: "you may not see this" still confirms it exists.
+    if job is None or not same_org(user, job):
         raise HTTPException(status_code=404, detail="job not found")
 
     counts, failed_count = _counts(session, job.id)
@@ -208,7 +221,7 @@ def delete_job(
     user: User = Depends(current_user),
 ) -> None:
     job = session.get(Job, job_id)
-    if job is None:
+    if job is None or not same_org(user, job):
         raise HTTPException(status_code=404, detail="job not found")
 
     # Surveys are shared, but deleting one destroys work. Only the person who

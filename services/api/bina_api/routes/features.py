@@ -17,9 +17,9 @@ from geoalchemy2.functions import ST_AsGeoJSON
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from bina_api.auth import current_user
+from bina_api.auth import current_user, same_org
 from bina_api.db import get_session
-from bina_api.models import Job, Sign
+from bina_api.models import Job, Sign, User
 
 router = APIRouter(prefix="/api/jobs", tags=["features"])
 
@@ -30,9 +30,10 @@ def features(
     sign_class: str | None = Query(default=None),
     needs_review: bool | None = Query(default=None),
     session: Session = Depends(get_session),
-    _user=Depends(current_user),
+    user: User = Depends(current_user),
 ) -> JSONResponse:
-    if session.get(Job, job_id) is None:
+    job = session.get(Job, job_id)
+    if job is None or not same_org(user, job):
         raise HTTPException(status_code=404, detail="job not found")
 
     statement = select(

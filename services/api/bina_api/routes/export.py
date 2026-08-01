@@ -8,9 +8,9 @@ from geoalchemy2.functions import ST_X, ST_Y
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from bina_api.auth import current_user
+from bina_api.auth import current_user, same_org
 from bina_api.db import get_session
-from bina_api.models import Job, Sign
+from bina_api.models import Job, Sign, User
 
 router = APIRouter(prefix="/api/jobs", tags=["export"])
 
@@ -25,8 +25,9 @@ COLUMNS = [
 ]
 
 
-def _rows(session: Session, job_id: uuid.UUID):
-    if session.get(Job, job_id) is None:
+def _rows(session: Session, job_id: uuid.UUID, user: User):
+    job = session.get(Job, job_id)
+    if job is None or not same_org(user, job):
         raise HTTPException(status_code=404, detail="job not found")
     return session.execute(
         select(
@@ -43,9 +44,11 @@ def _rows(session: Session, job_id: uuid.UUID):
 
 @router.get("/{job_id}/export.csv")
 def export_csv(
-    job_id: uuid.UUID, session: Session = Depends(get_session)
+    job_id: uuid.UUID,
+    session: Session = Depends(get_session),
+    user: User = Depends(current_user),
 ) -> StreamingResponse:
-    rows = _rows(session, job_id)
+    rows = _rows(session, job_id, user)
     buffer = io.StringIO()
     writer = csv.writer(buffer)
     writer.writerow(COLUMNS)
@@ -63,9 +66,11 @@ def export_csv(
 
 @router.get("/{job_id}/export.geojson")
 def export_geojson(
-    job_id: uuid.UUID, session: Session = Depends(get_session)
+    job_id: uuid.UUID,
+    session: Session = Depends(get_session),
+    user: User = Depends(current_user),
 ) -> JSONResponse:
-    rows = _rows(session, job_id)
+    rows = _rows(session, job_id, user)
     return JSONResponse(
         {
             "type": "FeatureCollection",

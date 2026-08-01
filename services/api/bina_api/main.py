@@ -8,6 +8,7 @@ from bina_api.routes import (
     features,
     jobs,
     labels,
+    overview,
     signs,
     stats,
     streets,
@@ -32,6 +33,7 @@ app.include_router(crops.router)
 app.include_router(features.router)
 app.include_router(streets.router)
 app.include_router(stats.router)
+app.include_router(overview.router)
 app.include_router(signs.all_signs)
 
 
