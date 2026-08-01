@@ -40,7 +40,7 @@ jobs:
       # several top-level directories is the package.
       - name: Install
         run: |
-          pip install --index-url https://download.pytorch.org/whl/cpu torch
+          pip install --index-url https://download.pytorch.org/whl/cpu torch torchvision
           pip install \
             "fastapi>=0.115" "uvicorn[standard]>=0.32" "sqlalchemy>=2.0" \
             "geoalchemy2>=0.15" "alembic>=1.13" "psycopg[binary]>=3.2" \
