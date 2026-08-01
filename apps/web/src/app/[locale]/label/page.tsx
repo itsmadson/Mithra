@@ -3,7 +3,7 @@
 import { useTranslations } from "next-intl";
 import { useCallback, useEffect, useState } from "react";
 import { AppShell } from "../../../components/AppShell";
-import { IconFlag } from "../../../components/icons";
+import { IconAlert, IconFlag } from "../../../components/icons";
 import {
   API_BASE,
   SIGN_CLASSES,
@@ -19,11 +19,20 @@ export default function LabelPage() {
   const [items, setItems] = useState<Sign[]>([]);
   const [index, setIndex] = useState(0);
   const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const refill = useCallback(async () => {
-    const { items: next } = await getLabelQueue(50);
-    setItems(next);
-    setIndex(0);
+    try {
+      const { items: next } = await getLabelQueue(50);
+      setItems(next);
+      setIndex(0);
+      setError(null);
+    } catch (e) {
+      // A failed request previously rendered as "nothing to review", which
+      // tells an operator their work is done when the truth is that the
+      // server could not be reached.
+      setError(e instanceof Error ? e.message : String(e));
+    }
   }, []);
 
   useEffect(() => {
@@ -71,7 +80,13 @@ export default function LabelPage() {
     >
 
       <main className="grid min-h-0 flex-1 place-items-center p-4">
-        {!current ? (
+        {error ? (
+          <div className="text-center">
+            <IconAlert size={24} className="mx-auto mb-3 text-[var(--danger)]" />
+            <p className="text-sm text-[var(--fg)]">{t("error.title")}</p>
+            <p className="mt-1 text-xs text-[var(--fg-muted)]">{error}</p>
+          </div>
+        ) : !current ? (
           <div className="text-center">
             <IconFlag size={24} className="mx-auto mb-3 text-[var(--fg-faint)]" />
             <p className="text-sm text-[var(--fg)]">{t("label.empty")}</p>

@@ -84,27 +84,20 @@ body {
   height: 100%;
 }
 
-/* Named faces first, then system-ui. Persian sets from whatever the machine
-   has — Vazirmatn if installed, otherwise Sahel or Tahoma, both of which shape
-   Persian correctly. No webfont fetch, so the build works offline. */
-html[lang="fa"] body {
-  font-family: Vazirmatn, Sahel, Samim, "Iranian Sans", Tahoma, "Segoe UI",
-    system-ui, "Noto Naskh Arabic", sans-serif;
-}
-
-html[lang="en"] body {
-  font-family: Inter, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-}
-
 body {
+  /* One shipped family for both scripts; the stack below it only matters
+     during swap or if the file fails to load. */
+  font-family: var(--font-sans), Tahoma, "Segoe UI", system-ui, sans-serif;
   background: var(--bg);
   color: var(--fg);
   /* Tabular figures so coordinates and counts align column to column. */
   font-variant-numeric: tabular-nums;
   -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
 }
 
-/* Persian sets a little larger than Latin at the same nominal size. */
+/* Persian sets larger and looser at the same nominal size: the script carries
+   more vertical detail, and its ascenders and dots need the room. */
 html[lang="fa"] body {
   font-size: 15.5px;
   line-height: 1.75;
@@ -113,6 +106,21 @@ html[lang="fa"] body {
 html[lang="en"] body {
   font-size: 15px;
   line-height: 1.6;
+}
+
+/* Persian has no case, so `uppercase` is a no-op on it while the tracking it
+   ships with is not — letter-spacing pulls Persian words apart at the joins.
+   Section labels keep their Latin treatment and drop it for Persian. */
+html[lang="fa"] .uppercase {
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+/* Numerals inside otherwise-Persian UI stay upright and aligned. */
+.tabular-nums,
+[class*="tabular"] {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1;
 }
 
 ::selection {

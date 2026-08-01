@@ -118,7 +118,7 @@ export default function DashboardPage() {
             </p>
           )}
 
-          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          <div className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
             <StatTile
               label={t("dashboard.totalSigns")}
               value={data ? n(data.signs.total) : "—"}
@@ -127,7 +127,14 @@ export default function DashboardPage() {
             />
             <StatTile
               label={t("dashboard.confident")}
-              value={data ? `${data.signs.confident_share.toLocaleString(locale)}%` : "—"}
+              value={
+                data
+                  ? new Intl.NumberFormat(locale, {
+                      style: "percent",
+                      maximumFractionDigits: 1,
+                    }).format(data.signs.confident_share / 100)
+                  : "—"
+              }
               hint={t("dashboard.confidentHint")}
               tone={
                 data && data.signs.confident_share < 60
@@ -257,10 +264,14 @@ export default function DashboardPage() {
                           </span>
                         </span>
                         <span
-                          className="shrink-0 tabular-nums"
+                          className="flex shrink-0 items-baseline gap-1 tabular-nums"
                           style={{ color: done ? "var(--c-city)" : "var(--fg-muted)" }}
                         >
-                          {n(have)} / {n(need)}
+                          <bdi>{n(have)}</bdi>
+                          <span aria-hidden className="text-[var(--fg-faint)]">
+                            /
+                          </span>
+                          <bdi className="text-[var(--fg-faint)]">{n(need)}</bdi>
                         </span>
                       </div>
                       <div className="mt-1 h-1.5 rounded-full bg-[var(--panel-2)]">

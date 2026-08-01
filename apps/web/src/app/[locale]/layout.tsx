@@ -1,21 +1,33 @@
 import { NextIntlClientProvider } from "next-intl";
 import { getMessages } from "next-intl/server";
+import localFont from "next/font/local";
 import "maplibre-gl/dist/maplibre-gl.css";
 import "../globals.css";
 
 /*
- * Fonts come from the platform, not from a webfont service.
+ * One family, both scripts, shipped with the app.
  *
- * next/font/google fetches at build time, and this network cannot reach
- * fonts.googleapis.com, jsdelivr, or unpkg — the build failed outright on
- * `Failed to fetch Inter from Google Fonts`. A survey tool that cannot be
- * rebuilt offline is not much use, so the stacks in globals.css name the
- * Persian faces a Windows or Linux machine in Iran actually has (Vazirmatn,
- * Sahel, Tahoma) and fall back through system-ui.
+ * Vazirmatn is drawn for Persian rather than adapted to it, and carries a
+ * Latin companion designed alongside — so the same face sets a street name and
+ * a model version without the seam that appears when a Latin family falls back
+ * to a system Arabic face mid-sentence. It is a variable font, so the whole
+ * weight range costs one 111 KB file.
  *
- * To upgrade: drop a woff2 into public/fonts and switch to next/font/local,
- * which needs no network at all.
+ * Self-hosted deliberately: this network cannot reach Google Fonts, and a
+ * survey tool that cannot be rebuilt offline is not much use. next/font/local
+ * subsets nothing away and needs no network at build time.
  */
+const vazirmatn = localFont({
+  src: "../fonts/Vazirmatn.woff2",
+  weight: "100 900",
+  display: "swap",
+  variable: "--font-sans",
+  // Tahoma shapes Persian correctly and is on every Windows machine in Iran,
+  // so the swap lands on something readable rather than on a fallback that
+  // renders Persian as disconnected letterforms.
+  fallback: ["Tahoma", "Segoe UI", "system-ui", "sans-serif"],
+  adjustFontFallback: false,
+});
 
 export const metadata = {
   title: "بینا · Bina",
@@ -38,6 +50,7 @@ export default async function LocaleLayout({
       lang={locale}
       dir={isFa ? "rtl" : "ltr"}
       data-theme="dark"
+      className={vazirmatn.variable}
       suppressHydrationWarning
     >
       <head>

@@ -216,7 +216,13 @@ test("the dashboard shows how far the labels are from training a model", async (
   page,
 }) => {
   await page.goto("/fa");
-  await expect(page.getByText("پیشرفت آموزش مدل")).toBeVisible();
-  // Each trainable class reports its progress against the minimum.
-  await expect(page.getByText(/\/ ۲۵|\/ 25/).first()).toBeVisible({ timeout: 15_000 });
+  const panel = page.getByText("پیشرفت آموزش مدل");
+  await expect(panel).toBeVisible();
+
+  // Each trainable class reports its progress against the minimum. The count
+  // and the target are separate elements so the numerals stay isolated from
+  // the surrounding right-to-left text, so this asserts on the target alone.
+  await expect(page.getByText("۲۵", { exact: true }).first()).toBeVisible({
+    timeout: 15_000,
+  });
 });

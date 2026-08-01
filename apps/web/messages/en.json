@@ -76,7 +76,8 @@
     "hint": "Least confident signs are shown first."
   },
   "error": {
-    "title": "Could not load the data"
+    "title": "Could not load the data",
+    "offline": "Cannot reach the API at {api}. Nothing will load until the connection is back."
   },
   "a11y": {
     "close": "Close",

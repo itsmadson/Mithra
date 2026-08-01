@@ -12,7 +12,9 @@ import {
   type Account,
   type Stats,
 } from "../lib/api";
+import { API_BASE } from "../lib/api";
 import {
+  IconAlert,
   IconChart,
   IconFlag,
   IconLayers,
@@ -90,6 +92,7 @@ export function AppShell({
   const [theme, setTheme] = useTheme();
   const [stats, setStats] = useState<Stats | null>(null);
   const [account, setAccount] = useState<Account | null>(null);
+  const [offline, setOffline] = useState(false);
 
   // The shell is the guard: any page wrapped in it requires a session, and an
   // expired one sends the operator to sign in rather than showing empty panels
@@ -101,7 +104,14 @@ export function AppShell({
         if (!cancelled) setAccount(user);
       })
       .catch((e) => {
-        if (!cancelled && e instanceof Unauthorized) router.replace(`/${locale}/login`);
+        if (cancelled) return;
+        if (e instanceof Unauthorized) {
+          router.replace(`/${locale}/login`);
+          return;
+        }
+        // Not an auth problem — the API could not be reached at all. Saying so
+        // is the difference between "still loading" and "nothing is coming".
+        setOffline(true);
       });
     return () => {
       cancelled = true;
@@ -113,10 +123,13 @@ export function AppShell({
     async function load() {
       try {
         const next = await getStats();
-        if (!cancelled) setStats(next);
+        if (!cancelled) {
+          setStats(next);
+          setOffline(false);
+        }
       } catch (e) {
         if (e instanceof Unauthorized) router.replace(`/${locale}/login`);
-        /* otherwise the rail degrades to no badges; the page shows the error */
+        else if (!cancelled) setOffline(true);
       }
     }
     load();
@@ -249,6 +262,16 @@ export function AppShell({
       </nav>
 
       <div className="flex min-w-0 flex-1 flex-col">
+        {offline && (
+          <div
+            role="alert"
+            className="flex items-center gap-2 border-b border-[var(--line)] bg-[var(--panel-2)] px-4 py-2 text-[12px]"
+            style={{ color: "var(--danger)" }}
+          >
+            <IconAlert size={13} className="shrink-0" />
+            {t("error.offline", { api: API_BASE })}
+          </div>
+        )}
         <header className="flex h-14 shrink-0 items-center gap-3 border-b border-[var(--line)] bg-[var(--panel)] px-4">
           <div className="min-w-0 flex-1">
             <div className="truncate text-[14px] text-[var(--fg)]">{title}</div>

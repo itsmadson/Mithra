@@ -21,6 +21,21 @@ function useFormat() {
 }
 
 /**
+ * A percentage in the page's own convention — Persian gets ٪, not %.
+ *
+ * Built through Intl rather than concatenated, because a bare "%" glued to a
+ * Persian numeral is both the wrong sign and a bidirectional hazard.
+ */
+function usePercent() {
+  const locale = useLocale();
+  return (fraction: number, digits = 0) =>
+    new Intl.NumberFormat(locale, {
+      style: "percent",
+      maximumFractionDigits: digits,
+    }).format(fraction);
+}
+
+/**
  * A single number that answers one question.
  *
  * Not every figure deserves a chart. A total, a share, a backlog: these are
@@ -133,6 +148,13 @@ export function TimeSeries({
 
   return (
     <div className="relative">
+      {/* The ceiling, level with the top gridline, so a height reads as a
+          quantity rather than a shape. */}
+      {/* Backed by the surface: a peak reaching the ceiling passes under this
+          label, and an unbacked number on top of the line is unreadable. */}
+      <span className="absolute start-0 top-0 rounded-[3px] bg-[var(--panel)] px-1 text-[10px] tabular-nums text-[var(--fg-faint)]">
+        {format(max)}
+      </span>
       <svg
         viewBox={`0 0 ${w} ${h}`}
         preserveAspectRatio="none"
@@ -196,7 +218,7 @@ export function TimeSeries({
         )}
       </svg>
 
-      <div className="mt-1 flex justify-between text-[10px] text-[var(--fg-faint)]">
+      <div className="mt-1 flex items-baseline justify-between text-[10px] text-[var(--fg-faint)]">
         <span>{new Date(points[0].date).toLocaleDateString(locale)}</span>
         <span>{new Date(points[points.length - 1].date).toLocaleDateString(locale)}</span>
       </div>
@@ -244,6 +266,9 @@ export function Histogram({
 
   return (
     <div>
+      <span className="mb-1 block text-[10px] tabular-nums text-[var(--fg-faint)]">
+        {format(max)}
+      </span>
       <div className="relative flex h-[150px] items-end gap-[2px]" role="img" aria-label={label}>
         {buckets.map((b, i) => {
           const below = b.to <= threshold;
@@ -308,8 +333,8 @@ export function StackedShare({
 }: {
   parts: { key: string; label: string; value: number; color: string }[];
 }) {
-  const locale = useLocale();
   const format = useFormat();
+  const percent = usePercent();
   const [hover, setHover] = useState<string | null>(null);
   const total = parts.reduce((sum, p) => sum + p.value, 0) || 1;
 
@@ -350,14 +375,12 @@ export function StackedShare({
               />
               <span className="truncate text-[var(--fg-muted)]">{p.label}</span>
             </span>
-            <span className="shrink-0 tabular-nums text-[var(--fg)]">
-              {format(p.value)}
-              <span className="ms-1.5 text-[var(--fg-faint)]">
-                {((p.value / total) * 100).toLocaleString(locale, {
-                  maximumFractionDigits: 0,
-                })}
-                %
+            <span className="flex shrink-0 items-baseline gap-1.5 tabular-nums text-[var(--fg)]">
+              <bdi>{format(p.value)}</bdi>
+              <span aria-hidden className="text-[var(--fg-faint)]">
+                ·
               </span>
+              <bdi className="text-[var(--fg-faint)]">{percent(p.value / total)}</bdi>
             </span>
           </div>
         ))}
