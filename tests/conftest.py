@@ -27,10 +27,22 @@ def _database_name(url: str) -> str:
     return url.rsplit("/", 1)[-1]
 
 
+def _admin_dsn(url: str) -> str:
+    """The same server, the `postgres` database, as a plain psycopg DSN.
+
+    Derived from the test URL rather than hardcoded: a hardcoded host, port and
+    password only works on the machine it was written on, and elsewhere — CI, a
+    colleague's laptop — it fails at connect time with an error about the wrong
+    server entirely.
+    """
+    base = url.replace("postgresql+psycopg://", "postgresql://")
+    return base.rsplit("/", 1)[0] + "/postgres"
+
+
 def _ensure_database_exists() -> None:
     """CREATE DATABASE cannot run inside a transaction, hence raw psycopg."""
     name = _database_name(TEST_DATABASE_URL)
-    admin_dsn = "postgresql://bina:bina@localhost:5434/postgres"
+    admin_dsn = _admin_dsn(TEST_DATABASE_URL)
     with psycopg.connect(admin_dsn, autocommit=True) as conn:
         exists = conn.execute(
             "SELECT 1 FROM pg_database WHERE datname = %s", (name,)
