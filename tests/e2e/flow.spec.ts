@@ -126,6 +126,9 @@ test("the navigation rail reaches every section", async ({ page }) => {
   await expect(page.getByText("موجودی")).toBeVisible();
 
   await nav.getByRole("link", { name: "تحلیل\u200cها" }).click();
+  await expect(page).toHaveURL(/\/fa\/surveys$/);
+
+  await nav.getByRole("link", { name: "داشبورد" }).click();
   await expect(page).toHaveURL(/\/fa$/);
 });
 
@@ -182,4 +185,29 @@ test("signing out returns to the login screen", async ({ page }) => {
   await page.goto("/fa");
   await page.getByRole("button", { name: "خروج" }).click();
   await expect(page).toHaveURL(/\/fa\/login$/);
+});
+
+test("the dashboard leads with the numbers a decision needs", async ({ page }) => {
+  await page.goto("/fa");
+
+  await expect(page.getByText("کل تابلوها")).toBeVisible();
+  await expect(page.getByText("در انتظار بازبینی")).toBeVisible();
+  await expect(page.getByText("توزیع اطمینان مدل")).toBeVisible();
+  await expect(page.getByText("پربارترین تحلیل\u200cها")).toBeVisible();
+});
+
+test("changing the range reloads the dashboard", async ({ page }) => {
+  await page.goto("/fa");
+  const seven = page.getByRole("button", { name: /۷ روز|7 روز/ });
+  await seven.click();
+  await expect(seven).toHaveAttribute("aria-pressed", "true");
+});
+
+test("the dashboard links through to a survey", async ({ page }) => {
+  await page.goto("/fa");
+  // Recent activity is a list of real surveys; following one must land on it.
+  const link = page.locator('a[href*="/fa/jobs/"]').first();
+  await expect(link).toBeVisible({ timeout: 15_000 });
+  await link.click();
+  await expect(page).toHaveURL(/\/fa\/jobs\//);
 });

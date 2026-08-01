@@ -110,7 +110,8 @@
     "surveys": "Surveys",
     "signs": "Signs",
     "review": "Review",
-    "settings": "Settings"
+    "settings": "Settings",
+    "dashboard": "Dashboard"
   },
   "signs": {
     "subtitle": "Showing {shown} of {total} signs"
@@ -133,7 +134,7 @@
     "basemap": "Basemap",
     "geocoder": "Geocoding",
     "limits": "Known limitations",
-    "limitsBody": "Classification currently runs CLIP zero-shot with no training and is frequently wrong on regulatory signs. The review queue exists to collect the labels that replace it. Access requires an account, but every signed-in user sees every survey; per-organisation separation is not implemented."
+    "limitsBody": "Classification currently runs CLIP zero-shot with no training and is frequently wrong on regulatory signs. The review queue exists to collect the labels that replace it. Surveys are scoped to your organisation, but everyone in it can see all of its surveys."
   },
   "auth": {
     "signInTitle": "Sign in to Bina",
@@ -159,5 +160,34 @@
     "lastLogin": "Last sign-in",
     "never": "Never",
     "badCredentials": "Incorrect email or password."
+  },
+  "dashboard": {
+    "subtitle": "Inventory and work in progress",
+    "range": "Time range",
+    "days": "{count} days",
+    "totalSigns": "Signs",
+    "acrossSurveys": "across {count} surveys",
+    "confident": "Confident",
+    "confidentHint": "Share the model was sure enough about",
+    "queue": "Awaiting review",
+    "queueHint": "Signs that need a human judgement",
+    "running": "Running",
+    "noneRunning": "Nothing running",
+    "failedSurveys": "{count} failed",
+    "activity": "Signs found",
+    "activityHint": "By day",
+    "byClass": "Class distribution",
+    "byClassHint": "Each class's share of the inventory",
+    "confidence": "Model confidence",
+    "confidenceHint": "A pile on the left means the model is guessing, not that signs are missing",
+    "belowThreshold": "below review threshold",
+    "topSurveys": "Most productive surveys",
+    "topSurveysHint": "Which streets carry the inventory",
+    "recent": "Recent activity",
+    "recentHint": "Latest surveys",
+    "signCount": "{count} signs",
+    "reviewCount": "({count} to review)",
+    "untitled": "Untitled",
+    "empty": "No data yet."
   }
 }

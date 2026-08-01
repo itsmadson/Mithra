@@ -28,10 +28,13 @@
   /* Sign classes. Chosen for separation on a dark basemap and for distinctness
      under the common colour-vision deficiencies: these differ in lightness as
      well as hue, so the pins stay tellable apart in greyscale too. */
-  --c-direction: #4da3ff;
-  --c-street: #ffb547;
-  --c-city: #5fd39a;
-  --c-info: #b78bff;
+  /* Class hues are stepped to survive colour-blindness, not chosen by eye:
+     validated for lightness band, chroma, CVD separation and contrast against
+     this surface. Changing one means re-running the check on all of them. */
+  --c-direction: #3690e3;
+  --c-street: #c97500;
+  --c-city: #00a875;
+  --c-info: #be67b7;
   --c-unknown: #7b8b9c;
 
   --danger: #ff6b6b;
@@ -60,10 +63,10 @@
   --accent: #0b6bd3;
   --accent-ink: #ffffff;
 
-  --c-direction: #0b6bd3;
-  --c-street: #a35f00;
-  --c-city: #0d6d49;
-  --c-info: #6135bd;
+  --c-direction: #0074ca;
+  --c-street: #ae5700;
+  --c-city: #008d59;
+  --c-info: #a3489d;
   --c-unknown: #61728a;
 
   --shadow: 0 8px 24px -14px rgb(15 30 45 / 0.25), 0 2px 6px -3px rgb(15 30 45 / 0.12);

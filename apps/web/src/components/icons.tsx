@@ -144,3 +144,14 @@ export function IconSettings({ size = 16, className }: IconProps) {
     </svg>
   );
 }
+
+export function IconChart({ size = 16, className }: IconProps) {
+  return (
+    <svg {...base(size, className)}>
+      <path d="M3 3v16.5a1.5 1.5 0 0 0 1.5 1.5H21" />
+      <path d="M7.5 15.5v-3" />
+      <path d="M12 15.5v-7" />
+      <path d="M16.5 15.5v-5" />
+    </svg>
+  );
+}

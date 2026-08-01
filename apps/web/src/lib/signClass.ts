@@ -16,12 +16,23 @@ export const CLASS_COLOR: Record<SignClass, string> = {
 
 /** Literal hex per class, for MapLibre paint expressions, which cannot read CSS vars. */
 export const CLASS_HEX: Record<SignClass, { dark: string; light: string }> = {
-  direction_guide: { dark: "#4da3ff", light: "#0b6bd3" },
-  street_name: { dark: "#ffb547", light: "#a35f00" },
-  city_entry: { dark: "#5fd39a", light: "#0d6d49" },
-  informational: { dark: "#b78bff", light: "#6135bd" },
+  direction_guide: { dark: "#3690e3", light: "#0074ca" },
+  street_name: { dark: "#c97500", light: "#ae5700" },
+  city_entry: { dark: "#00a875", light: "#008d59" },
+  informational: { dark: "#be67b7", light: "#a3489d" },
+  // "unknown" is the reserved no-class slot, so it stays neutral by design and
+  // is always direct-labelled rather than identified by colour alone.
   unknown: { dark: "#7b8b9c", light: "#61728a" },
 };
+
+/** The order classes are drawn in, everywhere. Colour follows the class, never its rank. */
+export const CLASS_ORDER: SignClass[] = [
+  "direction_guide",
+  "street_name",
+  "city_entry",
+  "informational",
+  "unknown",
+];
 
 /**
  * Mapillary's own category, derived from object_value ("regulatory--stop--g1").

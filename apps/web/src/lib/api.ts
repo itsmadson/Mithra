@@ -252,3 +252,47 @@ export function postLabel(signId: string, signClass: string) {
 export function exportUrl(id: string, format: "csv" | "geojson") {
   return `${API_BASE}/api/jobs/${id}/export.${format}`;
 }
+
+export interface Overview {
+  org: { id: string | null };
+  signs: {
+    total: number;
+    by_class: Record<string, number>;
+    needs_review: number;
+    failed: number;
+    confident_share: number;
+  };
+  surveys: {
+    total: number;
+    by_status: Record<string, number>;
+    running: number;
+    failed: number;
+  };
+  labels: { total: number; per_day: { date: string; count: number }[] };
+  activity: { signs_per_day: { date: string; count: number }[]; days: number };
+  confidence: {
+    buckets: { from: number; to: number; count: number }[];
+    threshold: number;
+  };
+  top_surveys: {
+    id: string;
+    name: string;
+    total: number;
+    needs_review: number;
+    status: string;
+  }[];
+  recent: {
+    id: string;
+    name: string;
+    status: string;
+    reason: string | null;
+    kind: string;
+    created_at: string | null;
+    total: number;
+  }[];
+}
+
+/** Everything the dashboard shows, in one request, scoped to the caller's organisation. */
+export function getOverview(days = 30) {
+  return request<Overview>(`/api/overview?days=${days}`);
+}

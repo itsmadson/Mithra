@@ -13,6 +13,7 @@ import {
   type Stats,
 } from "../lib/api";
 import {
+  IconChart,
   IconFlag,
   IconLayers,
   IconMoon,
@@ -47,14 +48,15 @@ export function useTheme(): [Theme, (t: Theme) => void] {
 
 type Section = {
   href: string;
-  key: "surveys" | "signs" | "review" | "settings";
+  key: "dashboard" | "surveys" | "signs" | "review" | "settings";
   icon: typeof IconLayers;
   /** Which live number belongs beside this section, if any. */
   badge?: (s: Stats) => number;
 };
 
 const SECTIONS: Section[] = [
-  { href: "", key: "surveys", icon: IconLayers, badge: (s) => s.surveys.running },
+  { href: "", key: "dashboard", icon: IconChart },
+  { href: "/surveys", key: "surveys", icon: IconLayers, badge: (s) => s.surveys.running },
   { href: "/signs", key: "signs", icon: IconPin, badge: (s) => s.signs.total },
   { href: "/label", key: "review", icon: IconFlag, badge: (s) => s.signs.needs_review },
   { href: "/settings", key: "settings", icon: IconSettings },
