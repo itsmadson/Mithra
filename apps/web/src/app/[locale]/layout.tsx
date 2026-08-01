@@ -3,6 +3,7 @@ import { getMessages } from "next-intl/server";
 import localFont from "next/font/local";
 import "maplibre-gl/dist/maplibre-gl.css";
 import "../globals.css";
+import { StaleBuildRecovery } from "../../components/StaleBuildRecovery";
 
 /*
  * One family, both scripts, shipped with the app.
@@ -62,6 +63,7 @@ export default async function LocaleLayout({
         />
       </head>
       <body>
+        <StaleBuildRecovery />
         <NextIntlClientProvider messages={messages}>{children}</NextIntlClientProvider>
       </body>
     </html>
