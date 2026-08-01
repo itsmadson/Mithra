@@ -98,7 +98,7 @@ def register(
     if first_account:
         # The first account brings its organisation into being. Everything
         # created afterwards belongs to it.
-        org = Organisation(name=payload.org_name or payload.name or "Bina")
+        org = Organisation(name=payload.org_name or payload.name or "Mithra")
         db.add(org)
         db.flush()
         org_id = org.id

@@ -104,6 +104,7 @@ def two_orgs(client):
                 confidence=0.3,
                 model_version="v1",
                 needs_review=True,
+                crop_path=f"data/crops/{label}/1.jpg",
             )
             session.add(sign)
             session.commit()

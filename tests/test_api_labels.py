@@ -29,6 +29,8 @@ def signs(client):  # noqa: F811
                 confidence=confidence,
                 model_version="v1",
                 needs_review=review,
+                # The queue only offers signs that can actually be looked at.
+                crop_path=f"data/crops/test/{i}.jpg",
             )
             session.add(sign)
             session.commit()

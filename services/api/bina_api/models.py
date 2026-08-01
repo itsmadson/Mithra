@@ -104,6 +104,36 @@ class Session(Base):
     user: Mapped[User] = relationship(back_populates="sessions")
 
 
+class Basemap(Base):
+    """A tile source an organisation has added.
+
+    Municipalities run their own tile servers — a cadastral layer, an aerial
+    survey, a plan not published to the world — and a sign inventory is read
+    against the map the organisation already trusts. Stored per organisation
+    because a tile URL can carry an access key in its path.
+    """
+
+    __tablename__ = "basemaps"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        PgUUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    org_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("organisations.id", ondelete="CASCADE"), nullable=True, index=True
+    )
+    name: Mapped[str] = mapped_column(String(120))
+    # An XYZ template: .../{z}/{x}/{y}.png
+    url_template: Mapped[str] = mapped_column(String(600))
+    attribution: Mapped[str] = mapped_column(String(300), default="")
+    # Whether tiles should be recoloured to match the console's theme. An
+    # aerial photo must not be desaturated; a street map usually should be.
+    tint: Mapped[bool] = mapped_column(Boolean, default=False)
+    is_default: Mapped[bool] = mapped_column(Boolean, default=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+
+
 class JobKind:
     """How the surveyed area was chosen."""
 

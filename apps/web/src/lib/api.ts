@@ -302,3 +302,40 @@ export interface Overview {
 export function getOverview(days = 30) {
   return request<Overview>(`/api/overview?days=${days}`);
 }
+
+export interface Basemap {
+  id: string;
+  name: string;
+  url_template: string;
+  attribution: string;
+  tint: boolean;
+  is_default: boolean;
+}
+
+export function listBasemaps() {
+  return request<{ items: Basemap[] }>("/api/basemaps");
+}
+
+export function createBasemap(body: {
+  name: string;
+  url_template: string;
+  attribution?: string;
+  tint?: boolean;
+  is_default?: boolean;
+}) {
+  return request<Basemap>("/api/basemaps", {
+    method: "POST",
+    body: JSON.stringify(body),
+  });
+}
+
+export function updateBasemap(id: string, patch: { is_default?: boolean; tint?: boolean }) {
+  return request<Basemap>(`/api/basemaps/${id}`, {
+    method: "PATCH",
+    body: JSON.stringify(patch),
+  });
+}
+
+export function deleteBasemap(id: string) {
+  return request<void>(`/api/basemaps/${id}`, { method: "DELETE" });
+}

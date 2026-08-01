@@ -286,9 +286,10 @@ export function Histogram({
                   style={{
                     height: `${(b.count / max) * 100}%`,
                     minHeight: b.count > 0 ? 2 : 0,
-                    // Below the threshold is a backlog, not a category, so it
-                    // wears the warning colour rather than a series hue.
-                    background: below ? "var(--warn)" : "var(--accent)",
+                    // Turquoise is the palette's mark for what the model
+                    // produced; gold means a person still has to act. Both
+                    // being gold made the threshold invisible.
+                    background: below ? "var(--warn)" : "var(--ai)",
                     opacity: hover === null || hover === i ? 1 : 0.45,
                   }}
                 />

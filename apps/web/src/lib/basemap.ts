@@ -26,15 +26,70 @@ const PAINT = {
   light: { "raster-saturation": -0.32, "raster-contrast": 0.02 },
 } as const;
 
-export function basemapStyle(theme: "dark" | "light", attribution: string) {
+/** A tile source the map can draw. The built-in one is always available. */
+export interface BasemapChoice {
+  id: string;
+  name: string;
+  url_template: string;
+  attribution: string;
+  /** Whether to recolour tiles to match the theme. */
+  tint: boolean;
+}
+
+export const BUILT_IN_ID = "osm";
+
+/** The fallback, and what a fresh organisation sees. */
+export function builtInBasemap(name: string): BasemapChoice {
+  return {
+    id: BUILT_IN_ID,
+    name,
+    url_template: OSM_TILES,
+    attribution: OSM_ATTRIBUTION,
+    tint: true,
+  };
+}
+
+/** Remembered per browser: an operator's choice of backdrop is their own. */
+const STORAGE_KEY = "bina-basemap";
+
+export function storedBasemapId(): string | null {
+  try {
+    return localStorage.getItem(STORAGE_KEY);
+  } catch {
+    return null;
+  }
+}
+
+export function storeBasemapId(id: string) {
+  try {
+    localStorage.setItem(STORAGE_KEY, id);
+  } catch {
+    /* private mode: the choice lasts for this session only */
+  }
+}
+
+export function basemapStyle(
+  theme: "dark" | "light",
+  attribution: string,
+  basemap?: BasemapChoice | null,
+) {
+  const tiles = basemap?.url_template ?? OSM_TILES;
+  // An operator's own imagery is credited alongside the sign source; an aerial
+  // photo is not recoloured, because desaturating a photograph destroys the
+  // thing it was added for.
+  const credit = basemap?.attribution
+    ? `${basemap.attribution} · ${attribution}`
+    : attribution;
+  const tint = basemap ? basemap.tint : true;
+
   return {
     version: 8 as const,
     sources: {
       base: {
         type: "raster" as const,
-        tiles: [OSM_TILES],
+        tiles: [tiles],
         tileSize: 256,
-        attribution,
+        attribution: credit,
       },
     },
     layers: [
@@ -42,7 +97,7 @@ export function basemapStyle(theme: "dark" | "light", attribution: string) {
         id: "base",
         type: "raster" as const,
         source: "base",
-        paint: { ...PAINT[theme] },
+        paint: tint ? { ...PAINT[theme] } : {},
       },
     ],
   };

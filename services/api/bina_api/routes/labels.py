@@ -44,7 +44,14 @@ def queue(
             Sign.needs_review,
             Sign.mapillary_value,
         )
-        .where(Sign.needs_review.is_(True), Sign.job_id.in_(visible_jobs(user)))
+        .where(
+            Sign.needs_review.is_(True),
+            Sign.job_id.in_(visible_jobs(user)),
+            # Without a crop there is nothing to look at, and the queue is
+            # ordered by lowest confidence — so one unviewable sign would sit
+            # at the front and stop the whole queue.
+            Sign.crop_path.is_not(None),
+        )
         .order_by(Sign.confidence.asc())
         .limit(limit)
     ).all()

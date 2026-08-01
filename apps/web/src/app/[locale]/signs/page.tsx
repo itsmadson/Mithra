@@ -3,6 +3,8 @@
 import { useTranslations } from "next-intl";
 import dynamic from "next/dynamic";
 import { useEffect, useMemo, useState } from "react";
+import { BasemapPicker } from "../../../components/BasemapPicker";
+import { useBasemap } from "../../../components/useBasemap";
 import { AppShell, useTheme } from "../../../components/AppShell";
 import SignDetail from "../../../components/SignDetail";
 import SignList from "../../../components/SignList";
@@ -33,6 +35,12 @@ const ALL: SignClass[] = [...SIGN_CLASSES, "unknown"];
 export default function SignsPage() {
   const t = useTranslations();
   const [theme] = useTheme();
+  const {
+    basemap,
+    options: basemapOptions,
+    selectedId: basemapId,
+    select: selectBasemap,
+  } = useBasemap();
 
   const [signs, setSigns] = useState<Sign[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -178,12 +186,18 @@ export default function SignsPage() {
 
         <div className="relative min-h-[320px] flex-1">
           <SignMap
+            basemap={basemap}
             key={theme}
             signs={filtered}
             bbox={null}
             selectedId={selectedId}
             onSelect={setSelectedId}
             theme={theme}
+          />
+          <BasemapPicker
+            options={basemapOptions}
+            selectedId={basemapId}
+            onSelect={selectBasemap}
           />
         </div>
 

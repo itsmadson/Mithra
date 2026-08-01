@@ -1,0 +1,32 @@
+# The console. Built standalone so the runtime image carries a server and the
+# compiled app, not a node_modules tree.
+FROM node:24-alpine AS deps
+WORKDIR /app
+COPY apps/web/package.json apps/web/package-lock.json* ./
+RUN npm ci
+
+FROM node:24-alpine AS build
+WORKDIR /app
+COPY --from=deps /app/node_modules node_modules
+COPY apps/web .
+
+# Baked at build time: Next inlines NEXT_PUBLIC_* into the client bundle, so a
+# runtime environment variable would be ignored and the browser would call the
+# wrong host. This is the one value that must be correct before `next build`.
+ARG NEXT_PUBLIC_API_URL=http://localhost:8020
+ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
+ENV NEXT_TELEMETRY_DISABLED=1
+RUN npm run build
+
+FROM node:24-alpine AS runtime
+WORKDIR /app
+ENV NODE_ENV=production NEXT_TELEMETRY_DISABLED=1 PORT=3000
+RUN addgroup -g 10001 mithra && adduser -u 10001 -G mithra -S mithra
+
+COPY --from=build /app/public public
+COPY --from=build --chown=mithra:mithra /app/.next/standalone ./
+COPY --from=build --chown=mithra:mithra /app/.next/static .next/static
+
+USER mithra
+EXPOSE 3000
+CMD ["node", "server.js"]

@@ -1,29 +1,43 @@
 @import "tailwindcss";
 
 /*
- * Bina — dark survey console.
+ * Mithra — dark survey console.
  *
  * The use scene decides the theme: an operator works through hundreds of sign
  * crops in one sitting, comparing small photographs against a map. A dark
  * surface keeps the photographs the brightest thing on screen, which is where
  * attention belongs, and holds up in a vehicle or a dim office.
+ *
+ * The palette is Persian: midnight stone, lapis, Achaemenid gold, turquoise,
+ * bronze, desert sand. Brand colours dress the interface — surfaces, accents,
+ * chrome — and deliberately do not encode data. Lapis at L 0.33 and gold at
+ * L 0.74 cannot both sit in a categorical ramp, so the sign classes keep the
+ * separately validated hues below.
  */
 
 :root {
   /* Neutrals: a cool slate ramp, not pure black — pure black makes the crops
      glare and flattens the depth between panel layers. */
-  --bg: #0c1116;
-  --panel: #131a22;
-  --panel-2: #182029;
-  --line: #232e3a;
-  --line-strong: #31404f;
+  /* Midnight stone, warmed toward lapis as the panels lift off it. Not pure
+     black: pure black makes the crops glare and flattens panel depth. */
+  --bg: #101820;
+  --panel: #16202b;
+  --panel-2: #1c2836;
+  --line: #26364a;
+  --line-strong: #35496180;
 
-  --fg: #e7edf3;
-  --fg-muted: #9aa9b8;
-  --fg-faint: #6b7c8c;
+  --fg: #eef1f5;
+  --fg-muted: #9fb0c2;
+  --fg-faint: #6f8399;
 
-  --accent: #4da3ff;
-  --accent-ink: #06121f;
+  /* Achaemenid gold. Reserved for what the operator acts on. */
+  --accent: #D4A017;
+  --accent-ink: #101820;
+  /* Lapis, for chrome that should recede rather than call. */
+  --brand: #12355B;
+  /* Turquoise marks what the model produced, never what a person decided. */
+  --ai: #1FA7A0;
+  --secondary: #8C5A2B;
 
   /* Sign classes. Chosen for separation on a dark basemap and for distinctness
      under the common colour-vision deficiencies: these differ in lightness as
@@ -38,8 +52,8 @@
   --c-unknown: #7b8b9c;
 
   --danger: #ff6b6b;
-  --warn: #ffb547;
-  --ok: #5fd39a;
+  --warn: #e0a53a;
+  --ok: #1FA7A0;
 
   --radius: 10px;
   --radius-sm: 7px;
@@ -50,18 +64,25 @@
 }
 
 :root[data-theme="light"] {
-  --bg: #f4f6f8;
-  --panel: #ffffff;
-  --panel-2: #f8fafc;
-  --line: #e2e8f0;
-  --line-strong: #cbd5e1;
+  /* Desert sand, with panels raised above it in warm paper rather than white,
+     so the ground reads as a material and not as an unstyled page. */
+  --bg: #E8D8B9;
+  --panel: #fbf6ec;
+  --panel-2: #f3ead8;
+  --line: #d9c8a6;
+  --line-strong: #bfa87e;
 
   --fg: #14202b;
   --fg-muted: #4d6178;
   --fg-faint: #6b7f93;
 
-  --accent: #0b6bd3;
-  --accent-ink: #ffffff;
+  /* Bronze rather than gold in light: gold on sand has nowhere near enough
+     contrast to mark an action. */
+  --accent: #8C5A2B;
+  --accent-ink: #fbf6ec;
+  --brand: #12355B;
+  --ai: #157F7A;
+  --secondary: #12355B;
 
   --c-direction: #0074ca;
   --c-street: #ae5700;

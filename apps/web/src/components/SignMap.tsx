@@ -3,7 +3,12 @@
 import maplibregl, { Map as MapLibreMap, Popup, type GeoJSONSource } from "maplibre-gl";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { API_BASE, type Bbox, type Sign, type SignClass } from "../lib/api";
-import { SIGNS_ATTRIBUTION, basemapStyle } from "../lib/basemap";
+import {
+  OSM_TILES,
+  SIGNS_ATTRIBUTION,
+  basemapStyle,
+  type BasemapChoice,
+} from "../lib/basemap";
 import { CLASS_HEX } from "../lib/signClass";
 
 /**
@@ -83,6 +88,7 @@ export default function SignMap({
   selectedId,
   onSelect,
   theme,
+  basemap,
 }: {
   signs: Sign[];
   bbox: Bbox | null;
@@ -91,6 +97,8 @@ export default function SignMap({
   selectedId: string | null;
   onSelect: (id: string | null) => void;
   theme: "dark" | "light";
+  /** Which tile source to draw underneath. Omitted means the built-in one. */
+  basemap?: BasemapChoice | null;
 }) {
   const container = useRef<HTMLDivElement>(null);
   const map = useRef<MapLibreMap | null>(null);
@@ -108,10 +116,10 @@ export default function SignMap({
 
     const instance = new maplibregl.Map({
       container: container.current,
-      style: basemapStyle(theme, SIGNS_ATTRIBUTION),
+      style: basemapStyle(theme, SIGNS_ATTRIBUTION, basemap),
       center: [59.6062, 36.2972],
       zoom: 13.5,
-      attributionControl: { compact: true },
+      attributionControl: false,
     });
     map.current = instance;
     instance.addControl(new maplibregl.NavigationControl({ showCompass: false }), "top-right");
@@ -243,6 +251,32 @@ export default function SignMap({
     (map.current?.getSource("signs") as GeoJSONSource | undefined)?.setData(data);
   }, [data, ready]);
 
+  // Changing the backdrop must not disturb the view: the tiles and their
+  // credit are swapped on the existing source rather than by rebuilding the
+  // style, which would reset the camera the operator had framed and drop the
+  // sign layers with it.
+  useEffect(() => {
+    const instance = map.current;
+    if (!instance || !ready) return;
+
+    const source = instance.getSource("base") as
+      | (maplibregl.RasterTileSource & { setTiles?: (t: string[]) => void })
+      | undefined;
+    if (!source?.setTiles) return;
+
+    source.setTiles([basemap?.url_template ?? OSM_TILES]);
+    instance.setPaintProperty(
+      "base",
+      "raster-saturation",
+      basemap && !basemap.tint ? 0 : theme === "dark" ? -0.72 : -0.32,
+    );
+    instance.setPaintProperty(
+      "base",
+      "raster-contrast",
+      basemap && !basemap.tint ? 0 : theme === "dark" ? 0.05 : 0.02,
+    );
+  }, [basemap, theme, ready]);
+
   useEffect(() => {
     const instance = map.current;
     if (!instance || !ready) return;
@@ -284,5 +318,25 @@ export default function SignMap({
   // Inline positioning: Tailwind v4 emits utilities inside a cascade layer, and
   // MapLibre's unlayered `.maplibregl-map { position: relative }` outranks any
   // layered rule regardless of import order, collapsing this to zero height.
-  return <div ref={container} style={{ position: "absolute", inset: 0 }} />;
+  return (
+    <>
+      <div ref={container} style={{ position: "absolute", inset: 0 }} />
+      {/* Rendered here rather than by MapLibre: a live source's attribution
+          cannot be updated, so switching basemaps credited the wrong
+          provider. */}
+      <div
+        className="pointer-events-none absolute bottom-0 end-0 z-10 max-w-full truncate bg-[color-mix(in_oklab,var(--panel)_88%,transparent)] px-1.5 py-0.5 text-[10px] text-[var(--fg-faint)]"
+        dir="ltr"
+      >
+        <span
+          className="pointer-events-auto [&_a]:underline"
+          dangerouslySetInnerHTML={{
+            __html: basemap?.attribution
+              ? `${basemap.attribution} · ${SIGNS_ATTRIBUTION}`
+              : SIGNS_ATTRIBUTION,
+          }}
+        />
+      </div>
+    </>
+  );
 }

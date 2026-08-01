@@ -32,7 +32,7 @@ test.beforeEach(async ({ context, request }) => {
 test("the Persian home page loads right-to-left", async ({ page }) => {
   await page.goto("/fa");
   await expect(page.locator("html")).toHaveAttribute("dir", "rtl");
-  await expect(page.getByText("بینا").first()).toBeVisible();
+  await expect(page.getByText("میترا").first()).toBeVisible();
 });
 
 test("the English home page loads left-to-right", async ({ page }) => {

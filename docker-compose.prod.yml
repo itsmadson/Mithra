@@ -1,0 +1,83 @@
+# The whole platform, from published images.
+#
+#   docker compose -f docker-compose.prod.yml up -d
+#
+# The only value you must set is MAPILLARY_TOKEN. Everything else has a working
+# default, and the first account you create through the web console becomes the
+# administrator.
+services:
+  db:
+    image: postgis/postgis:16-3.4
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-mithra}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-mithra}
+      POSTGRES_DB: ${POSTGRES_DB:-mithra}
+    volumes: ["db:/var/lib/postgresql/data"]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-mithra}"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    volumes: ["redis:/data"]
+    restart: unless-stopped
+
+  api:
+    image: ghcr.io/itsmadson/mithra/api:latest
+    environment:
+      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-mithra}:${POSTGRES_PASSWORD:-mithra}@db:5432/${POSTGRES_DB:-mithra}
+      REDIS_URL: redis://redis:6379/0
+      MAPILLARY_TOKEN: ${MAPILLARY_TOKEN:?set MAPILLARY_TOKEN in .env}
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:3000}
+      CROP_DIR: /app/data/crops
+      # Point at a trained probe to promote it; unset serves the zero-shot model.
+      BINA_PROBE_PATH: ${BINA_PROBE_PATH:-}
+    volumes: ["crops:/app/data/crops", "models:/app/models"]
+    ports: ["${API_PORT:-8020}:8000"]
+    depends_on:
+      db: {condition: service_healthy}
+      redis: {condition: service_started}
+    restart: unless-stopped
+
+  # Migrations run once, on their own, rather than on API start: two API
+  # replicas starting together would otherwise race the same migration.
+  migrate:
+    image: ghcr.io/itsmadson/mithra/api:latest
+    working_dir: /app/services/api
+    command: ["alembic", "upgrade", "head"]
+    environment:
+      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-mithra}:${POSTGRES_PASSWORD:-mithra}@db:5432/${POSTGRES_DB:-mithra}
+      MAPILLARY_TOKEN: ${MAPILLARY_TOKEN:?set MAPILLARY_TOKEN in .env}
+    depends_on:
+      db: {condition: service_healthy}
+    restart: on-failure
+
+  worker:
+    image: ghcr.io/itsmadson/mithra/api:latest
+    command: ["rq", "worker", "--url", "redis://redis:6379/0"]
+    environment:
+      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-mithra}:${POSTGRES_PASSWORD:-mithra}@db:5432/${POSTGRES_DB:-mithra}
+      REDIS_URL: redis://redis:6379/0
+      MAPILLARY_TOKEN: ${MAPILLARY_TOKEN:?set MAPILLARY_TOKEN in .env}
+      CROP_DIR: /app/data/crops
+      BINA_PROBE_PATH: ${BINA_PROBE_PATH:-}
+    volumes: ["crops:/app/data/crops", "models:/app/models"]
+    depends_on:
+      db: {condition: service_healthy}
+      redis: {condition: service_started}
+    restart: unless-stopped
+
+  web:
+    image: ghcr.io/itsmadson/mithra/web:latest
+    ports: ["${WEB_PORT:-3000}:3000"]
+    depends_on: [api]
+    restart: unless-stopped
+
+volumes:
+  db:
+  redis:
+  crops:
+  models:

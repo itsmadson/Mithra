@@ -3,6 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from bina_api.routes import (
     auth,
+    basemaps,
     crops,
     export,
     features,
@@ -25,6 +26,7 @@ app.add_middleware(
 )
 
 app.include_router(auth.router)
+app.include_router(basemaps.router)
 app.include_router(jobs.router)
 app.include_router(signs.router)
 app.include_router(export.router)

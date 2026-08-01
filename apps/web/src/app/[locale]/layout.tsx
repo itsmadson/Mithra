@@ -32,8 +32,9 @@ const vazirmatn = localFont({
 });
 
 export const metadata = {
-  title: "بینا · Bina",
-  description: "Count and classify urban signs from street-level imagery",
+  title: "میترا · Mithra",
+  description:
+    "AI-powered panoramic vision platform for intelligent asset detection and street inventory",
 };
 
 export default async function LocaleLayout({

@@ -1,0 +1,60 @@
+name: test
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    services:
+      db:
+        image: postgis/postgis:16-3.4
+        env:
+          POSTGRES_USER: mithra
+          POSTGRES_PASSWORD: mithra
+          POSTGRES_DB: mithra
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U mithra"
+          --health-interval 5s --health-timeout 5s --health-retries 20
+      redis:
+        image: redis:7-alpine
+        ports: ["6379:6379"]
+
+    env:
+      DATABASE_URL: postgresql+psycopg://mithra:mithra@localhost:5432/mithra
+      REDIS_URL: redis://localhost:6379/0
+      MAPILLARY_TOKEN: "MLY|test|test"
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - name: Install
+        run: |
+          pip install -e "services/api[dev]"
+          pip install --index-url https://download.pytorch.org/whl/cpu torch
+          pip install open_clip_torch argon2-cffi email-validator
+      - name: Test
+        run: pytest tests -q
+
+  frontend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: apps/web/package-lock.json
+      - run: npm ci
+        working-directory: apps/web
+      - run: npx vitest run
+        working-directory: apps/web
+      - run: npm run build
+        working-directory: apps/web
+        env:
+          NEXT_PUBLIC_API_URL: http://localhost:8020

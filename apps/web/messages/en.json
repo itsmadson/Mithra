@@ -1,7 +1,7 @@
 {
   "app": {
-    "name": "Bina",
-    "tagline": "Count and classify urban signs from street-level imagery"
+    "name": "Mithra",
+    "tagline": "AI-powered panoramic vision platform for intelligent asset detection and street inventory"
   },
   "job": {
     "loading": "Loading…",
@@ -138,7 +138,7 @@
     "limitsBody": "Classification currently runs CLIP zero-shot with no training and is frequently wrong on regulatory signs. The review queue exists to collect the labels that replace it. Surveys are scoped to your organisation, but everyone in it can see all of its surveys."
   },
   "auth": {
-    "signInTitle": "Sign in to Bina",
+    "signInTitle": "Sign in to Mithra",
     "signInHelp": "Sign in to see the surveys.",
     "setupTitle": "Create the administrator account",
     "setupHelp": "This is the first account on this instance and takes the administrator role.",
@@ -194,5 +194,18 @@
     "trainingHint": "Labels collected toward replacing the current model",
     "trainingHow": "When every class is complete, a new model can be trained and measured against the one in service.",
     "trainingReady": "Enough labels. Train with scripts/train_probe.py."
+  },
+  "basemap": {
+    "title": "Basemaps",
+    "help": "Add your own tile service with a {z}/{x}/{y} template to make it selectable on every map.",
+    "name": "Name",
+    "add": "Add",
+    "remove": "Remove",
+    "default": "default",
+    "makeDefault": "Make default",
+    "builtIn": "OpenStreetMap",
+    "choose": "Basemap",
+    "tint": "Recolour to match the theme (leave off for aerial imagery)",
+    "adminOnly": "Only an administrator can add a basemap."
   }
 }

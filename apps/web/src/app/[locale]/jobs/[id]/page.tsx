@@ -7,6 +7,8 @@ import ClassFilter from "../../../../components/ClassFilter";
 import JobProgress from "../../../../components/JobProgress";
 import SignDetail from "../../../../components/SignDetail";
 import SignList from "../../../../components/SignList";
+import { BasemapPicker } from "../../../../components/BasemapPicker";
+import { useBasemap } from "../../../../components/useBasemap";
 import { AppShell, useTheme } from "../../../../components/AppShell";
 import { IconAlert, IconDownload, IconSearch } from "../../../../components/icons";
 import {
@@ -34,6 +36,12 @@ export default function JobPage({ params }: { params: Promise<{ id: string }> })
   const { id } = use(params);
   const t = useTranslations();
   const [theme, setTheme] = useTheme();
+  const {
+    basemap,
+    options: basemapOptions,
+    selectedId: basemapId,
+    select: selectBasemap,
+  } = useBasemap();
 
   const [job, setJob] = useState<JobStatus | null>(null);
   const [signs, setSigns] = useState<Sign[]>([]);
@@ -215,6 +223,7 @@ export default function JobPage({ params }: { params: Promise<{ id: string }> })
 
         <div className="relative min-h-[320px] flex-1">
           <SignMap
+            basemap={basemap}
             key={theme}
             signs={filtered}
             bbox={bbox}
@@ -222,6 +231,11 @@ export default function JobPage({ params }: { params: Promise<{ id: string }> })
             selectedId={selectedId}
             onSelect={setSelectedId}
             theme={theme}
+          />
+          <BasemapPicker
+            options={basemapOptions}
+            selectedId={basemapId}
+            onSelect={selectBasemap}
           />
         </div>
 

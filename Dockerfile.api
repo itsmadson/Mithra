@@ -1,0 +1,50 @@
+# The API and the worker share one image: they import the same packages, and
+# two images built from the same source drift the moment one is rebuilt
+# without the other. The command decides which one a container becomes.
+FROM python:3.13-slim AS base
+
+# psycopg needs libpq; geoalchemy/shapely need geos.
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends libpq5 libgeos-c1v5 curl \
+ && rm -rf /var/lib/apt/lists/*
+
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PIP_NO_CACHE_DIR=1 \
+    PYTHONPATH=/app/services/api:/app/services/worker:/app/packages/ml
+
+WORKDIR /app
+
+# Dependencies first, so source edits do not reinstall torch.
+COPY services/api/pyproject.toml services/api/pyproject.toml
+RUN pip install --no-cache-dir \
+      "fastapi>=0.115" "uvicorn[standard]>=0.32" "sqlalchemy>=2.0" \
+      "geoalchemy2>=0.15" "alembic>=1.13" "psycopg[binary]>=3.2" \
+      "pydantic-settings>=2.5" "httpx>=0.27" "rq>=1.16" "redis>=5.0" \
+      "pillow>=10.4" "mapbox-vector-tile>=2.1" "shapely>=2.0" \
+      "argon2-cffi>=23.1" "email-validator>=2.2"
+
+# CPU-only torch: the GPU build is several gigabytes and this pipeline runs a
+# single forward pass per crop, which a CPU handles at the rate imagery
+# arrives.
+ARG WITH_ML=true
+RUN if [ "$WITH_ML" = "true" ]; then \
+      pip install --no-cache-dir --index-url https://download.pytorch.org/whl/cpu \
+        "torch>=2.4" && \
+      pip install --no-cache-dir "open_clip_torch>=2.26"; \
+    fi
+
+COPY services services
+COPY packages packages
+
+# Not root: this process talks to the open internet.
+RUN useradd --system --uid 10001 mithra \
+ && mkdir -p /app/data/crops \
+ && chown -R mithra:mithra /app/data
+USER mithra
+
+EXPOSE 8000
+HEALTHCHECK --interval=30s --timeout=5s --start-period=20s \
+  CMD curl -fsS http://localhost:8000/api/health || exit 1
+
+CMD ["uvicorn", "bina_api.main:app", "--host", "0.0.0.0", "--port", "8000"]
