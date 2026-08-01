@@ -4,6 +4,7 @@ import localFont from "next/font/local";
 import "maplibre-gl/dist/maplibre-gl.css";
 import "../globals.css";
 import { StaleBuildRecovery } from "../../components/StaleBuildRecovery";
+import { currentBuildId } from "../../lib/buildId";
 
 /*
  * One family, both scripts, shipped with the app.
@@ -44,6 +45,8 @@ export default async function LocaleLayout({
 }) {
   const { locale } = await params;
   const messages = await getMessages();
+  // Stamped into the HTML so the client knows which build it is running.
+  const buildId = await currentBuildId();
   const isFa = locale === "fa";
 
   return (
@@ -55,6 +58,7 @@ export default async function LocaleLayout({
       suppressHydrationWarning
     >
       <head>
+        <meta name="bina-build" content={buildId} />
         {/* Applied before paint so a stored light preference never flashes dark. */}
         <script
           dangerouslySetInnerHTML={{
@@ -63,7 +67,7 @@ export default async function LocaleLayout({
         />
       </head>
       <body>
-        <StaleBuildRecovery />
+        <StaleBuildRecovery buildId={buildId} />
         <NextIntlClientProvider messages={messages}>{children}</NextIntlClientProvider>
       </body>
     </html>
