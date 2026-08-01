@@ -76,7 +76,35 @@ test("the labeling page offers all four classes", async ({ page }) => {
 
 test("the locale switch keeps you on the same job", async ({ page }) => {
   await page.goto(`/fa/jobs/${JOB_ID}`);
-  await page.getByRole("link", { name: "English" }).click();
+  // The locale control lives in the navigation rail and is abbreviated there.
+  await page.getByRole("link", { name: "EN", exact: true }).click();
   await expect(page).toHaveURL(new RegExp(`/en/jobs/${JOB_ID}`));
   await expect(page.locator("html")).toHaveAttribute("dir", "ltr");
+});
+
+test("the navigation rail reaches every section", async ({ page }) => {
+  await page.goto("/fa");
+  const nav = page.getByRole("navigation");
+
+  await nav.getByRole("link", { name: "تابلوها" }).click();
+  await expect(page).toHaveURL(/\/fa\/signs$/);
+
+  await nav.getByRole("link", { name: "بازبینی" }).click();
+  await expect(page).toHaveURL(/\/fa\/label$/);
+
+  await nav.getByRole("link", { name: "تنظیمات" }).click();
+  await expect(page).toHaveURL(/\/fa\/settings$/);
+  await expect(page.getByText("موجودی")).toBeVisible();
+
+  await nav.getByRole("link", { name: "تحلیل\u200cها" }).click();
+  await expect(page).toHaveURL(/\/fa$/);
+});
+
+test("the signs section aggregates every survey", async ({ page }) => {
+  await page.goto("/fa/signs");
+  // The seeded job contributes signs; this section counts across surveys, so
+  // it must list at least those.
+  await expect(page.getByTestId("sign-list").locator("li").first()).toBeVisible({
+    timeout: 20_000,
+  });
 });

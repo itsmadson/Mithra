@@ -7,7 +7,7 @@ import ClassFilter from "../../../../components/ClassFilter";
 import JobProgress from "../../../../components/JobProgress";
 import SignDetail from "../../../../components/SignDetail";
 import SignList from "../../../../components/SignList";
-import { TopBar, useTheme } from "../../../../components/Shell";
+import { AppShell, useTheme } from "../../../../components/AppShell";
 import { IconAlert, IconDownload, IconSearch } from "../../../../components/icons";
 import {
   SIGN_CLASSES,
@@ -123,10 +123,7 @@ export default function JobPage({ params }: { params: Promise<{ id: string }> })
   }
 
   return (
-    <div className="flex h-dvh flex-col">
-      <TopBar
-        theme={theme}
-        setTheme={setTheme}
+    <AppShell
         title={job ? job.name || t("job.titleWithCount", { count: job.total }) : t("job.loading")}
         subtitle={
           job
@@ -136,7 +133,8 @@ export default function JobPage({ params }: { params: Promise<{ id: string }> })
               })}`
             : undefined
         }
-      >
+        actions={
+        <>
         {job && isTerminal(job.status) && (
           <div className="hidden sm:flex items-center gap-1.5">
             <a
@@ -155,7 +153,9 @@ export default function JobPage({ params }: { params: Promise<{ id: string }> })
             </a>
           </div>
         )}
-      </TopBar>
+      </>
+        }
+      >
 
       <div className="flex min-h-0 flex-1 flex-col lg:flex-row">
         <div className="flex w-full shrink-0 flex-col border-b border-[var(--line)] bg-[var(--panel)] lg:w-[340px] lg:border-b-0 lg:border-e">
@@ -231,6 +231,6 @@ export default function JobPage({ params }: { params: Promise<{ id: string }> })
           </div>
         )}
       </div>
-    </div>
+    </AppShell>
   );
 }

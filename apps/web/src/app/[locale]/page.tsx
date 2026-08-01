@@ -4,7 +4,7 @@ import { useTranslations } from "next-intl";
 import { useCallback, useEffect, useState } from "react";
 import NewSurvey from "../../components/NewSurvey";
 import SurveyList, { ClassKey } from "../../components/SurveyList";
-import { TopBar, useTheme } from "../../components/Shell";
+import { AppShell } from "../../components/AppShell";
 import { IconAlert } from "../../components/icons";
 import { listJobs, type JobSummary } from "../../lib/api";
 
@@ -15,7 +15,6 @@ import { listJobs, type JobSummary } from "../../lib/api";
  */
 export default function HomePage() {
   const t = useTranslations();
-  const [theme, setTheme] = useTheme();
 
   const [jobs, setJobs] = useState<JobSummary[]>([]);
   const [total, setTotal] = useState(0);
@@ -49,14 +48,10 @@ export default function HomePage() {
   }, [jobs, refresh]);
 
   return (
-    <div className="flex h-dvh flex-col">
-      <TopBar
-        theme={theme}
-        setTheme={setTheme}
-        title={t("surveys.title")}
-        subtitle={loaded ? t("surveys.count", { count: total }) : t("job.loading")}
-      />
-
+    <AppShell
+      title={t("surveys.title")}
+      subtitle={loaded ? t("surveys.count", { count: total }) : t("job.loading")}
+    >
       <div className="flex min-h-0 flex-1 flex-col-reverse lg:flex-row">
         <main className="flex min-h-0 flex-1 flex-col rtl:lg:order-2">
           {error ? (
@@ -82,6 +77,6 @@ export default function HomePage() {
           <NewSurvey onCreated={refresh} />
         </aside>
       </div>
-    </div>
+    </AppShell>
   );
 }

@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from bina_api.routes import crops, export, features, jobs, labels, signs, streets
+from bina_api.routes import crops, export, features, jobs, labels, signs, stats, streets
 
 app = FastAPI(title="bina", version="0.1.0")
 
@@ -19,6 +19,8 @@ app.include_router(labels.router)
 app.include_router(crops.router)
 app.include_router(features.router)
 app.include_router(streets.router)
+app.include_router(stats.router)
+app.include_router(signs.all_signs)
 
 
 @app.get("/api/health")

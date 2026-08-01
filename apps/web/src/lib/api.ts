@@ -127,6 +127,33 @@ export function searchStreets(q: string, signal?: AbortSignal) {
   );
 }
 
+export interface Stats {
+  surveys: { total: number; by_status: Record<string, number>; running: number };
+  signs: {
+    total: number;
+    by_class: Partial<Record<SignClass, number>>;
+    needs_review: number;
+    unclassified: number;
+  };
+  labels: { total: number };
+  models: string[];
+}
+
+export function getStats() {
+  return request<Stats>("/api/stats");
+}
+
+export function listAllSigns(
+  filters: { signClass?: string; needsReview?: boolean; limit?: number } = {},
+) {
+  const params = new URLSearchParams();
+  if (filters.signClass) params.set("sign_class", filters.signClass);
+  if (filters.needsReview !== undefined)
+    params.set("needs_review", String(filters.needsReview));
+  params.set("limit", String(filters.limit ?? 1000));
+  return request<{ items: Sign[] }>(`/api/signs?${params}`);
+}
+
 /** GeoJSON the map renders directly and any GIS client can consume. */
 export function featuresUrl(id: string) {
   return `${API_BASE}/api/jobs/${id}/features`;

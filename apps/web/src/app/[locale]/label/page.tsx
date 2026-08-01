@@ -2,7 +2,7 @@
 
 import { useTranslations } from "next-intl";
 import { useCallback, useEffect, useState } from "react";
-import { TopBar, useTheme } from "../../../components/Shell";
+import { AppShell } from "../../../components/AppShell";
 import { IconFlag } from "../../../components/icons";
 import {
   API_BASE,
@@ -16,7 +16,6 @@ import { advance, needsRefill } from "../../../lib/labelQueue";
 
 export default function LabelPage() {
   const t = useTranslations();
-  const [theme, setTheme] = useTheme();
   const [items, setItems] = useState<Sign[]>([]);
   const [index, setIndex] = useState(0);
   const [busy, setBusy] = useState(false);
@@ -66,13 +65,10 @@ export default function LabelPage() {
   const source = current ? mapillaryImageUrl(current.image_id) : null;
 
   return (
-    <div className="flex h-dvh flex-col">
-      <TopBar
-        theme={theme}
-        setTheme={setTheme}
-        title={t("label.title")}
-        subtitle={items.length > 0 ? t("label.hint") : undefined}
-      />
+    <AppShell
+      title={t("label.title")}
+      subtitle={items.length > 0 ? t("label.hint") : undefined}
+    >
 
       <main className="grid min-h-0 flex-1 place-items-center p-4">
         {!current ? (
@@ -158,6 +154,6 @@ export default function LabelPage() {
           </div>
         )}
       </main>
-    </div>
+    </AppShell>
   );
 }

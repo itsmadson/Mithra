@@ -120,5 +120,35 @@
   },
   "jobReason": {
     "street_not_found": "Street not found in OpenStreetMap"
+  },
+  "nav": {
+    "label": "Sections",
+    "surveys": "Surveys",
+    "signs": "Signs",
+    "review": "Review",
+    "settings": "Settings"
+  },
+  "signs": {
+    "subtitle": "Showing {shown} of {total} signs"
+  },
+  "settings": {
+    "subtitle": "System state and data sources",
+    "inventory": "Inventory",
+    "totalSigns": "Total signs",
+    "totalSurveys": "Total surveys",
+    "needsReview": "Needs review",
+    "unclassified": "Unclassified",
+    "labels": "Labels recorded",
+    "byClass": "Class distribution",
+    "models": "Models",
+    "modelsHelp": "Every sign records the model version that classified it, so changing models does not rewrite past results.",
+    "modelVersion": "Model version",
+    "data": "Data sources",
+    "dataHelp": "These come from the runtime environment and are not editable here.",
+    "imagery": "Street imagery",
+    "basemap": "Basemap",
+    "geocoder": "Geocoding",
+    "limits": "Known limitations",
+    "limitsBody": "Classification currently runs CLIP zero-shot with no training and is frequently wrong on regulatory signs. The review queue exists to collect the labels that replace it. The system also has no accounts or authentication yet."
   }
 }
