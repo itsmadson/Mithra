@@ -133,7 +133,7 @@
     "basemap": "Basemap",
     "geocoder": "Geocoding",
     "limits": "Known limitations",
-    "limitsBody": "Classification currently runs CLIP zero-shot with no training and is frequently wrong on regulatory signs. The review queue exists to collect the labels that replace it. The system also has no accounts or authentication yet."
+    "limitsBody": "Classification currently runs CLIP zero-shot with no training and is frequently wrong on regulatory signs. The review queue exists to collect the labels that replace it. Access requires an account, but every signed-in user sees every survey; per-organisation separation is not implemented."
   },
   "auth": {
     "signInTitle": "Sign in to Bina",

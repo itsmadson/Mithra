@@ -1,7 +1,7 @@
 import { expect, test } from "@playwright/test";
 
 const JOB_ID = "11111111-1111-1111-1111-111111111111";
-const API = process.env.NEXT_PUBLIC_API_BASE ?? "http://localhost:8020";
+const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8020";
 const EMAIL = "e2e@example.com";
 const PASSWORD = "a-long-enough-password";
 

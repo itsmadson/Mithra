@@ -1,6 +1,6 @@
 "use client";
 
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
 import { AppShell } from "../../../components/AppShell";
 import { IconAlert } from "../../../components/icons";
@@ -43,6 +43,9 @@ function Card({ title, children }: { title: string; children: React.ReactNode })
  */
 export default function SettingsPage() {
   const t = useTranslations();
+  // Numbers follow the page's language: the rail already renders Persian
+  // digits, and one panel disagreeing reads as a different system.
+  const locale = useLocale();
   const [stats, setStats] = useState<Stats | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [account, setAccount] = useState<Account | null>(null);
@@ -104,19 +107,19 @@ export default function SettingsPage() {
 
           <Card title={t("settings.inventory")}>
             <Row label={t("settings.totalSigns")}>
-              {stats?.signs.total.toLocaleString() ?? "—"}
+              {stats?.signs.total.toLocaleString(locale) ?? "—"}
             </Row>
             <Row label={t("settings.totalSurveys")}>
-              {stats?.surveys.total.toLocaleString() ?? "—"}
+              {stats?.surveys.total.toLocaleString(locale) ?? "—"}
             </Row>
             <Row label={t("settings.needsReview")}>
-              {stats?.signs.needs_review.toLocaleString() ?? "—"}
+              {stats?.signs.needs_review.toLocaleString(locale) ?? "—"}
             </Row>
             <Row label={t("settings.unclassified")}>
-              {stats?.signs.unclassified.toLocaleString() ?? "—"}
+              {stats?.signs.unclassified.toLocaleString(locale) ?? "—"}
             </Row>
             <Row label={t("settings.labels")}>
-              {stats?.labels.total.toLocaleString() ?? "—"}
+              {stats?.labels.total.toLocaleString(locale) ?? "—"}
             </Row>
           </Card>
 
@@ -132,7 +135,7 @@ export default function SettingsPage() {
                           {t(`classes.${cls}`)}
                         </span>
                         <span className="text-[var(--fg)]">
-                          {count} · {share.toFixed(0)}%
+                          {count.toLocaleString(locale)} · {share.toLocaleString(locale, { maximumFractionDigits: 0 })}%
                         </span>
                       </div>
                       <div className="mt-1 h-1.5 rounded-full bg-[var(--panel-2)]">
@@ -196,7 +199,7 @@ export default function SettingsPage() {
                     <span className="block truncate text-[11px] text-[var(--fg-faint)]">
                       {t(`auth.role.${row.role}`)} ·{" "}
                       {row.last_login_at
-                        ? new Date(row.last_login_at).toLocaleString()
+                        ? new Date(row.last_login_at).toLocaleString(locale)
                         : t("auth.never")}
                     </span>
                   </span>
