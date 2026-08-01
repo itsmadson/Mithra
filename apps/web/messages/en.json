@@ -3,18 +3,6 @@
     "name": "Bina",
     "tagline": "Count and classify urban signs from street-level imagery"
   },
-  "home": {
-    "heading": "Choose an area on the map",
-    "help": "Hold Shift and drag across the map to set the survey box.",
-    "selected": "Selected area",
-    "area": "Approx. area",
-    "km2": "km²",
-    "submit": "Run analysis",
-    "submitting": "Submitting…",
-    "clear": "Clear",
-    "tooLarge": "That area is larger than the limit. Draw a smaller box.",
-    "recent": "Recent analyses"
-  },
   "job": {
     "loading": "Loading…",
     "titleWithCount": "{count} signs detected",
@@ -77,10 +65,6 @@
     "openSource": "View the source image on Mapillary",
     "cropAlt": "Cropped sign image",
     "noCrop": "No image was stored for this sign"
-  },
-  "export": {
-    "csv": "Export CSV",
-    "geojson": "Export GeoJSON"
   },
   "label": {
     "title": "Labeling",

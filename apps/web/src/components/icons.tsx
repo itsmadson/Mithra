@@ -126,15 +126,6 @@ export function IconClose({ size = 16, className }: IconProps) {
   );
 }
 
-export function IconBack({ size = 16, className }: IconProps) {
-  return (
-    <svg {...base(size, className)}>
-      <path d="M20 12H4" />
-      <path d="m10 6-6 6 6 6" />
-    </svg>
-  );
-}
-
 export function IconAlert({ size = 16, className }: IconProps) {
   return (
     <svg {...base(size, className)}>

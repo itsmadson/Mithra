@@ -1,11 +1,6 @@
-import { SIGN_CLASSES, type JobStatus, type SignClass } from "./api";
+import type { JobStatus } from "./api";
 
-const DISPLAY_ORDER: SignClass[] = [...SIGN_CLASSES, "unknown"];
-
-export function orderedCounts(counts: Partial<Record<SignClass, number>>) {
-  return DISPLAY_ORDER.map((signClass) => ({ signClass, count: counts[signClass] ?? 0 }));
-}
-
+/** A survey that will not change again without a new run. */
 export function isTerminal(status: JobStatus["status"]) {
   return status === "succeeded" || status === "partial" || status === "failed";
 }
