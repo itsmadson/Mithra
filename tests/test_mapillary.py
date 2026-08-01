@@ -209,9 +209,18 @@ def test_token_is_not_included_in_exception_messages(client):
 CASSETTE = Path(__file__).parent / "fixtures" / "mashhad_features.json"
 
 
-@pytest.mark.skipif(not os.environ.get("MAPILLARY_TOKEN"), reason="needs a real token")
+@pytest.mark.skipif(
+    os.environ.get("RECORD_CASSETTES") != "1",
+    reason="recording tool: set RECORD_CASSETTES=1 with a real token to refresh the fixture",
+)
 def test_record_live_mashhad_cassette():
-    """Not a CI test. Records a real payload for fixture use and sanity checks it."""
+    """Not a test — a recording tool that happens to assert.
+
+    It calls the live API and rewrites a fixture, so it runs only when asked.
+    Guarding on the token merely being *set* was not enough: any environment
+    with a placeholder token, CI included, ran it and failed against a service
+    it could never reach.
+    """
     live = MapillaryClient(token=os.environ["MAPILLARY_TOKEN"])
     features = live.get_sign_features(BBOX)
     CASSETTE.parent.mkdir(parents=True, exist_ok=True)
