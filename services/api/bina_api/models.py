@@ -19,6 +19,66 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from bina_api.db import Base
 
 
+class UserRole:
+    """Two roles is all the product distinguishes today.
+
+    An operator runs surveys and labels signs. An admin additionally manages
+    accounts. Anything finer would be invented rather than observed.
+    """
+
+    ADMIN = "admin"
+    OPERATOR = "operator"
+
+
+class User(Base):
+    __tablename__ = "users"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        PgUUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    email: Mapped[str] = mapped_column(String(320), unique=True, index=True)
+    name: Mapped[str] = mapped_column(String(120), default="")
+    password_hash: Mapped[str] = mapped_column(String(255))
+    role: Mapped[str] = mapped_column(String(16), default=UserRole.OPERATOR)
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+    last_login_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+
+    sessions: Mapped[list["Session"]] = relationship(
+        back_populates="user", cascade="all, delete-orphan"
+    )
+
+
+class Session(Base):
+    """A logged-in browser.
+
+    Only the hash of the token is stored, so a database dump does not hand over
+    live sessions, and deleting the row genuinely ends the session — which is
+    the property a signed stateless token cannot offer.
+    """
+
+    __tablename__ = "sessions"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        PgUUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), index=True
+    )
+    token_hash: Mapped[str] = mapped_column(String(64), unique=True, index=True)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+    user_agent: Mapped[str | None] = mapped_column(String(300), nullable=True)
+
+    user: Mapped[User] = relationship(back_populates="sessions")
+
+
 class JobKind:
     """How the surveyed area was chosen."""
 
@@ -60,6 +120,12 @@ class Job(Base):
     # coordinates.
     name: Mapped[str] = mapped_column(String(200), default="")
     kind: Mapped[str] = mapped_column(String(16), default=JobKind.BBOX, index=True)
+
+    # Nullable because surveys created before accounts existed have no owner.
+    # Backfilling them to an arbitrary account would be a lie about who ran them.
+    owner_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True
+    )
 
     # The bbox is always populated, including for street surveys, where it is
     # the extent of the buffered corridor. It is what the map frames on.
@@ -152,6 +218,11 @@ class Label(Base):
     )
     sign_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("signs.id", ondelete="CASCADE"), index=True
+    )
+    # Who judged it. Training data without provenance cannot be audited when a
+    # model trained on it turns out to be biased towards one labeller's habits.
+    labelled_by_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True
     )
     sign_class: Mapped[str] = mapped_column(String(32))
     created_at: Mapped[datetime] = mapped_column(

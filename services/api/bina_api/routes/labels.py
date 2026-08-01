@@ -6,6 +6,7 @@ from pydantic import BaseModel, field_validator
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from bina_api.auth import current_user
 from bina_api.db import get_session
 from bina_api.models import Label, Sign
 from bina_api.schemas import SignList, SignOut
@@ -28,7 +29,9 @@ class LabelCreate(BaseModel):
 
 @router.get("/queue", response_model=SignList)
 def queue(
-    limit: int = Query(default=50, le=500), session: Session = Depends(get_session)
+    limit: int = Query(default=50, le=500),
+    session: Session = Depends(get_session),
+    _user=Depends(current_user),
 ) -> SignList:
     rows = session.execute(
         select(
@@ -64,13 +67,21 @@ def queue(
 
 @router.post("", status_code=201)
 def create_label(
-    payload: LabelCreate, session: Session = Depends(get_session)
+    payload: LabelCreate,
+    session: Session = Depends(get_session),
+    _user=Depends(current_user),
 ) -> dict[str, str]:
     sign = session.get(Sign, payload.sign_id)
     if sign is None:
         raise HTTPException(status_code=404, detail="sign not found")
 
-    session.add(Label(sign_id=sign.id, sign_class=payload.sign_class))
+    session.add(
+        Label(
+            sign_id=sign.id,
+            sign_class=payload.sign_class,
+            labelled_by_id=_user.id,
+        )
+    )
     sign.sign_class = payload.sign_class
     sign.needs_review = False
     session.commit()

@@ -134,5 +134,30 @@
     "geocoder": "Geocoding",
     "limits": "Known limitations",
     "limitsBody": "Classification currently runs CLIP zero-shot with no training and is frequently wrong on regulatory signs. The review queue exists to collect the labels that replace it. The system also has no accounts or authentication yet."
+  },
+  "auth": {
+    "signInTitle": "Sign in to Bina",
+    "signInHelp": "Sign in to see the surveys.",
+    "setupTitle": "Create the administrator account",
+    "setupHelp": "This is the first account on this instance and takes the administrator role.",
+    "email": "Email",
+    "password": "Password",
+    "name": "Name",
+    "passwordHint": "At least 10 characters.",
+    "signIn": "Sign in",
+    "createAccount": "Create account",
+    "working": "Please wait…",
+    "signOut": "Sign out",
+    "role": {
+      "admin": "Administrator",
+      "operator": "Operator"
+    },
+    "accounts": "Accounts",
+    "accountsHelp": "New accounts are created here.",
+    "active": "Active",
+    "disabled": "Disabled",
+    "lastLogin": "Last sign-in",
+    "never": "Never",
+    "badCredentials": "Incorrect email or password."
   }
 }

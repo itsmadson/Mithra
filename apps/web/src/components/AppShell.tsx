@@ -2,9 +2,16 @@
 
 import { useLocale, useTranslations } from "next-intl";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { getStats, type Stats } from "../lib/api";
+import {
+  Unauthorized,
+  getStats,
+  logout,
+  me,
+  type Account,
+  type Stats,
+} from "../lib/api";
 import {
   IconFlag,
   IconLayers,
@@ -77,8 +84,27 @@ export function AppShell({
   const t = useTranslations();
   const locale = useLocale();
   const pathname = usePathname();
+  const router = useRouter();
   const [theme, setTheme] = useTheme();
   const [stats, setStats] = useState<Stats | null>(null);
+  const [account, setAccount] = useState<Account | null>(null);
+
+  // The shell is the guard: any page wrapped in it requires a session, and an
+  // expired one sends the operator to sign in rather than showing empty panels
+  // that look like a data problem.
+  useEffect(() => {
+    let cancelled = false;
+    me()
+      .then((user) => {
+        if (!cancelled) setAccount(user);
+      })
+      .catch((e) => {
+        if (!cancelled && e instanceof Unauthorized) router.replace(`/${locale}/login`);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [locale, router]);
 
   useEffect(() => {
     let cancelled = false;
@@ -86,8 +112,9 @@ export function AppShell({
       try {
         const next = await getStats();
         if (!cancelled) setStats(next);
-      } catch {
-        /* the rail degrades to no badges; the page shows the real error */
+      } catch (e) {
+        if (e instanceof Unauthorized) router.replace(`/${locale}/login`);
+        /* otherwise the rail degrades to no badges; the page shows the error */
       }
     }
     load();
@@ -96,7 +123,7 @@ export function AppShell({
       cancelled = true;
       clearInterval(timer);
     };
-  }, []);
+  }, [locale, router]);
 
   const other = locale === "fa" ? "en" : "fa";
   const switchedPath = (() => {
@@ -179,6 +206,28 @@ export function AppShell({
         })}
 
         <div className="flex-1" />
+
+        {account && (
+          <div className="mb-2 hidden min-w-0 px-1.5 lg:block">
+            <div className="truncate text-[12px] text-[var(--fg)]">
+              {account.name || account.email}
+            </div>
+            <div className="flex items-center gap-1.5">
+              <span className="truncate text-[10px] text-[var(--fg-faint)]">
+                {t(`auth.role.${account.role}`)}
+              </span>
+              <button
+                onClick={async () => {
+                  await logout().catch(() => undefined);
+                  router.replace(`/${locale}/login`);
+                }}
+                className="text-[10px] text-[var(--fg-faint)] underline-offset-2 hover:text-[var(--danger)] hover:underline transition-colors duration-150"
+              >
+                {t("auth.signOut")}
+              </button>
+            </div>
+          </div>
+        )}
 
         <div className="flex flex-col items-center gap-1 lg:flex-row lg:items-center lg:justify-between lg:px-1">
           <button

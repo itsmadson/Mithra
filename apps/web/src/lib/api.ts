@@ -76,16 +76,79 @@ export interface Sign {
 
 export const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 
+/** Thrown when the session is missing or expired, so callers can redirect. */
+export class Unauthorized extends Error {
+  constructor() {
+    super("authentication required");
+    this.name = "Unauthorized";
+  }
+}
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(`${API_BASE}${path}`, {
     ...init,
+    // The session lives in an httpOnly cookie, which is only sent on
+    // cross-origin requests when credentials are included explicitly.
+    credentials: "include",
     headers: { "Content-Type": "application/json", ...(init?.headers ?? {}) },
   });
+  if (response.status === 401) throw new Unauthorized();
   if (!response.ok) {
     const detail = await response.json().catch(() => ({}));
     throw new Error(detail.detail ?? `request failed: ${response.status}`);
   }
+  if (response.status === 204) return undefined as T;
   return response.json() as Promise<T>;
+}
+
+export interface Account {
+  id: string;
+  email: string;
+  name: string;
+  role: "admin" | "operator";
+  is_active: boolean;
+  created_at: string;
+  last_login_at: string | null;
+}
+
+export function setupState() {
+  return request<{ needs_setup: boolean }>("/api/auth/setup");
+}
+
+export function login(email: string, password: string) {
+  return request<Account>("/api/auth/login", {
+    method: "POST",
+    body: JSON.stringify({ email, password }),
+  });
+}
+
+export function registerAccount(email: string, password: string, name = "") {
+  return request<Account>("/api/auth/register", {
+    method: "POST",
+    body: JSON.stringify({ email, password, name }),
+  });
+}
+
+export function logout() {
+  return request<void>("/api/auth/logout", { method: "POST" });
+}
+
+export function me() {
+  return request<Account>("/api/auth/me");
+}
+
+export function listAccounts() {
+  return request<{ items: Account[] }>("/api/auth/users");
+}
+
+export function updateAccount(
+  id: string,
+  patch: { role?: string; is_active?: boolean },
+) {
+  return request<Account>(`/api/auth/users/${id}`, {
+    method: "PATCH",
+    body: JSON.stringify(patch),
+  });
 }
 
 export function createBboxJob(bbox: Bbox, name?: string) {
@@ -117,7 +180,7 @@ export function listJobs(limit = 50, offset = 0) {
 }
 
 export function deleteJob(id: string) {
-  return fetch(`${API_BASE}/api/jobs/${id}`, { method: "DELETE" });
+  return request<void>(`/api/jobs/${id}`, { method: "DELETE" });
 }
 
 export function searchStreets(q: string, signal?: AbortSignal) {

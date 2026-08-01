@@ -6,8 +6,9 @@ from geoalchemy2.functions import ST_AsGeoJSON
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
+from bina_api.auth import current_user
 from bina_api.db import get_session
-from bina_api.models import Job, JobKind, JobReason, JobStatus, Sign, SignReason
+from bina_api.models import Job, JobKind, JobReason, JobStatus, Sign, SignReason, User
 from bina_api.schemas import (
     JobCreate,
     JobCreated,
@@ -60,7 +61,11 @@ def _counts(session: Session, job_id: uuid.UUID) -> tuple[dict[str, int], int]:
 
 
 @router.post("", response_model=JobCreated, status_code=201)
-def create_job(payload: JobCreate, session: Session = Depends(get_session)) -> JobCreated:
+def create_job(
+    payload: JobCreate,
+    session: Session = Depends(get_session),
+    user: User = Depends(current_user),
+) -> JobCreated:
     if payload.bbox is not None:
         west, south, east, north = payload.bbox
         name = payload.name or f"{south:.4f},{west:.4f} → {north:.4f},{east:.4f}"
@@ -71,6 +76,7 @@ def create_job(payload: JobCreate, session: Session = Depends(get_session)) -> J
             bbox_south=south,
             bbox_east=east,
             bbox_north=north,
+            owner_id=user.id,
         )
     else:
         # The corridor geometry is resolved by the worker, which owns the OSM
@@ -87,6 +93,7 @@ def create_job(payload: JobCreate, session: Session = Depends(get_session)) -> J
             bbox_south=lat - 0.001,
             bbox_east=lon + 0.001,
             bbox_north=lat + 0.001,
+            owner_id=user.id,
         )
 
     session.add(job)
@@ -114,6 +121,7 @@ def list_jobs(
     limit: int = Query(default=50, ge=1, le=200),
     offset: int = Query(default=0, ge=0),
     session: Session = Depends(get_session),
+    _user=Depends(current_user),
 ) -> JobList:
     """Newest first. This is the dashboard's home view."""
     total = session.scalar(select(func.count()).select_from(Job)) or 0
@@ -156,7 +164,11 @@ def list_jobs(
 
 
 @router.get("/{job_id}", response_model=JobStatusOut)
-def get_job(job_id: uuid.UUID, session: Session = Depends(get_session)) -> JobStatusOut:
+def get_job(
+    job_id: uuid.UUID,
+    session: Session = Depends(get_session),
+    _user: User = Depends(current_user),
+) -> JobStatusOut:
     job = session.get(Job, job_id)
     if job is None:
         raise HTTPException(status_code=404, detail="job not found")
@@ -190,9 +202,22 @@ def get_job(job_id: uuid.UUID, session: Session = Depends(get_session)) -> JobSt
 
 
 @router.delete("/{job_id}", status_code=204)
-def delete_job(job_id: uuid.UUID, session: Session = Depends(get_session)) -> None:
+def delete_job(
+    job_id: uuid.UUID,
+    session: Session = Depends(get_session),
+    user: User = Depends(current_user),
+) -> None:
     job = session.get(Job, job_id)
     if job is None:
         raise HTTPException(status_code=404, detail="job not found")
+
+    # Surveys are shared, but deleting one destroys work. Only the person who
+    # ran it, or an administrator, may do that. Ownerless surveys predate
+    # accounts and are administrator-only.
+    from bina_api.models import UserRole
+
+    if user.role != UserRole.ADMIN and job.owner_id != user.id:
+        raise HTTPException(status_code=403, detail="only the owner may delete this survey")
+
     session.delete(job)
     session.commit()

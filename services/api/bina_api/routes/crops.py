@@ -5,6 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 
+from bina_api.auth import current_user
 from bina_api.db import get_session
 from bina_api.models import Sign
 

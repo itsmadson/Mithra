@@ -9,6 +9,7 @@ from fastapi import APIRouter, Depends
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
+from bina_api.auth import current_user
 from bina_api.db import get_session
 from bina_api.models import Job, JobStatus, Label, Sign, SignReason
 
@@ -16,7 +17,9 @@ router = APIRouter(prefix="/api/stats", tags=["stats"])
 
 
 @router.get("")
-def stats(session: Session = Depends(get_session)) -> dict:
+def stats(
+    session: Session = Depends(get_session), _user=Depends(current_user)
+) -> dict:
     counts = dict(
         session.execute(select(Sign.sign_class, func.count()).group_by(Sign.sign_class)).all()
     )

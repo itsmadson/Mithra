@@ -6,7 +6,9 @@ browser client can be trusted to honour, and the browser would leak the
 operator's IP to a third party on every keystroke.
 """
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
+
+from bina_api.auth import current_user
 
 from bina_worker.osm import OsmError, search_streets
 
@@ -17,6 +19,7 @@ router = APIRouter(prefix="/api/streets", tags=["streets"])
 def search(
     q: str = Query(min_length=2, max_length=120),
     limit: int = Query(default=8, ge=1, le=20),
+    _user=Depends(current_user),
 ) -> dict:
     try:
         results = search_streets(q, limit=limit)

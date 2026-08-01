@@ -6,10 +6,13 @@ from sqlalchemy import create_engine, text
 from sqlalchemy.orm import Session
 
 from bina_api.db import Base
-from bina_api.models import Job, JobStatus, Sign
+from bina_api.models import Job, JobStatus, Sign, User, UserRole
+from bina_api.security import hash_password
 
 DB_URL = "postgresql+psycopg://bina:bina@localhost:5434/bina"
 JOB_ID = uuid.UUID("11111111-1111-1111-1111-111111111111")
+E2E_EMAIL = "e2e@example.com"
+E2E_PASSWORD = "a-long-enough-password"
 
 
 def main() -> None:
@@ -54,7 +57,21 @@ def main() -> None:
                 )
             )
         session.commit()
-    print(f"seeded job {JOB_ID}")
+    # Every route now requires a session, so the browser suite needs an
+    # account to sign in with.
+    with Session(engine) as session:
+        if session.query(User).filter(User.email == E2E_EMAIL).first() is None:
+            session.add(
+                User(
+                    email=E2E_EMAIL,
+                    name="E2E",
+                    password_hash=hash_password(E2E_PASSWORD),
+                    role=UserRole.ADMIN,
+                )
+            )
+            session.commit()
+
+    print(f"seeded job {JOB_ID} and account {E2E_EMAIL}")
 
 
 if __name__ == "__main__":

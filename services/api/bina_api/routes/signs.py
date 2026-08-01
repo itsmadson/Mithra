@@ -5,6 +5,7 @@ from geoalchemy2.functions import ST_X, ST_Y
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from bina_api.auth import current_user
 from bina_api.db import get_session
 from bina_api.models import Job, Sign
 from bina_api.schemas import SignList, SignOut
@@ -24,6 +25,7 @@ def list_all_signs(
     limit: int = Query(default=500, le=5000),
     offset: int = Query(default=0, ge=0),
     session: Session = Depends(get_session),
+    _user=Depends(current_user),
 ) -> SignList:
     statement = select(
         Sign.id,
@@ -71,6 +73,7 @@ def list_signs(
     needs_review: bool | None = Query(default=None),
     limit: int = Query(default=1000, le=5000),
     session: Session = Depends(get_session),
+    _user=Depends(current_user),
 ) -> SignList:
     if session.get(Job, job_id) is None:
         raise HTTPException(status_code=404, detail="job not found")

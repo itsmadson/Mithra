@@ -1,6 +1,33 @@
 import { expect, test } from "@playwright/test";
 
 const JOB_ID = "11111111-1111-1111-1111-111111111111";
+const API = process.env.NEXT_PUBLIC_API_BASE ?? "http://localhost:8020";
+const EMAIL = "e2e@example.com";
+const PASSWORD = "a-long-enough-password";
+
+/**
+ * Sign in before each test.
+ *
+ * Every data route requires a session now. The token is obtained from the API
+ * directly and planted in the browser context rather than driven through the
+ * form, so a broken login screen fails its own test instead of every test.
+ */
+test.beforeEach(async ({ context, request }) => {
+  const response = await request.post(`${API}/api/auth/login`, {
+    data: { email: EMAIL, password: PASSWORD },
+  });
+  if (!response.ok()) throw new Error(`e2e login failed: ${response.status()}`);
+
+  const cookie = response
+    .headersArray()
+    .find((h) => h.name.toLowerCase() === "set-cookie")?.value;
+  const token = cookie?.match(/bina_session=([^;]+)/)?.[1];
+  if (!token) throw new Error("no session cookie returned");
+
+  await context.addCookies([
+    { name: "bina_session", value: token, domain: "localhost", path: "/" },
+  ]);
+});
 
 test("the Persian home page loads right-to-left", async ({ page }) => {
   await page.goto("/fa");
@@ -56,8 +83,10 @@ test("signs are plotted on the map as vector features", async ({ page }) => {
   // DOM node per sign. The map publishes how many features it actually
   // painted, which is stronger than asserting the source holds them.
   const painted = page.locator("[data-signs-rendered]");
+  // Generous: against the dev server this route is compiled on first request,
+  // and the style and glyphs load before anything is painted.
   await expect(painted).toHaveAttribute("data-signs-rendered", /[1-9]/, {
-    timeout: 25_000,
+    timeout: 45_000,
   });
 });
 
@@ -107,4 +136,50 @@ test("the signs section aggregates every survey", async ({ page }) => {
   await expect(page.getByTestId("sign-list").locator("li").first()).toBeVisible({
     timeout: 20_000,
   });
+});
+
+test("an anonymous visitor is sent to sign in", async ({ browser }) => {
+  // A fresh context: no session, which is what an unauthenticated visitor is.
+  const context = await browser.newContext();
+  const page = await context.newPage();
+  await page.goto("/fa");
+  await expect(page).toHaveURL(/\/fa\/login$/);
+  await expect(page.getByRole("button", { name: "ورود" })).toBeVisible();
+  await context.close();
+});
+
+test("signing in through the form reaches the surveys view", async ({ browser }) => {
+  const context = await browser.newContext();
+  const page = await context.newPage();
+  await page.goto("/fa/login");
+
+  await page.getByLabel("رایانامه").fill(EMAIL);
+  await page.getByLabel("گذرواژه").fill(PASSWORD);
+  await page.getByRole("button", { name: "ورود" }).click();
+
+  await expect(page).toHaveURL(/\/fa$/);
+  await expect(page.getByRole("navigation")).toBeVisible();
+  await context.close();
+});
+
+test("a wrong password is refused without saying which field was wrong", async ({
+  browser,
+}) => {
+  const context = await browser.newContext();
+  const page = await context.newPage();
+  await page.goto("/fa/login");
+
+  await page.getByLabel("رایانامه").fill(EMAIL);
+  await page.getByLabel("گذرواژه").fill("definitely-not-it");
+  await page.getByRole("button", { name: "ورود" }).click();
+
+  await expect(page.getByText("رایانامه یا گذرواژه نادرست است.")).toBeVisible();
+  await expect(page).toHaveURL(/\/fa\/login$/);
+  await context.close();
+});
+
+test("signing out returns to the login screen", async ({ page }) => {
+  await page.goto("/fa");
+  await page.getByRole("button", { name: "خروج" }).click();
+  await expect(page).toHaveURL(/\/fa\/login$/);
 });

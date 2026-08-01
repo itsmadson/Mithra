@@ -29,6 +29,14 @@ def client(monkeypatch):
     test_client = TestClient(app)
     test_client.enqueued = enqueued
     test_client.engine = engine
+
+    # Every data route now requires a session. The first registration becomes
+    # the administrator and is signed in, which is the state these tests assume.
+    test_client.post(
+        "/api/auth/register",
+        json={"email": "tester@example.com", "password": "a-long-enough-password"},
+    )
+
     yield test_client
     app.dependency_overrides.clear()
     Base.metadata.drop_all(engine)

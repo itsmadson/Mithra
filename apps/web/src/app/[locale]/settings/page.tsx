@@ -4,7 +4,16 @@ import { useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
 import { AppShell } from "../../../components/AppShell";
 import { IconAlert } from "../../../components/icons";
-import { API_BASE, getStats, type Stats } from "../../../lib/api";
+import {
+  API_BASE,
+  getStats,
+  listAccounts,
+  me,
+  registerAccount,
+  updateAccount,
+  type Account,
+  type Stats,
+} from "../../../lib/api";
 import { CLASS_COLOR } from "../../../lib/signClass";
 
 function Row({ label, children }: { label: string; children: React.ReactNode }) {
@@ -36,12 +45,51 @@ export default function SettingsPage() {
   const t = useTranslations();
   const [stats, setStats] = useState<Stats | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [account, setAccount] = useState<Account | null>(null);
+  const [accounts, setAccounts] = useState<Account[] | null>(null);
+  const [newEmail, setNewEmail] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [accountError, setAccountError] = useState<string | null>(null);
 
   useEffect(() => {
     getStats()
       .then(setStats)
       .catch((e) => setError(e instanceof Error ? e.message : String(e)));
+    me().then(setAccount).catch(() => undefined);
   }, []);
+
+  // Account management is administrator-only, so the list is fetched only for
+  // administrators; a 403 here would be noise for everyone else.
+  useEffect(() => {
+    if (account?.role !== "admin") return;
+    listAccounts()
+      .then(({ items }) => setAccounts(items))
+      .catch(() => setAccounts(null));
+  }, [account]);
+
+  async function createAccount(event: React.FormEvent) {
+    event.preventDefault();
+    setAccountError(null);
+    try {
+      await registerAccount(newEmail, newPassword);
+      setNewEmail("");
+      setNewPassword("");
+      const { items } = await listAccounts();
+      setAccounts(items);
+    } catch (e) {
+      setAccountError(e instanceof Error ? e.message : String(e));
+    }
+  }
+
+  async function toggleAccount(target: Account) {
+    try {
+      await updateAccount(target.id, { is_active: !target.is_active });
+      const { items } = await listAccounts();
+      setAccounts(items);
+    } catch (e) {
+      setAccountError(e instanceof Error ? e.message : String(e));
+    }
+  }
 
   return (
     <AppShell title={t("nav.settings")} subtitle={t("settings.subtitle")}>
@@ -129,6 +177,78 @@ export default function SettingsPage() {
             <Row label={t("settings.basemap")}>OpenStreetMap</Row>
             <Row label={t("settings.geocoder")}>Nominatim · Overpass</Row>
           </Card>
+
+          {account?.role === "admin" && (
+            <Card title={t("auth.accounts")}>
+              <p className="mb-3 text-xs leading-relaxed text-[var(--fg-muted)]">
+                {t("auth.accountsHelp")}
+              </p>
+
+              {accounts?.map((row) => (
+                <div
+                  key={row.id}
+                  className="flex items-center justify-between gap-3 border-b border-[var(--line)] py-2.5 last:border-0"
+                >
+                  <span className="min-w-0">
+                    <span className="block truncate text-[13px] text-[var(--fg)]">
+                      {row.name || row.email}
+                    </span>
+                    <span className="block truncate text-[11px] text-[var(--fg-faint)]">
+                      {t(`auth.role.${row.role}`)} ·{" "}
+                      {row.last_login_at
+                        ? new Date(row.last_login_at).toLocaleString()
+                        : t("auth.never")}
+                    </span>
+                  </span>
+                  <button
+                    onClick={() => toggleAccount(row)}
+                    disabled={row.id === account.id}
+                    className="shrink-0 rounded-full border px-2 py-0.5 text-[11px] transition-colors duration-150 disabled:opacity-40"
+                    style={{
+                      borderColor: row.is_active ? "var(--line)" : "var(--warn)",
+                      color: row.is_active ? "var(--fg-muted)" : "var(--warn)",
+                    }}
+                  >
+                    {row.is_active ? t("auth.active") : t("auth.disabled")}
+                  </button>
+                </div>
+              ))}
+
+              <form onSubmit={createAccount} className="mt-3 flex flex-wrap gap-2">
+                <input
+                  type="email"
+                  required
+                  dir="ltr"
+                  value={newEmail}
+                  onChange={(e) => setNewEmail(e.target.value)}
+                  placeholder={t("auth.email")}
+                  className="min-w-0 flex-1 rounded-[var(--radius-sm)] border border-[var(--line)] bg-[var(--panel-2)] px-2.5 py-1.5 text-[12px] text-[var(--fg)] focus:border-[var(--accent)] focus:outline-none"
+                />
+                <input
+                  type="password"
+                  required
+                  dir="ltr"
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  placeholder={t("auth.password")}
+                  className="min-w-0 flex-1 rounded-[var(--radius-sm)] border border-[var(--line)] bg-[var(--panel-2)] px-2.5 py-1.5 text-[12px] text-[var(--fg)] focus:border-[var(--accent)] focus:outline-none"
+                />
+                <button
+                  type="submit"
+                  className="rounded-[var(--radius-sm)] border border-[var(--line)] px-3 py-1.5 text-[12px] text-[var(--fg-muted)] hover:border-[var(--accent)] hover:text-[var(--accent)] transition-colors duration-150"
+                >
+                  {t("auth.createAccount")}
+                </button>
+              </form>
+
+              {accountError && (
+                <p className="mt-2 flex items-start gap-1.5 text-[11px] text-[var(--danger)]">
+                  <IconAlert size={12} className="mt-px shrink-0" />
+                  {accountError}
+                </p>
+              )}
+            </Card>
+          )}
 
           <Card title={t("settings.limits")}>
             <p className="text-xs leading-relaxed text-[var(--fg-muted)]">
