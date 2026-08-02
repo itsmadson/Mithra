@@ -8,9 +8,9 @@ from geoalchemy2.functions import ST_X, ST_Y
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from bina_api.auth import current_user, same_org
-from bina_api.db import get_session
-from bina_api.models import Job, Sign, User
+from mithra_api.auth import current_user, same_org
+from mithra_api.db import get_session
+from mithra_api.models import Job, Sign, User
 
 router = APIRouter(prefix="/api/jobs", tags=["export"])
 
@@ -60,7 +60,7 @@ def export_csv(
     return StreamingResponse(
         iter([buffer.getvalue()]),
         media_type="text/csv",
-        headers={"Content-Disposition": f'attachment; filename="bina-{job_id}.csv"'},
+        headers={"Content-Disposition": f'attachment; filename="mithra-{job_id}.csv"'},
     )
 
 
@@ -89,5 +89,5 @@ def export_geojson(
                 for row in rows
             ],
         },
-        headers={"Content-Disposition": f'attachment; filename="bina-{job_id}.geojson"'},
+        headers={"Content-Disposition": f'attachment; filename="mithra-{job_id}.geojson"'},
     )

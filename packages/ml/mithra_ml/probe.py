@@ -21,8 +21,8 @@ import numpy as np
 import torch
 from PIL.Image import Image
 
-from bina_ml import SIGN_CLASSES, UNKNOWN, Prediction
-from bina_ml.encoder import ENCODER_VERSION, embedding_dim, encode_image
+from mithra_ml import SIGN_CLASSES, UNKNOWN, Prediction
+from mithra_ml.encoder import ENCODER_VERSION, embedding_dim, encode_image
 
 # Below this many examples of a class, a probe has not seen that class — it has
 # memorised a handful of crops. Training is refused rather than producing a

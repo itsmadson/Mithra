@@ -6,10 +6,10 @@ from geoalchemy2.functions import ST_AsGeoJSON
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from bina_api.auth import current_user, same_org, visible_jobs
-from bina_api.db import get_session
-from bina_api.models import Job, JobKind, JobReason, JobStatus, Sign, SignReason, User
-from bina_api.schemas import (
+from mithra_api.auth import current_user, same_org, visible_jobs
+from mithra_api.db import get_session
+from mithra_api.models import Job, JobKind, JobReason, JobStatus, Sign, SignReason, User
+from mithra_api.schemas import (
     JobCreate,
     JobCreated,
     JobList,
@@ -31,11 +31,11 @@ def enqueue(job_id: str) -> None:
     import redis
     import rq
 
-    from bina_api.config import get_settings
+    from mithra_api.config import get_settings
 
     queue = rq.Queue(connection=redis.Redis.from_url(get_settings().redis_url))
     queue.enqueue(
-        "bina_worker.pipeline.enqueue_job",
+        "mithra_worker.pipeline.enqueue_job",
         job_id,
         job_timeout=JOB_TIMEOUT_SECONDS,
         result_ttl=24 * 60 * 60,
@@ -227,7 +227,7 @@ def delete_job(
     # Surveys are shared, but deleting one destroys work. Only the person who
     # ran it, or an administrator, may do that. Ownerless surveys predate
     # accounts and are administrator-only.
-    from bina_api.models import UserRole
+    from mithra_api.models import UserRole
 
     if user.role != UserRole.ADMIN and job.owner_id != user.id:
         raise HTTPException(status_code=403, detail="only the owner may delete this survey")

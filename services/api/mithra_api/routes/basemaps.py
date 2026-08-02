@@ -13,9 +13,9 @@ from pydantic import BaseModel, Field
 from sqlalchemy import select, update
 from sqlalchemy.orm import Session
 
-from bina_api.auth import current_admin, current_user
-from bina_api.db import get_session
-from bina_api.models import Basemap, User
+from mithra_api.auth import current_admin, current_user
+from mithra_api.db import get_session
+from mithra_api.models import Basemap, User
 
 router = APIRouter(prefix="/api/basemaps", tags=["basemaps"])
 

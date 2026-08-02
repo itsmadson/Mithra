@@ -4,7 +4,7 @@
 
 ```bash
 echo 'MAPILLARY_TOKEN=MLY|your|token' > .env
-docker compose -f docker-compose.prod.yml up -d
+docker compose up -d
 ```
 
 | Variable | Default | Meaning |
@@ -13,7 +13,7 @@ docker compose -f docker-compose.prod.yml up -d
 | `POSTGRES_USER` / `_PASSWORD` / `_DB` | `mithra` | Database credentials |
 | `CORS_ORIGINS` | `http://localhost:3000` | Where the console is served from |
 | `API_PORT` / `WEB_PORT` | `8020` / `3000` | Host ports |
-| `BINA_PROBE_PATH` | unset | Promote a trained classifier |
+| `MITHRA_PROBE_PATH` | unset | Promote a trained classifier |
 
 Migrations run as their own one-shot service rather than on API start, so two API
 replicas starting together do not race the same migration.
@@ -47,7 +47,7 @@ the training data for the classifier that replaces the zero-shot one.
 
 ## Behind TLS
 
-Set `secure` on the session cookie (`services/api/bina_api/auth.py`) and point
+Set `secure` on the session cookie (`services/api/mithra_api/auth.py`) and point
 `CORS_ORIGINS` at the console's real origin.
 
 ## Upgrading with tabs open

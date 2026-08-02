@@ -36,11 +36,11 @@ def main() -> int:
     from sqlalchemy import func, select
     from sqlalchemy.orm import Session
 
-    from bina_api.db import get_engine
-    from bina_api.models import Label, Sign
-    from bina_ml import SIGN_CLASSES
-    from bina_ml.encoder import encode_images
-    from bina_ml.probe import MIN_PER_CLASS, NotEnoughLabels, save, train
+    from mithra_api.db import get_engine
+    from mithra_api.models import Label, Sign
+    from mithra_ml import SIGN_CLASSES
+    from mithra_ml.encoder import encode_images
+    from mithra_ml.probe import MIN_PER_CLASS, NotEnoughLabels, save, train
 
     with Session(get_engine()) as session:
         total_labels = session.scalar(select(func.count()).select_from(Label)) or 0
@@ -119,7 +119,7 @@ def main() -> int:
     if args.out:
         save(weights, args.out)
         print(f"Wrote {args.out} — version {weights.version}")
-        print("Nothing uses it until BINA_PROBE_PATH points at it.")
+        print("Nothing uses it until MITHRA_PROBE_PATH points at it.")
     else:
         print("Report only. Pass --out to write the weights.")
     return 0

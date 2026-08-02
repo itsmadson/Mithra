@@ -7,7 +7,7 @@ dev:
 
 up:
 	docker compose up -d
-	@until docker compose exec -T db pg_isready -U bina >/dev/null 2>&1; do sleep 1; done
+	@until docker compose exec -T db pg_isready -U mithra >/dev/null 2>&1; do sleep 1; done
 
 down:
 	docker compose down -v

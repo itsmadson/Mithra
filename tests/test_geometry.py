@@ -3,7 +3,7 @@ import base64
 import mapbox_vector_tile
 import pytest
 
-from bina_worker.geometry import GeometryDecodeError, decode_detection_geometry
+from mithra_worker.geometry import GeometryDecodeError, decode_detection_geometry
 
 EXTENT = 4096
 

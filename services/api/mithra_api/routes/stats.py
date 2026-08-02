@@ -9,9 +9,9 @@ from fastapi import APIRouter, Depends
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from bina_api.auth import current_user
-from bina_api.db import get_session
-from bina_api.models import Job, JobStatus, Label, Sign, SignReason
+from mithra_api.auth import current_user
+from mithra_api.db import get_session
+from mithra_api.models import Job, JobStatus, Label, Sign, SignReason
 
 router = APIRouter(prefix="/api/stats", tags=["stats"])
 

@@ -1,19 +1,107 @@
+# Mithra — the whole platform, in one file.
+#
+#   docker compose up -d          the full stack: database, queue, API, worker, console
+#   docker compose down           stop everything, keep the data
+#   docker compose down -v        stop everything and DELETE the data
+#
+# Working on the code instead? Start only the backing services and run the app
+# from source with ./scripts/dev.sh:
+#
+#   docker compose up -d db redis
+name: mithra
+
+x-app-env: &app-env
+  DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-mithra}:${POSTGRES_PASSWORD:-mithra}@db:5432/${POSTGRES_DB:-mithra}
+  REDIS_URL: redis://redis:6379/0
+  MAPILLARY_TOKEN: ${MAPILLARY_TOKEN:?set MAPILLARY_TOKEN in .env}
+  CROP_DIR: /app/data/crops
+  # Point at a trained probe to promote it; unset serves the zero-shot model.
+  MITHRA_PROBE_PATH: ${MITHRA_PROBE_PATH:-}
+
 services:
   db:
     image: postgis/postgis:16-3.4
     environment:
-      POSTGRES_USER: bina
-      POSTGRES_PASSWORD: bina
-      POSTGRES_DB: bina
-    # Host-side ports are shifted off the defaults because a machine that already
-    # runs Postgres or Redis natively will otherwise refuse to start these, and
-    # the app then silently talks to the wrong server.
-    ports: ["5434:5432"]
+      POSTGRES_USER: ${POSTGRES_USER:-mithra}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-mithra}
+      POSTGRES_DB: ${POSTGRES_DB:-mithra}
+    # A named volume, so the inventory survives `docker compose down`. Without
+    # one the container's storage is anonymous and every teardown silently
+    # destroys every survey ever run — which is exactly what happened here.
+    volumes: ["db:/var/lib/postgresql/data"]
+    # Host ports are shifted off the defaults because a machine already running
+    # Postgres or Redis natively would otherwise refuse to start these, and the
+    # app would quietly talk to the wrong server.
+    ports: ["${DB_PORT:-5434}:5432"]
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U bina"]
-      interval: 2s
-      timeout: 3s
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-mithra}"]
+      interval: 5s
+      timeout: 5s
       retries: 20
+    restart: unless-stopped
+
   redis:
     image: redis:7-alpine
-    ports: ["6381:6379"]
+    volumes: ["redis:/data"]
+    ports: ["${REDIS_PORT:-6381}:6379"]
+    restart: unless-stopped
+
+  # Migrations run once, on their own, rather than on API start: two API
+  # replicas starting together would otherwise race the same migration.
+  migrate:
+    build: {context: ., dockerfile: Dockerfile.api}
+    image: mithra-api:local
+    working_dir: /app/services/api
+    command: ["alembic", "upgrade", "head"]
+    environment: *app-env
+    depends_on:
+      db: {condition: service_healthy}
+    restart: on-failure
+
+  api:
+    build: {context: ., dockerfile: Dockerfile.api}
+    image: mithra-api:local
+    environment:
+      <<: *app-env
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:3000}
+    volumes: ["crops:/app/data/crops", "models:/app/models"]
+    ports: ["${API_PORT:-8020}:8000"]
+    depends_on:
+      db: {condition: service_healthy}
+      redis: {condition: service_started}
+      migrate: {condition: service_completed_successfully}
+    restart: unless-stopped
+
+  worker:
+    build: {context: ., dockerfile: Dockerfile.api}
+    image: mithra-api:local
+    command: ["rq", "worker", "--url", "redis://redis:6379/0"]
+    environment: *app-env
+    # The same crop volume as the API: the worker writes them and the API
+    # serves them, and a survey whose crops landed elsewhere is unauditable.
+    volumes: ["crops:/app/data/crops", "models:/app/models"]
+    depends_on:
+      db: {condition: service_healthy}
+      redis: {condition: service_started}
+      migrate: {condition: service_completed_successfully}
+    restart: unless-stopped
+
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile.web
+      args:
+        # Next inlines this into the browser bundle at BUILD time, so a runtime
+        # environment variable cannot change it. Rebuild the image to point the
+        # console at a different API.
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:8020}
+    image: mithra-web:local
+    ports: ["${WEB_PORT:-3000}:3000"]
+    depends_on: [api]
+    restart: unless-stopped
+
+volumes:
+  db:
+  redis:
+  crops:
+  models:

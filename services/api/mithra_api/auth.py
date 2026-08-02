@@ -10,9 +10,9 @@ from fastapi import Depends, HTTPException, Request, Response
 from sqlalchemy import delete, select
 from sqlalchemy.orm import Session as DbSession
 
-from bina_api.db import get_session
-from bina_api.models import Job, Organisation, Session, User, UserRole
-from bina_api.security import (
+from mithra_api.db import get_session
+from mithra_api.models import Job, Organisation, Session, User, UserRole
+from mithra_api.security import (
     SESSION_COOKIE,
     hash_session_token,
     new_session_token,

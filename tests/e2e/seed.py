@@ -5,11 +5,11 @@ import uuid
 from sqlalchemy import create_engine, text
 from sqlalchemy.orm import Session
 
-from bina_api.db import Base
-from bina_api.models import Job, JobStatus, Sign, User, UserRole
-from bina_api.security import hash_password
+from mithra_api.db import Base
+from mithra_api.models import Job, JobStatus, Sign, User, UserRole
+from mithra_api.security import hash_password
 
-DB_URL = "postgresql+psycopg://bina:bina@localhost:5434/bina"
+DB_URL = "postgresql+psycopg://mithra:mithra@localhost:5434/mithra"
 JOB_ID = uuid.UUID("11111111-1111-1111-1111-111111111111")
 E2E_EMAIL = "e2e@example.com"
 E2E_PASSWORD = "a-long-enough-password"
@@ -54,6 +54,9 @@ def main() -> None:
                     confidence=confidence,
                     model_version="seed-v1",
                     needs_review=(sign_class == "unknown"),
+                    # The review queue only offers signs that can be looked at,
+                    # so a seeded review item needs a crop path like a real one.
+                    crop_path=f"data/crops/{JOB_ID}/{i}.jpg",
                 )
             )
         session.commit()

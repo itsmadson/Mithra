@@ -4,7 +4,7 @@ import io
 import pytest
 from sqlalchemy.orm import Session
 
-from bina_api.models import Job, Sign
+from mithra_api.models import Job, Sign
 from tests.test_api_jobs import client  # noqa: F401 - reuse the app fixture
 
 

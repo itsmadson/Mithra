@@ -13,7 +13,7 @@ from PIL import Image
 
 pytest.importorskip("torch")
 
-from bina_ml.encoder import ENCODER_VERSION, embedding_dim, encode_image, encode_images
+from mithra_ml.encoder import ENCODER_VERSION, embedding_dim, encode_image, encode_images
 
 
 def test_an_embedding_has_the_expected_shape_and_is_normalised():

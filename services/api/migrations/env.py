@@ -1,3 +1,4 @@
+import os
 from logging.config import fileConfig
 
 from sqlalchemy import engine_from_config
@@ -17,8 +18,17 @@ if config.config_file_name is not None:
 # add your model's MetaData object here
 # for 'autogenerate' support
 # from myapp import mymodel
-import bina_api.models  # noqa: F401 - registers tables on Base.metadata
-from bina_api.db import Base
+import mithra_api.models  # noqa: F401 - registers tables on Base.metadata
+from mithra_api.db import Base
+
+# The database comes from the environment, like it does for every other process
+# in the system. The URL in alembic.ini is a fallback for a bare `alembic`
+# invocation on a developer's machine; hardcoding it there meant migrations
+# only ever ran against one laptop's Postgres, and in a container they aimed at
+# a host that does not exist.
+_url = os.environ.get("DATABASE_URL")
+if _url:
+    config.set_main_option("sqlalchemy.url", _url)
 
 target_metadata = Base.metadata
 

@@ -5,7 +5,7 @@ import mapbox_vector_tile
 import pytest
 from PIL import Image
 
-from bina_worker.cropper import CropError, crop_detection
+from mithra_worker.cropper import CropError, crop_detection
 
 EXTENT = 4096
 

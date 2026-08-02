@@ -13,9 +13,9 @@ from fastapi import APIRouter, Depends, Query
 from sqlalchemy import Float, case, cast, func, select
 from sqlalchemy.orm import Session
 
-from bina_api.auth import current_user, visible_jobs
-from bina_api.db import get_session
-from bina_api.models import Job, JobStatus, Label, Sign, SignReason, User
+from mithra_api.auth import current_user, visible_jobs
+from mithra_api.db import get_session
+from mithra_api.models import Job, JobStatus, Label, Sign, SignReason, User
 
 router = APIRouter(prefix="/api/overview", tags=["overview"])
 
@@ -26,8 +26,8 @@ REVIEW_THRESHOLD = 0.55
 # Imported rather than restated: if training's minimum moves, the progress the
 # dashboard reports moves with it.
 try:
-    from bina_ml import SIGN_CLASSES as TRAINABLE_CLASSES
-    from bina_ml.probe import MIN_PER_CLASS
+    from mithra_ml import SIGN_CLASSES as TRAINABLE_CLASSES
+    from mithra_ml.probe import MIN_PER_CLASS
 except ImportError:  # pragma: no cover - the API can run without the ml package
     TRAINABLE_CLASSES = ("direction_guide", "street_name", "city_entry", "informational")
     MIN_PER_CLASS = 25

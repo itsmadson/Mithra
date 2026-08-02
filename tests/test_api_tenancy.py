@@ -13,9 +13,9 @@ from sqlalchemy.orm import Session
 
 from tests.conftest import DB_URL
 
-from bina_api.db import Base, get_session
-from bina_api.main import app
-from bina_api.models import Job, JobStatus, Sign, User
+from mithra_api.db import Base, get_session
+from mithra_api.main import app
+from mithra_api.models import Job, JobStatus, Sign, User
 
 PASSWORD = "a-long-enough-password"
 
@@ -33,7 +33,7 @@ def client(monkeypatch):
             yield s
 
     app.dependency_overrides[get_session] = override
-    monkeypatch.setattr("bina_api.routes.jobs.enqueue", lambda job_id: None)
+    monkeypatch.setattr("mithra_api.routes.jobs.enqueue", lambda job_id: None)
     test_client = TestClient(app)
     test_client.engine = engine
     yield test_client
@@ -62,8 +62,8 @@ def two_orgs(client):
     )
     a = client.get("/api/auth/me").json()
 
-    from bina_api.models import Organisation, UserRole
-    from bina_api.security import hash_password
+    from mithra_api.models import Organisation, UserRole
+    from mithra_api.security import hash_password
 
     with Session(client.engine) as session:
         org_b = Organisation(name="City B")

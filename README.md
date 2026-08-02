@@ -60,7 +60,7 @@ git clone https://github.com/itsmadson/Mithra.git
 cd Mithra
 echo 'MAPILLARY_TOKEN=MLY|your|token' > .env
 
-docker compose -f docker-compose.prod.yml up -d
+docker compose up -d
 ```
 
 Open <http://localhost:3000>. The first account you create becomes the administrator
@@ -83,7 +83,7 @@ decides which one a container becomes.
 ## Running from source
 
 ```bash
-docker compose up -d                    # Postgres + PostGIS, Redis
+docker compose up -d db redis           # just the backing services
 python -m venv .venv && .venv/bin/pip install -e "services/api[dev,ml]"
 (cd services/api && ../../.venv/bin/alembic upgrade head)
 (cd apps/web && npm install)

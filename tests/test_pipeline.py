@@ -8,11 +8,11 @@ from sqlalchemy.orm import Session
 
 from tests.conftest import DB_URL
 
-from bina_api.db import Base
-from bina_api.models import Job, JobReason, JobStatus, Sign, SignReason
-from bina_ml import Prediction
-from bina_worker.mapillary import MapillaryRateLimited
-from bina_worker.pipeline import run_job
+from mithra_api.db import Base
+from mithra_api.models import Job, JobReason, JobStatus, Sign, SignReason
+from mithra_ml import Prediction
+from mithra_worker.mapillary import MapillaryRateLimited
+from mithra_worker.pipeline import run_job
 
 
 
@@ -99,7 +99,7 @@ class FakeClassifier:
 
 def test_one_physical_sign_produces_exactly_one_row(session, job, monkeypatch, tmp_path):
     monkeypatch.setattr(
-        "bina_worker.pipeline.crop_detection", lambda *a, **k: Image.new("RGB", (64, 64))
+        "mithra_worker.pipeline.crop_detection", lambda *a, **k: Image.new("RGB", (64, 64))
     )
     run_job(session, job.id, FakeClient(), FakeClassifier(), tmp_path)
     assert len(session.scalars(select(Sign)).all()) == 1
@@ -107,7 +107,7 @@ def test_one_physical_sign_produces_exactly_one_row(session, job, monkeypatch, t
 
 def test_job_succeeds_and_records_the_class(session, job, monkeypatch, tmp_path):
     monkeypatch.setattr(
-        "bina_worker.pipeline.crop_detection", lambda *a, **k: Image.new("RGB", (64, 64))
+        "mithra_worker.pipeline.crop_detection", lambda *a, **k: Image.new("RGB", (64, 64))
     )
     run_job(session, job.id, FakeClient(), FakeClassifier(), tmp_path)
     session.refresh(job)
@@ -120,7 +120,7 @@ def test_job_succeeds_and_records_the_class(session, job, monkeypatch, tmp_path)
 
 def test_crop_is_written_to_disk(session, job, monkeypatch, tmp_path):
     monkeypatch.setattr(
-        "bina_worker.pipeline.crop_detection", lambda *a, **k: Image.new("RGB", (64, 64))
+        "mithra_worker.pipeline.crop_detection", lambda *a, **k: Image.new("RGB", (64, 64))
     )
     run_job(session, job.id, FakeClient(), FakeClassifier(), tmp_path)
     assert Path(session.scalar(select(Sign)).crop_path).exists()
@@ -142,12 +142,12 @@ def test_rate_limited_tile_makes_the_job_partial(session, job, tmp_path):
 
 
 def test_crop_failure_still_counts_the_sign_as_unknown(session, job, monkeypatch, tmp_path):
-    from bina_worker.cropper import CropError
+    from mithra_worker.cropper import CropError
 
     def boom(*a, **k):
         raise CropError("bad geometry")
 
-    monkeypatch.setattr("bina_worker.pipeline.crop_detection", boom)
+    monkeypatch.setattr("mithra_worker.pipeline.crop_detection", boom)
     run_job(session, job.id, FakeClient(), FakeClassifier(), tmp_path)
     sign = session.scalar(select(Sign))
     assert sign.sign_class == "unknown"
@@ -171,7 +171,7 @@ def test_a_non_matching_detection_is_never_cropped_as_the_sign(
         cropped.append(geometry)
         return Image.new("RGB", (64, 64))
 
-    monkeypatch.setattr("bina_worker.pipeline.crop_detection", record)
+    monkeypatch.setattr("mithra_worker.pipeline.crop_detection", record)
 
     client = FakeClient(
         detections=[
@@ -194,7 +194,7 @@ def test_the_matching_detection_is_the_one_cropped(session, job, monkeypatch, tm
         cropped.append(geometry)
         return Image.new("RGB", (64, 64))
 
-    monkeypatch.setattr("bina_worker.pipeline.crop_detection", record)
+    monkeypatch.setattr("mithra_worker.pipeline.crop_detection", record)
 
     client = FakeClient(
         detections=[
@@ -228,9 +228,9 @@ def test_worker_crash_marks_the_job_failed_rather_than_leaving_it_running(
     def boom(*a, **k):
         raise RuntimeError("worker killed")
 
-    monkeypatch.setattr("bina_worker.pipeline.crop_detection", boom)
+    monkeypatch.setattr("mithra_worker.pipeline.crop_detection", boom)
     monkeypatch.setattr(
-        "bina_worker.pipeline._classify_feature",
+        "mithra_worker.pipeline._classify_feature",
         lambda *a, **k: (_ for _ in ()).throw(RuntimeError("worker killed")),
     )
 
@@ -251,7 +251,7 @@ def test_low_confidence_prediction_is_flagged_for_review(session, job, monkeypat
             return Prediction("street_name", 0.20, self.version)
 
     monkeypatch.setattr(
-        "bina_worker.pipeline.crop_detection", lambda *a, **k: Image.new("RGB", (64, 64))
+        "mithra_worker.pipeline.crop_detection", lambda *a, **k: Image.new("RGB", (64, 64))
     )
     run_job(session, job.id, FakeClient(), Unsure(), tmp_path, low_confidence_threshold=0.45)
     sign = session.scalar(select(Sign))

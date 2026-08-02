@@ -17,9 +17,9 @@ from geoalchemy2.functions import ST_AsGeoJSON
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from bina_api.auth import current_user, same_org
-from bina_api.db import get_session
-from bina_api.models import Job, Sign, User
+from mithra_api.auth import current_user, same_org
+from mithra_api.db import get_session
+from mithra_api.models import Job, Sign, User
 
 router = APIRouter(prefix="/api/jobs", tags=["features"])
 

@@ -21,7 +21,7 @@ from argon2.exceptions import InvalidHashError, VerifyMismatchError
 _hasher = PasswordHasher()
 
 SESSION_TTL = timedelta(days=14)
-SESSION_COOKIE = "bina_session"
+SESSION_COOKIE = "mithra_session"
 
 MIN_PASSWORD_LENGTH = 10
 

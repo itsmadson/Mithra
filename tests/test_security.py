@@ -1,6 +1,6 @@
 import pytest
 
-from bina_api.security import (
+from mithra_api.security import (
     MIN_PASSWORD_LENGTH,
     WeakPassword,
     hash_password,

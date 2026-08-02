@@ -9,7 +9,7 @@ import io
 
 from PIL import Image, UnidentifiedImageError
 
-from bina_worker.geometry import GeometryDecodeError, decode_detection_geometry
+from mithra_worker.geometry import GeometryDecodeError, decode_detection_geometry
 
 
 class CropError(Exception):

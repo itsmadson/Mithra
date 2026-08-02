@@ -43,13 +43,13 @@ The point of the module is not that it trains. Anything trains.
   what the model currently in service predicted *for the same crops*. If it does not
   win, the weights are not written.
 - **It will not promote itself.** Training writes a file. Nothing uses it until
-  `BINA_PROBE_PATH` points at one, because which model is in service decides what a
+  `MITHRA_PROBE_PATH` points at one, because which model is in service decides what a
   municipality's inventory claims.
 
 ### Serving
 
 ```bash
-BINA_PROBE_PATH=/app/models/probe.npz
+MITHRA_PROBE_PATH=/app/models/probe.npz
 ```
 
 A probe that fails to load falls back to zero-shot with a message on stderr rather

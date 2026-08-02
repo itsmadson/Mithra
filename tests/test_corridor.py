@@ -1,6 +1,6 @@
 import pytest
 
-from bina_worker.corridor import (
+from mithra_worker.corridor import (
     corridor_bbox,
     corridor_geojson,
     corridor_tiles,

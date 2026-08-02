@@ -5,7 +5,7 @@ against the development database — doing so destroys real jobs and leaves the
 running app with missing tables. Everything here points at a separate database
 that exists only for tests, created on demand.
 
-Override with BINA_TEST_DATABASE_URL if you need somewhere else.
+Override with MITHRA_TEST_DATABASE_URL if you need somewhere else.
 """
 
 import os
@@ -14,10 +14,10 @@ import psycopg
 import pytest
 from sqlalchemy import create_engine, text
 
-DEV_DATABASE_URL = "postgresql+psycopg://bina:bina@localhost:5434/bina"
+DEV_DATABASE_URL = "postgresql+psycopg://mithra:mithra@localhost:5434/mithra"
 TEST_DATABASE_URL = os.environ.get(
-    "BINA_TEST_DATABASE_URL",
-    "postgresql+psycopg://bina:bina@localhost:5434/bina_test",
+    "MITHRA_TEST_DATABASE_URL",
+    "postgresql+psycopg://mithra:mithra@localhost:5434/mithra_test",
 )
 
 DB_URL = TEST_DATABASE_URL
@@ -56,7 +56,7 @@ def test_database() -> None:
     if _database_name(TEST_DATABASE_URL) == _database_name(DEV_DATABASE_URL):
         raise RuntimeError(
             "refusing to run tests against the development database; "
-            "set BINA_TEST_DATABASE_URL to a throwaway database"
+            "set MITHRA_TEST_DATABASE_URL to a throwaway database"
         )
     _ensure_database_exists()
     engine = create_engine(TEST_DATABASE_URL)

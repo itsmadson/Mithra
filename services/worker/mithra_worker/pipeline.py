@@ -12,17 +12,17 @@ from pathlib import Path
 from shapely.geometry import shape
 from sqlalchemy.orm import Session
 
-from bina_api.models import Job, JobKind, JobReason, JobStatus, JobTile, Sign, SignReason
-from bina_worker.corridor import (
+from mithra_api.models import Job, JobKind, JobReason, JobStatus, JobTile, Sign, SignReason
+from mithra_worker.corridor import (
     corridor_bbox,
     corridor_geojson,
     corridor_tiles,
     within_corridor,
 )
-from bina_worker.osm import OsmError, fetch_named_street_geometry, fetch_way_geometry
-from bina_worker.cropper import CropError, crop_detection
-from bina_worker.mapillary import MapillaryAuthError, MapillaryError
-from bina_worker.tiler import split_bbox
+from mithra_worker.osm import OsmError, fetch_named_street_geometry, fetch_way_geometry
+from mithra_worker.cropper import CropError, crop_detection
+from mithra_worker.mapillary import MapillaryAuthError, MapillaryError
+from mithra_worker.tiler import split_bbox
 
 UNKNOWN = "unknown"
 
@@ -259,10 +259,10 @@ def enqueue_job(job_id: str) -> None:
     """RQ task entrypoint. Builds its own dependencies so it can run in a worker process."""
     from sqlalchemy.orm import Session as _Session
 
-    from bina_api.config import get_settings
-    from bina_api.db import get_engine
-    from bina_ml.registry import get_classifier
-    from bina_worker.mapillary import MapillaryClient
+    from mithra_api.config import get_settings
+    from mithra_api.db import get_engine
+    from mithra_ml.registry import get_classifier
+    from mithra_worker.mapillary import MapillaryClient
 
     settings = get_settings()
     with (

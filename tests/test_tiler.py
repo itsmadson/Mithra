@@ -1,5 +1,5 @@
 import pytest
-from bina_worker.tiler import MAX_SIDE, split_bbox
+from mithra_worker.tiler import MAX_SIDE, split_bbox
 
 
 def test_small_bbox_returns_itself():

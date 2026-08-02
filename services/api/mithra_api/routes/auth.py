@@ -9,7 +9,7 @@ from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session as DbSession
 
-from bina_api.auth import (
+from mithra_api.auth import (
     current_admin,
     current_user,
     current_user_optional,
@@ -17,9 +17,9 @@ from bina_api.auth import (
     has_any_user,
     start_session,
 )
-from bina_api.db import get_session
-from bina_api.models import Organisation, User, UserRole
-from bina_api.security import (
+from mithra_api.db import get_session
+from mithra_api.models import Organisation, User, UserRole
+from mithra_api.security import (
     WeakPassword,
     hash_password,
     needs_rehash,

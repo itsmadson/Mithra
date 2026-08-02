@@ -13,7 +13,7 @@ import functools
 import torch
 from PIL.Image import Image
 
-from bina_ml import SIGN_CLASSES, UNKNOWN, Prediction
+from mithra_ml import SIGN_CLASSES, UNKNOWN, Prediction
 
 PROMPTS: dict[str, list[str]] = {
     "direction_guide": [
@@ -54,12 +54,12 @@ class ClipZeroShotClassifier:
     @functools.cached_property
     def _text_matrix(self):
         """One averaged text embedding per class, computed once."""
-        from bina_ml.encoder import encode_texts
+        from mithra_ml.encoder import encode_texts
 
         return torch.stack([encode_texts(PROMPTS[cls]) for cls in SIGN_CLASSES])
 
     def predict(self, image: Image) -> Prediction:
-        from bina_ml.encoder import encode_image
+        from mithra_ml.encoder import encode_image
 
         # The same encoder the probe trains on, so the two are comparable.
         features = torch.from_numpy(encode_image(image)).unsqueeze(0)

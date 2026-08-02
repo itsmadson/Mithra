@@ -24,7 +24,7 @@ import { useEffect, useRef } from "react";
  * next link they click becomes a full page load instead, which lands them
  * where they wanted to go, on the current build.
  */
-const RELOADED = "bina-reloaded-for-stale-build";
+const RELOADED = "mithra-reloaded-for-stale-build";
 const CHECK_INTERVAL = 60_000;
 
 function isStaleChunk(reason: unknown): boolean {

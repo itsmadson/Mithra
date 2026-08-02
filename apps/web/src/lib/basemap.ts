@@ -50,7 +50,7 @@ export function builtInBasemap(name: string): BasemapChoice {
 }
 
 /** Remembered per browser: an operator's choice of backdrop is their own. */
-const STORAGE_KEY = "bina-basemap";
+const STORAGE_KEY = "mithra-basemap";
 
 export function storedBasemapId(): string | null {
   try {

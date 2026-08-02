@@ -37,7 +37,7 @@ bina/
 │   ├── pyproject.toml
 │   ├── alembic.ini
 │   ├── migrations/versions/        Alembic migrations
-│   └── bina_api/
+│   └── mithra_api/
 │       ├── main.py                 FastAPI app assembly only
 │       ├── config.py               env settings
 │       ├── db.py                   engine + session
@@ -49,14 +49,14 @@ bina/
 │           ├── export.py           GET /jobs/{id}/export.{csv,geojson}
 │           └── labels.py           GET /labels/queue, POST /labels
 ├── services/worker/
-│   └── bina_worker/
+│   └── mithra_worker/
 │       ├── tiler.py                bbox → legal tiles (pure)
 │       ├── mapillary.py            HTTP client (auth, proxy, retry)
 │       ├── geometry.py             base64 MVT → pixel polygon (pure)
 │       ├── cropper.py              image fetch + crop
 │       └── pipeline.py             job runner, ties the above together
 ├── packages/ml/
-│   └── bina_ml/
+│   └── mithra_ml/
 │       ├── registry.py             model version resolution
 │       └── clip_classifier.py      zero-shot classifier
 ├── apps/web/
@@ -73,7 +73,7 @@ bina/
 └── tests/                          pytest (unit + integration), e2e/ (Playwright)
 ```
 
-Boundaries that matter: `tiler.py` and `geometry.py` are pure functions with no I/O and are the most heavily tested files. `mapillary.py` knows about HTTP but nothing about signs. `bina_ml` knows about images and classes but nothing about HTTP, jobs, or the database. `pipeline.py` is the only file that knows about all of them.
+Boundaries that matter: `tiler.py` and `geometry.py` are pure functions with no I/O and are the most heavily tested files. `mapillary.py` knows about HTTP but nothing about signs. `mithra_ml` knows about images and classes but nothing about HTTP, jobs, or the database. `pipeline.py` is the only file that knows about all of them.
 
 ---
 
@@ -82,7 +82,7 @@ Boundaries that matter: `tiler.py` and `geometry.py` are pure functions with no 
 This is the blocker-clearing task. It ends with a runnable command that answers "does Mashhad actually have Mapillary coverage?" — the question that decides whether the rest of this plan survives.
 
 **Files:**
-- Create: `docker-compose.yml`, `Makefile`, `services/api/pyproject.toml`, `services/api/bina_api/config.py`, `services/api/bina_api/db.py`, `scripts/check_coverage.py`
+- Create: `docker-compose.yml`, `Makefile`, `services/api/pyproject.toml`, `services/api/mithra_api/config.py`, `services/api/mithra_api/db.py`, `scripts/check_coverage.py`
 - Test: `tests/test_config.py`
 
 - [ ] **Step 1: Write `docker-compose.yml`**
@@ -144,7 +144,7 @@ pythonpath = [".", "../worker", "../../packages/ml"]
 
 ```python
 import pytest
-from bina_api.config import Settings
+from mithra_api.config import Settings
 
 
 def test_settings_reads_mapillary_token(monkeypatch):
@@ -171,7 +171,7 @@ def test_missing_token_raises(monkeypatch):
 - [ ] **Step 4: Run it to make sure it fails**
 
 Run: `cd services/api && pytest ../../tests/test_config.py -v`
-Expected: FAIL with `ModuleNotFoundError: No module named 'bina_api.config'`
+Expected: FAIL with `ModuleNotFoundError: No module named 'mithra_api.config'`
 
 - [ ] **Step 5: Implement `config.py`**
 
@@ -223,7 +223,7 @@ from collections.abc import Iterator
 from sqlalchemy import create_engine
 from sqlalchemy.orm import DeclarativeBase, Session, sessionmaker
 
-from bina_api.config import get_settings
+from mithra_api.config import get_settings
 
 
 class Base(DeclarativeBase):
@@ -352,7 +352,7 @@ git commit -m "feat: scaffold api package, database config, and Mapillary covera
 ### Task 2: The tiler
 
 **Files:**
-- Create: `services/worker/bina_worker/tiler.py`
+- Create: `services/worker/mithra_worker/tiler.py`
 - Test: `tests/test_tiler.py`
 
 **Interfaces:**
@@ -365,7 +365,7 @@ git commit -m "feat: scaffold api package, database config, and Mapillary covera
 
 ```python
 import pytest
-from bina_worker.tiler import MAX_SIDE, split_bbox
+from mithra_worker.tiler import MAX_SIDE, split_bbox
 
 
 def test_small_bbox_returns_itself():
@@ -428,7 +428,7 @@ def test_degenerate_bbox_raises():
 - [ ] **Step 2: Run it to make sure it fails**
 
 Run: `cd services/api && pytest ../../tests/test_tiler.py -v`
-Expected: FAIL with `ModuleNotFoundError: No module named 'bina_worker.tiler'`
+Expected: FAIL with `ModuleNotFoundError: No module named 'mithra_worker.tiler'`
 
 - [ ] **Step 3: Implement the tiler**
 
@@ -479,7 +479,7 @@ Expected: 9 passed
 - [ ] **Step 5: Commit**
 
 ```bash
-git add services/worker/bina_worker/tiler.py tests/test_tiler.py
+git add services/worker/mithra_worker/tiler.py tests/test_tiler.py
 git commit -m "feat: split user bboxes into Mapillary-legal tiles
 
 Mapillary rejects any bbox query 0.01 degrees or larger. Tiles use the
@@ -492,11 +492,11 @@ leave an uncovered strip where signs would be silently missed."
 ### Task 3: The Mapillary client
 
 **Files:**
-- Create: `services/worker/bina_worker/mapillary.py`
+- Create: `services/worker/mithra_worker/mapillary.py`
 - Test: `tests/test_mapillary.py`
 
 **Interfaces:**
-- Consumes: `Bbox` from `bina_worker.tiler`, `get_settings()` from `bina_api.config`
+- Consumes: `Bbox` from `mithra_worker.tiler`, `get_settings()` from `mithra_api.config`
 - Produces:
   - `class MapillaryError(Exception)`, `class MapillaryAuthError(MapillaryError)`, `class MapillaryRateLimited(MapillaryError)`
   - `class MapillaryClient` with:
@@ -514,7 +514,7 @@ import httpx
 import pytest
 import respx
 
-from bina_worker.mapillary import (
+from mithra_worker.mapillary import (
     GRAPH,
     MapillaryAuthError,
     MapillaryClient,
@@ -639,7 +639,7 @@ def test_token_is_not_included_in_exception_messages(client):
 - [ ] **Step 2: Run it to make sure it fails**
 
 Run: `cd services/api && pytest ../../tests/test_mapillary.py -v`
-Expected: FAIL with `ModuleNotFoundError: No module named 'bina_worker.mapillary'`
+Expected: FAIL with `ModuleNotFoundError: No module named 'mithra_worker.mapillary'`
 
 - [ ] **Step 3: Implement the client**
 
@@ -656,7 +656,7 @@ from typing import Any
 
 import httpx
 
-from bina_worker.tiler import Bbox
+from mithra_worker.tiler import Bbox
 
 GRAPH = "https://graph.mapillary.com"
 
@@ -787,7 +787,7 @@ Expected: 10 passed, 1 skipped
 - [ ] **Step 7: Commit**
 
 ```bash
-git add services/worker/bina_worker/mapillary.py tests/test_mapillary.py
+git add services/worker/mithra_worker/mapillary.py tests/test_mapillary.py
 git commit -m "feat: add Mapillary graph API client
 
 Auth uses the OAuth header scheme Mapillary requires, not Bearer. 401 and
@@ -803,7 +803,7 @@ which can echo the submitted token."
 Mapillary returns detection outlines as a base64-encoded Mapbox vector tile. Decoding it is the step most likely to be silently wrong, so it gets its own pure module and its own tests.
 
 **Files:**
-- Create: `services/worker/bina_worker/geometry.py`
+- Create: `services/worker/mithra_worker/geometry.py`
 - Test: `tests/test_geometry.py`
 
 **Interfaces:**
@@ -820,7 +820,7 @@ import base64
 import mapbox_vector_tile
 import pytest
 
-from bina_worker.geometry import GeometryDecodeError, decode_detection_geometry
+from mithra_worker.geometry import GeometryDecodeError, decode_detection_geometry
 
 EXTENT = 4096
 
@@ -894,7 +894,7 @@ def test_empty_geometry_raises_decode_error():
 - [ ] **Step 2: Run it to make sure it fails**
 
 Run: `cd services/api && pytest ../../tests/test_geometry.py -v`
-Expected: FAIL with `ModuleNotFoundError: No module named 'bina_worker.geometry'`
+Expected: FAIL with `ModuleNotFoundError: No module named 'mithra_worker.geometry'`
 
 - [ ] **Step 3: Implement the decoder**
 
@@ -969,7 +969,7 @@ Expected: 7 passed
 - [ ] **Step 5: Commit**
 
 ```bash
-git add services/worker/bina_worker/geometry.py tests/test_geometry.py
+git add services/worker/mithra_worker/geometry.py tests/test_geometry.py
 git commit -m "feat: decode Mapillary detection geometry to pixel bboxes
 
 Detection outlines arrive as base64 Mapbox vector tiles in 0..4096 tile
@@ -982,11 +982,11 @@ this correct if Mapillary ever changes it."
 ### Task 5: The cropper
 
 **Files:**
-- Create: `services/worker/bina_worker/cropper.py`
+- Create: `services/worker/mithra_worker/cropper.py`
 - Test: `tests/test_cropper.py`
 
 **Interfaces:**
-- Consumes: `decode_detection_geometry` from `bina_worker.geometry`
+- Consumes: `decode_detection_geometry` from `mithra_worker.geometry`
 - Produces: `crop_detection(image_bytes: bytes, encoded_geometry: str, image_width: int, image_height: int, padding: float = 0.10) -> PIL.Image.Image` and `CropError`
 
 - [ ] **Step 1: Write the failing test**
@@ -1001,7 +1001,7 @@ import mapbox_vector_tile
 import pytest
 from PIL import Image
 
-from bina_worker.cropper import CropError, crop_detection
+from mithra_worker.cropper import CropError, crop_detection
 
 EXTENT = 4096
 
@@ -1059,7 +1059,7 @@ def test_undecodable_geometry_raises_crop_error():
 - [ ] **Step 2: Run it to make sure it fails**
 
 Run: `cd services/api && pytest ../../tests/test_cropper.py -v`
-Expected: FAIL with `ModuleNotFoundError: No module named 'bina_worker.cropper'`
+Expected: FAIL with `ModuleNotFoundError: No module named 'mithra_worker.cropper'`
 
 - [ ] **Step 3: Implement the cropper**
 
@@ -1075,7 +1075,7 @@ import io
 
 from PIL import Image, UnidentifiedImageError
 
-from bina_worker.geometry import GeometryDecodeError, decode_detection_geometry
+from mithra_worker.geometry import GeometryDecodeError, decode_detection_geometry
 
 
 class CropError(Exception):
@@ -1122,7 +1122,7 @@ Expected: 5 passed
 - [ ] **Step 5: Commit**
 
 ```bash
-git add services/worker/bina_worker/cropper.py tests/test_cropper.py
+git add services/worker/mithra_worker/cropper.py tests/test_cropper.py
 git commit -m "feat: crop detected signs out of source imagery
 
 Crops carry 10% padding by default. The plate border and backing are part of
@@ -1135,7 +1135,7 @@ to the detection outline throws away signal the classifier needs."
 ### Task 6: Classifier and model registry
 
 **Files:**
-- Create: `packages/ml/bina_ml/__init__.py`, `packages/ml/bina_ml/registry.py`, `packages/ml/bina_ml/clip_classifier.py`
+- Create: `packages/ml/mithra_ml/__init__.py`, `packages/ml/mithra_ml/registry.py`, `packages/ml/mithra_ml/clip_classifier.py`
 - Test: `tests/test_registry.py`, `tests/test_clip_classifier.py`
 
 **Interfaces:**
@@ -1155,8 +1155,8 @@ to the detection outline throws away signal the classifier needs."
 ```python
 from PIL import Image
 
-from bina_ml import UNKNOWN, Prediction
-from bina_ml.registry import get_classifier, register_classifier, reset_registry
+from mithra_ml import UNKNOWN, Prediction
+from mithra_ml.registry import get_classifier, register_classifier, reset_registry
 
 
 class FakeClassifier:
@@ -1189,9 +1189,9 @@ def test_prediction_carries_the_model_version():
 - [ ] **Step 2: Run it to make sure it fails**
 
 Run: `cd services/api && pytest ../../tests/test_registry.py -v`
-Expected: FAIL with `ModuleNotFoundError: No module named 'bina_ml'`
+Expected: FAIL with `ModuleNotFoundError: No module named 'mithra_ml'`
 
-- [ ] **Step 3: Implement `bina_ml/__init__.py`**
+- [ ] **Step 3: Implement `mithra_ml/__init__.py`**
 
 ```python
 from dataclasses import dataclass
@@ -1222,7 +1222,7 @@ class Classifier(Protocol):
     def predict(self, image: Image) -> Prediction: ...
 ```
 
-- [ ] **Step 4: Implement `bina_ml/registry.py`**
+- [ ] **Step 4: Implement `mithra_ml/registry.py`**
 
 ```python
 """Resolves which classifier the pipeline uses.
@@ -1231,7 +1231,7 @@ Every prediction records its model version, so swapping the registered
 classifier changes future results without rewriting past ones.
 """
 
-from bina_ml import Classifier
+from mithra_ml import Classifier
 
 _classifier: Classifier | None = None
 
@@ -1249,7 +1249,7 @@ def reset_registry() -> None:
 def get_classifier() -> Classifier:
     global _classifier
     if _classifier is None:
-        from bina_ml.clip_classifier import ClipZeroShotClassifier
+        from mithra_ml.clip_classifier import ClipZeroShotClassifier
 
         _classifier = ClipZeroShotClassifier()
     return _classifier
@@ -1268,8 +1268,8 @@ Expected: 3 passed
 import pytest
 from PIL import Image
 
-from bina_ml import SIGN_CLASSES, UNKNOWN
-from bina_ml.clip_classifier import PROMPTS, ClipZeroShotClassifier
+from mithra_ml import SIGN_CLASSES, UNKNOWN
+from mithra_ml.clip_classifier import PROMPTS, ClipZeroShotClassifier
 
 torch = pytest.importorskip("torch")
 
@@ -1311,7 +1311,7 @@ def test_grayscale_input_is_accepted():
 - [ ] **Step 7: Run it to make sure it fails**
 
 Run: `cd services/api && pytest ../../tests/test_clip_classifier.py -v`
-Expected: FAIL with `ModuleNotFoundError: No module named 'bina_ml.clip_classifier'`
+Expected: FAIL with `ModuleNotFoundError: No module named 'mithra_ml.clip_classifier'`
 
 - [ ] **Step 8: Implement the classifier**
 
@@ -1331,7 +1331,7 @@ import functools
 import torch
 from PIL.Image import Image
 
-from bina_ml import SIGN_CLASSES, UNKNOWN, Prediction
+from mithra_ml import SIGN_CLASSES, UNKNOWN, Prediction
 
 PROMPTS: dict[str, list[str]] = {
     "direction_guide": [
@@ -1428,11 +1428,11 @@ averaged over bilingual prompts and computed once at load."
 ### Task 7: Database schema
 
 **Files:**
-- Create: `services/api/bina_api/models.py`, `services/api/alembic.ini`, `services/api/migrations/env.py`, `services/api/migrations/versions/0001_initial.py`
+- Create: `services/api/mithra_api/models.py`, `services/api/alembic.ini`, `services/api/migrations/env.py`, `services/api/migrations/versions/0001_initial.py`
 - Test: `tests/test_models.py`
 
 **Interfaces:**
-- Consumes: `Base` from `bina_api.db`
+- Consumes: `Base` from `mithra_api.db`
 - Produces: ORM classes `Job`, `JobTile`, `Sign`, `Label`, and enums `JobStatus`, `SignReason`
 
 Columns other tasks rely on:
@@ -1451,8 +1451,8 @@ from sqlalchemy import create_engine, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from bina_api.db import Base
-from bina_api.models import Job, JobStatus, Label, Sign
+from mithra_api.db import Base
+from mithra_api.models import Job, JobStatus, Label, Sign
 
 DB_URL = "postgresql+psycopg://bina:bina@localhost:5432/bina"
 
@@ -1530,7 +1530,7 @@ def test_label_attaches_to_a_sign(session):
 - [ ] **Step 2: Start the database and run the test to see it fail**
 
 Run: `make up && cd services/api && pytest ../../tests/test_models.py -v`
-Expected: FAIL with `ModuleNotFoundError: No module named 'bina_api.models'`
+Expected: FAIL with `ModuleNotFoundError: No module named 'mithra_api.models'`
 
 - [ ] **Step 3: Implement the models**
 
@@ -1545,7 +1545,7 @@ from sqlalchemy import (
 from sqlalchemy.dialects.postgresql import UUID as PgUUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from bina_api.db import Base
+from mithra_api.db import Base
 
 
 class JobStatus:
@@ -1652,8 +1652,8 @@ Edit `alembic.ini` to set `sqlalchemy.url = postgresql+psycopg://bina:bina@local
 Edit `migrations/env.py` to add, above `target_metadata`:
 
 ```python
-from bina_api.db import Base
-import bina_api.models  # noqa: F401 - registers tables on Base.metadata
+from mithra_api.db import Base
+import mithra_api.models  # noqa: F401 - registers tables on Base.metadata
 
 target_metadata = Base.metadata
 ```
@@ -1680,7 +1680,7 @@ Expected: prints the revision id with `(head)`
 - [ ] **Step 8: Commit**
 
 ```bash
-git add services/api/bina_api/models.py services/api/alembic.ini services/api/migrations tests/test_models.py
+git add services/api/mithra_api/models.py services/api/alembic.ini services/api/migrations tests/test_models.py
 git commit -m "feat: add job, tile, sign, and label schema
 
 The unique constraint on (job_id, mapillary_feature_id) enforces the counting
@@ -1693,7 +1693,7 @@ row to a job's count, regardless of how many images observed it."
 ### Task 8: The pipeline
 
 **Files:**
-- Create: `services/worker/bina_worker/pipeline.py`
+- Create: `services/worker/mithra_worker/pipeline.py`
 - Test: `tests/test_pipeline.py`
 
 **Interfaces:**
@@ -1713,11 +1713,11 @@ from PIL import Image
 from sqlalchemy import create_engine, select
 from sqlalchemy.orm import Session
 
-from bina_api.db import Base
-from bina_api.models import Job, JobStatus, JobReason, Sign, SignReason
-from bina_ml import Prediction
-from bina_worker.mapillary import MapillaryRateLimited
-from bina_worker.pipeline import run_job
+from mithra_api.db import Base
+from mithra_api.models import Job, JobStatus, JobReason, Sign, SignReason
+from mithra_ml import Prediction
+from mithra_worker.mapillary import MapillaryRateLimited
+from mithra_worker.pipeline import run_job
 
 DB_URL = "postgresql+psycopg://bina:bina@localhost:5432/bina"
 
@@ -1787,14 +1787,14 @@ class FakeClassifier:
 
 
 def test_one_physical_sign_produces_exactly_one_row(session, job, monkeypatch, tmp_path):
-    monkeypatch.setattr("bina_worker.pipeline.crop_detection",
+    monkeypatch.setattr("mithra_worker.pipeline.crop_detection",
                         lambda *a, **k: Image.new("RGB", (64, 64)))
     run_job(session, job.id, FakeClient(), FakeClassifier(), tmp_path)
     assert len(session.scalars(select(Sign)).all()) == 1
 
 
 def test_job_succeeds_and_records_the_class(session, job, monkeypatch, tmp_path):
-    monkeypatch.setattr("bina_worker.pipeline.crop_detection",
+    monkeypatch.setattr("mithra_worker.pipeline.crop_detection",
                         lambda *a, **k: Image.new("RGB", (64, 64)))
     run_job(session, job.id, FakeClient(), FakeClassifier(), tmp_path)
     session.refresh(job)
@@ -1806,7 +1806,7 @@ def test_job_succeeds_and_records_the_class(session, job, monkeypatch, tmp_path)
 
 
 def test_crop_is_written_to_disk(session, job, monkeypatch, tmp_path):
-    monkeypatch.setattr("bina_worker.pipeline.crop_detection",
+    monkeypatch.setattr("mithra_worker.pipeline.crop_detection",
                         lambda *a, **k: Image.new("RGB", (64, 64)))
     run_job(session, job.id, FakeClient(), FakeClassifier(), tmp_path)
     from pathlib import Path
@@ -1829,12 +1829,12 @@ def test_rate_limited_tile_makes_the_job_partial(session, job, tmp_path):
 
 
 def test_crop_failure_still_counts_the_sign_as_unknown(session, job, monkeypatch, tmp_path):
-    from bina_worker.cropper import CropError
+    from mithra_worker.cropper import CropError
 
     def boom(*a, **k):
         raise CropError("bad geometry")
 
-    monkeypatch.setattr("bina_worker.pipeline.crop_detection", boom)
+    monkeypatch.setattr("mithra_worker.pipeline.crop_detection", boom)
     run_job(session, job.id, FakeClient(), FakeClassifier(), tmp_path)
     sign = session.scalar(select(Sign))
     assert sign.sign_class == "unknown"
@@ -1856,7 +1856,7 @@ def test_low_confidence_prediction_is_flagged_for_review(session, job, monkeypat
         def predict(self, image):
             return Prediction("street_name", 0.20, self.version)
 
-    monkeypatch.setattr("bina_worker.pipeline.crop_detection",
+    monkeypatch.setattr("mithra_worker.pipeline.crop_detection",
                         lambda *a, **k: Image.new("RGB", (64, 64)))
     run_job(session, job.id, FakeClient(), Unsure(), tmp_path, low_confidence_threshold=0.45)
     sign = session.scalar(select(Sign))
@@ -1867,7 +1867,7 @@ def test_low_confidence_prediction_is_flagged_for_review(session, job, monkeypat
 - [ ] **Step 2: Run it to make sure it fails**
 
 Run: `cd services/api && pytest ../../tests/test_pipeline.py -v`
-Expected: FAIL with `ModuleNotFoundError: No module named 'bina_worker.pipeline'`
+Expected: FAIL with `ModuleNotFoundError: No module named 'mithra_worker.pipeline'`
 
 - [ ] **Step 3: Implement the pipeline**
 
@@ -1886,10 +1886,10 @@ from pathlib import Path
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from bina_api.models import Job, JobReason, JobStatus, JobTile, Sign, SignReason
-from bina_worker.cropper import CropError, crop_detection
-from bina_worker.mapillary import MapillaryAuthError, MapillaryError
-from bina_worker.tiler import split_bbox
+from mithra_api.models import Job, JobReason, JobStatus, JobTile, Sign, SignReason
+from mithra_worker.cropper import CropError, crop_detection
+from mithra_worker.mapillary import MapillaryAuthError, MapillaryError
+from mithra_worker.tiler import split_bbox
 
 UNKNOWN = "unknown"
 
@@ -2021,10 +2021,10 @@ Append to `pipeline.py`:
 ```python
 def enqueue_job(job_id: str) -> None:
     """RQ task entrypoint. Builds its own dependencies so it can run in a worker process."""
-    from bina_api.config import get_settings
-    from bina_api.db import get_engine
-    from bina_ml.registry import get_classifier
-    from bina_worker.mapillary import MapillaryClient
+    from mithra_api.config import get_settings
+    from mithra_api.db import get_engine
+    from mithra_ml.registry import get_classifier
+    from mithra_worker.mapillary import MapillaryClient
     from sqlalchemy.orm import Session
 
     settings = get_settings()
@@ -2045,7 +2045,7 @@ Expected: all tests pass
 - [ ] **Step 7: Commit**
 
 ```bash
-git add services/worker/bina_worker/pipeline.py tests/test_pipeline.py
+git add services/worker/mithra_worker/pipeline.py tests/test_pipeline.py
 git commit -m "feat: run detection jobs end to end
 
 Failures degrade rather than erase: a rate-limited tile marks the job partial
@@ -2059,7 +2059,7 @@ because absence of coverage is a valid answer."
 ### Task 9: Job and results API
 
 **Files:**
-- Create: `services/api/bina_api/schemas.py`, `services/api/bina_api/routes/jobs.py`, `services/api/bina_api/routes/signs.py`, `services/api/bina_api/main.py`
+- Create: `services/api/mithra_api/schemas.py`, `services/api/mithra_api/routes/jobs.py`, `services/api/mithra_api/routes/signs.py`, `services/api/mithra_api/main.py`
 - Test: `tests/test_api_jobs.py`
 
 **Interfaces:**
@@ -2079,9 +2079,9 @@ from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session
 
-from bina_api.db import Base, get_session
-from bina_api.main import app
-from bina_api.models import Job, JobStatus, Sign
+from mithra_api.db import Base, get_session
+from mithra_api.main import app
+from mithra_api.models import Job, JobStatus, Sign
 
 DB_URL = "postgresql+psycopg://bina:bina@localhost:5432/bina"
 
@@ -2098,7 +2098,7 @@ def client(monkeypatch):
 
     app.dependency_overrides[get_session] = override
     enqueued = []
-    monkeypatch.setattr("bina_api.routes.jobs.enqueue", lambda job_id: enqueued.append(job_id))
+    monkeypatch.setattr("mithra_api.routes.jobs.enqueue", lambda job_id: enqueued.append(job_id))
     test_client = TestClient(app)
     test_client.enqueued = enqueued
     test_client.engine = engine
@@ -2198,11 +2198,11 @@ def test_signs_expose_coordinates(client):
 - [ ] **Step 2: Run it to make sure it fails**
 
 Run: `cd services/api && pytest ../../tests/test_api_jobs.py -v`
-Expected: FAIL with `ModuleNotFoundError: No module named 'bina_api.main'`
+Expected: FAIL with `ModuleNotFoundError: No module named 'mithra_api.main'`
 
 - [ ] **Step 3: Implement the schemas**
 
-`services/api/bina_api/schemas.py`:
+`services/api/mithra_api/schemas.py`:
 
 ```python
 import uuid
@@ -2260,7 +2260,7 @@ class SignList(BaseModel):
 
 - [ ] **Step 4: Implement the jobs route**
 
-`services/api/bina_api/routes/jobs.py`:
+`services/api/mithra_api/routes/jobs.py`:
 
 ```python
 import uuid
@@ -2269,9 +2269,9 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from bina_api.db import get_session
-from bina_api.models import Job, Sign, SignReason
-from bina_api.schemas import JobCreate, JobCreated, JobStatusOut
+from mithra_api.db import get_session
+from mithra_api.models import Job, Sign, SignReason
+from mithra_api.schemas import JobCreate, JobCreated, JobStatusOut
 
 router = APIRouter(prefix="/api/jobs", tags=["jobs"])
 
@@ -2281,10 +2281,10 @@ def enqueue(job_id: str) -> None:
     from redis import Redis
     from rq import Queue
 
-    from bina_api.config import get_settings
+    from mithra_api.config import get_settings
 
     Queue(connection=Redis.from_url(get_settings().redis_url)).enqueue(
-        "bina_worker.pipeline.enqueue_job", job_id
+        "mithra_worker.pipeline.enqueue_job", job_id
     )
 
 
@@ -2323,7 +2323,7 @@ def get_job(job_id: uuid.UUID, session: Session = Depends(get_session)) -> JobSt
 
 - [ ] **Step 5: Implement the signs route**
 
-`services/api/bina_api/routes/signs.py`:
+`services/api/mithra_api/routes/signs.py`:
 
 ```python
 import uuid
@@ -2333,9 +2333,9 @@ from geoalchemy2.functions import ST_X, ST_Y
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from bina_api.db import get_session
-from bina_api.models import Job, Sign
-from bina_api.schemas import SignList, SignOut
+from mithra_api.db import get_session
+from mithra_api.models import Job, Sign
+from mithra_api.schemas import SignList, SignOut
 
 router = APIRouter(prefix="/api/jobs", tags=["signs"])
 
@@ -2377,7 +2377,7 @@ def list_signs(
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from bina_api.routes import jobs, signs
+from mithra_api.routes import jobs, signs
 
 app = FastAPI(title="bina", version="0.1.0")
 
@@ -2397,7 +2397,7 @@ def health() -> dict[str, str]:
     return {"status": "ok"}
 ```
 
-Also create empty `services/api/bina_api/routes/__init__.py`.
+Also create empty `services/api/mithra_api/routes/__init__.py`.
 
 - [ ] **Step 7: Run the tests and make sure they pass**
 
@@ -2407,7 +2407,7 @@ Expected: 8 passed
 - [ ] **Step 8: Commit**
 
 ```bash
-git add services/api/bina_api tests/test_api_jobs.py
+git add services/api/mithra_api tests/test_api_jobs.py
 git commit -m "feat: add job creation and results endpoints
 
 Job status returns failed_count alongside the per-class counts so a caller can
@@ -2419,12 +2419,12 @@ never read a total without also seeing how many signs failed to classify."
 ### Task 10: Crop serving, export, and labeling API
 
 **Files:**
-- Create: `services/api/bina_api/routes/export.py`, `services/api/bina_api/routes/labels.py`, `services/api/bina_api/routes/crops.py`
-- Modify: `services/api/bina_api/main.py`
+- Create: `services/api/mithra_api/routes/export.py`, `services/api/mithra_api/routes/labels.py`, `services/api/mithra_api/routes/crops.py`
+- Modify: `services/api/mithra_api/main.py`
 - Test: `tests/test_api_export.py`, `tests/test_api_labels.py`
 
 **Interfaces:**
-- Consumes: ORM models, `SIGN_CLASSES` and `UNKNOWN` from `bina_ml`
+- Consumes: ORM models, `SIGN_CLASSES` and `UNKNOWN` from `mithra_ml`
 - Produces:
   - `GET /api/crops/{sign_id}` → the crop JPEG
   - `GET /api/jobs/{id}/export.csv` → CSV with header `id,sign_class,confidence,lon,lat,mapillary_value,needs_review`
@@ -2443,7 +2443,7 @@ import io
 import pytest
 from sqlalchemy.orm import Session
 
-from bina_api.models import Job, Sign
+from mithra_api.models import Job, Sign
 from tests.test_api_jobs import client  # noqa: F401 - reuse the app fixture
 
 
@@ -2499,7 +2499,7 @@ Expected: FAIL — `/export.csv` returns 404 because the route does not exist
 
 - [ ] **Step 3: Implement the export route**
 
-`services/api/bina_api/routes/export.py`:
+`services/api/mithra_api/routes/export.py`:
 
 ```python
 import csv
@@ -2512,8 +2512,8 @@ from geoalchemy2.functions import ST_X, ST_Y
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from bina_api.db import get_session
-from bina_api.models import Job, Sign
+from mithra_api.db import get_session
+from mithra_api.models import Job, Sign
 
 router = APIRouter(prefix="/api/jobs", tags=["export"])
 
@@ -2569,7 +2569,7 @@ def export_geojson(job_id: uuid.UUID, session: Session = Depends(get_session)) -
 - [ ] **Step 4: Run the export tests and make sure they pass**
 
 Run: `cd services/api && pytest ../../tests/test_api_export.py -v`
-Expected: 4 passed (register the router in `main.py` first: `from bina_api.routes import export` and `app.include_router(export.router)`)
+Expected: 4 passed (register the router in `main.py` first: `from mithra_api.routes import export` and `app.include_router(export.router)`)
 
 - [ ] **Step 5: Write the failing labels test**
 
@@ -2580,7 +2580,7 @@ import pytest
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from bina_api.models import Job, Label, Sign
+from mithra_api.models import Job, Label, Sign
 from tests.test_api_jobs import client  # noqa: F401
 
 
@@ -2652,7 +2652,7 @@ Expected: FAIL — the labels routes do not exist
 
 - [ ] **Step 7: Implement the labels and crops routes**
 
-`services/api/bina_api/routes/labels.py`:
+`services/api/mithra_api/routes/labels.py`:
 
 ```python
 import uuid
@@ -2663,10 +2663,10 @@ from pydantic import BaseModel, field_validator
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from bina_api.db import get_session
-from bina_api.models import Label, Sign
-from bina_api.schemas import SignList, SignOut
-from bina_ml import ALL_CLASSES
+from mithra_api.db import get_session
+from mithra_api.models import Label, Sign
+from mithra_api.schemas import SignList, SignOut
+from mithra_ml import ALL_CLASSES
 
 router = APIRouter(prefix="/api/labels", tags=["labels"])
 
@@ -2717,7 +2717,7 @@ def create_label(payload: LabelCreate, session: Session = Depends(get_session)) 
     return {"status": "ok"}
 ```
 
-`services/api/bina_api/routes/crops.py`:
+`services/api/mithra_api/routes/crops.py`:
 
 ```python
 import uuid
@@ -2727,8 +2727,8 @@ from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 
-from bina_api.db import get_session
-from bina_api.models import Sign
+from mithra_api.db import get_session
+from mithra_api.models import Sign
 
 router = APIRouter(prefix="/api/crops", tags=["crops"])
 
@@ -2751,7 +2751,7 @@ Expected: all tests pass
 - [ ] **Step 9: Commit**
 
 ```bash
-git add services/api/bina_api tests/test_api_export.py tests/test_api_labels.py
+git add services/api/mithra_api tests/test_api_export.py tests/test_api_labels.py
 git commit -m "feat: add crop serving, CSV/GeoJSON export, and labeling endpoints
 
 Labels are stored as their own rows rather than only overwriting the sign's
@@ -3790,8 +3790,8 @@ import uuid
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session
 
-from bina_api.db import Base
-from bina_api.models import Job, JobStatus, Sign
+from mithra_api.db import Base
+from mithra_api.models import Job, JobStatus, Sign
 
 DB_URL = "postgresql+psycopg://bina:bina@localhost:5432/bina"
 JOB_ID = uuid.UUID("11111111-1111-1111-1111-111111111111")
@@ -3886,7 +3886,7 @@ test("the labeling page offers all four classes", async ({ page }) => {
 .PHONY: e2e
 e2e:
 	cd services/api && python ../../tests/e2e/seed.py
-	cd services/api && uvicorn bina_api.main:app --port 8000 & echo $$! > /tmp/bina-api.pid
+	cd services/api && uvicorn mithra_api.main:app --port 8000 & echo $$! > /tmp/bina-api.pid
 	cd apps/web && npm run build && npm run start & echo $$! > /tmp/bina-web.pid
 	sleep 8
 	cd tests/e2e && npx playwright test; status=$$?; \

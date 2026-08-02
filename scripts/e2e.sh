@@ -20,7 +20,7 @@ WEB_PORT="${WEB_PORT:-3100}"
 
 export PYTHONPATH="services/api:services/worker:packages/ml"
 export MAPILLARY_TOKEN="${MAPILLARY_TOKEN:-MLY|e2e|placeholder}"
-export DATABASE_URL="${DATABASE_URL:-postgresql+psycopg://bina:bina@localhost:5434/bina}"
+export DATABASE_URL="${DATABASE_URL:-postgresql+psycopg://mithra:mithra@localhost:5434/mithra}"
 export NEXT_PUBLIC_API_URL="http://localhost:${API_PORT}"
 
 api_pid=""
@@ -45,11 +45,11 @@ echo "==> building web"
 (cd apps/web && npm run build >/dev/null)
 
 echo "==> starting api on :${API_PORT}"
-setsid "$VENV/uvicorn" bina_api.main:app --port "$API_PORT" >/tmp/bina-e2e-api.log 2>&1 &
+setsid "$VENV/uvicorn" mithra_api.main:app --port "$API_PORT" >/tmp/mithra-e2e-api.log 2>&1 &
 api_pid=$!
 
 echo "==> starting web on :${WEB_PORT}"
-setsid bash -c "cd apps/web && npm run start -- --port $WEB_PORT" >/tmp/bina-e2e-web.log 2>&1 &
+setsid bash -c "cd apps/web && npm run start -- --port $WEB_PORT" >/tmp/mithra-e2e-web.log 2>&1 &
 web_pid=$!
 
 wait_for() {

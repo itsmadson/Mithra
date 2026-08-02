@@ -4,7 +4,7 @@ import pytest
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from bina_api.models import Job, Label, Sign
+from mithra_api.models import Job, Label, Sign
 from tests.test_api_jobs import client  # noqa: F401
 
 

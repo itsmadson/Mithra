@@ -5,8 +5,8 @@ from sqlalchemy.orm import Session
 
 from tests.conftest import DB_URL
 
-from bina_api.db import Base
-from bina_api.models import Job, JobStatus, Label, Sign
+from mithra_api.db import Base
+from mithra_api.models import Job, JobStatus, Label, Sign
 
 
 

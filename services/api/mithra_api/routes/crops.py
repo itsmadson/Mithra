@@ -5,9 +5,9 @@ from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 
-from bina_api.auth import current_user, same_org
-from bina_api.db import get_session
-from bina_api.models import Sign, User
+from mithra_api.auth import current_user, same_org
+from mithra_api.db import get_session
+from mithra_api.models import Sign, User
 
 router = APIRouter(prefix="/api/crops", tags=["crops"])
 

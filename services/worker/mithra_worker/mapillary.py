@@ -10,7 +10,7 @@ from typing import Any
 
 import httpx
 
-from bina_worker.tiler import Bbox
+from mithra_worker.tiler import Bbox
 
 GRAPH = "https://graph.mapillary.com"
 

@@ -1,8 +1,8 @@
 import pytest
 from PIL import Image
 
-from bina_ml import SIGN_CLASSES, UNKNOWN
-from bina_ml.clip_classifier import PROMPTS, ClipZeroShotClassifier
+from mithra_ml import SIGN_CLASSES, UNKNOWN
+from mithra_ml.clip_classifier import PROMPTS, ClipZeroShotClassifier
 
 torch = pytest.importorskip("torch")
 

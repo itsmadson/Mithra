@@ -8,7 +8,7 @@ import os
 import sys
 from pathlib import Path
 
-from bina_ml import Classifier
+from mithra_ml import Classifier
 
 _classifier: Classifier | None = None
 
@@ -27,7 +27,7 @@ def get_classifier() -> Classifier:
     """The classifier the pipeline should use.
 
     A trained probe if one is configured and loadable, the zero-shot model
-    otherwise. Promotion is a deployment decision — pointing BINA_PROBE_PATH at
+    otherwise. Promotion is a deployment decision — pointing MITHRA_PROBE_PATH at
     a file — rather than something training does to itself, because which model
     is in service decides what a municipality's inventory claims.
 
@@ -40,10 +40,10 @@ def get_classifier() -> Classifier:
     if _classifier is not None:
         return _classifier
 
-    probe_path = os.environ.get("BINA_PROBE_PATH")
+    probe_path = os.environ.get("MITHRA_PROBE_PATH")
     if probe_path:
         try:
-            from bina_ml.probe import LinearProbeClassifier
+            from mithra_ml.probe import LinearProbeClassifier
 
             _classifier = LinearProbeClassifier.from_file(Path(probe_path))
             return _classifier
@@ -54,7 +54,7 @@ def get_classifier() -> Classifier:
                 file=sys.stderr,
             )
 
-    from bina_ml.clip_classifier import ClipZeroShotClassifier
+    from mithra_ml.clip_classifier import ClipZeroShotClassifier
 
     _classifier = ClipZeroShotClassifier()
     return _classifier

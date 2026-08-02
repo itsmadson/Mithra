@@ -8,8 +8,8 @@ does not need CLIP to be loaded.
 import numpy as np
 import pytest
 
-from bina_ml import SIGN_CLASSES, UNKNOWN
-from bina_ml.probe import (
+from mithra_ml import SIGN_CLASSES, UNKNOWN
+from mithra_ml.probe import (
     MIN_PER_CLASS,
     NotEnoughLabels,
     ProbeWeights,
@@ -140,7 +140,7 @@ def test_a_probe_from_a_different_encoder_is_refused(tmp_path):
 
 def test_an_unsure_prediction_becomes_unknown(monkeypatch):
     """The probe keeps the zero-shot contract: unsure means the review queue."""
-    from bina_ml.probe import LinearProbeClassifier
+    from mithra_ml.probe import LinearProbeClassifier
 
     weights = ProbeWeights(
         weight=np.zeros((len(SIGN_CLASSES), 512), dtype=np.float32),
@@ -151,7 +151,7 @@ def test_an_unsure_prediction_becomes_unknown(monkeypatch):
     # Zero weights give a uniform 0.25 across four classes, which is below any
     # sane threshold.
     monkeypatch.setattr(
-        "bina_ml.probe.encode_image", lambda image: np.zeros(512, dtype=np.float32)
+        "mithra_ml.probe.encode_image", lambda image: np.zeros(512, dtype=np.float32)
     )
 
     prediction = classifier.predict(object())
@@ -160,7 +160,7 @@ def test_an_unsure_prediction_becomes_unknown(monkeypatch):
 
 
 def test_a_confident_prediction_names_its_class(monkeypatch):
-    from bina_ml.probe import LinearProbeClassifier
+    from mithra_ml.probe import LinearProbeClassifier
 
     weight = np.zeros((len(SIGN_CLASSES), 512), dtype=np.float32)
     weight[2, 0] = 40.0  # a strong response for the third class on the first axis
@@ -173,7 +173,7 @@ def test_a_confident_prediction_names_its_class(monkeypatch):
 
     features = np.zeros(512, dtype=np.float32)
     features[0] = 1.0
-    monkeypatch.setattr("bina_ml.probe.encode_image", lambda image: features)
+    monkeypatch.setattr("mithra_ml.probe.encode_image", lambda image: features)
 
     prediction = classifier.predict(object())
     assert prediction.sign_class == SIGN_CLASSES[2]
@@ -181,7 +181,7 @@ def test_a_confident_prediction_names_its_class(monkeypatch):
 
 
 def test_the_prediction_carries_the_probe_version(monkeypatch):
-    from bina_ml.probe import LinearProbeClassifier
+    from mithra_ml.probe import LinearProbeClassifier
 
     weights = ProbeWeights(
         weight=np.zeros((len(SIGN_CLASSES), 512), dtype=np.float32),
@@ -191,14 +191,14 @@ def test_the_prediction_carries_the_probe_version(monkeypatch):
     )
     classifier = LinearProbeClassifier(weights)
     monkeypatch.setattr(
-        "bina_ml.probe.encode_image", lambda image: np.zeros(512, dtype=np.float32)
+        "mithra_ml.probe.encode_image", lambda image: np.zeros(512, dtype=np.float32)
     )
     assert classifier.predict(object()).model_version == weights.version
 
 
 def test_folds_keep_every_class_represented():
     """A fold missing a class would report an accuracy it never measured."""
-    from bina_ml.probe import FOLDS, _stratified_folds
+    from mithra_ml.probe import FOLDS, _stratified_folds
 
     targets = np.array([0] * 30 + [1] * 30 + [2] * 27 + [3] * 26)
     folds = _stratified_folds(targets, FOLDS)

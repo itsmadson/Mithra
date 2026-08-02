@@ -14,7 +14,7 @@ import math
 from shapely.geometry import LineString, MultiLineString, Point, mapping
 from shapely.ops import unary_union
 
-from bina_worker.tiler import Bbox, split_bbox
+from mithra_worker.tiler import Bbox, split_bbox
 
 EARTH_M_PER_DEG = 111_320.0
 

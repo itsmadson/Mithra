@@ -5,10 +5,10 @@ from geoalchemy2.functions import ST_X, ST_Y
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from bina_api.auth import current_user, same_org, visible_jobs
-from bina_api.db import get_session
-from bina_api.models import Job, Sign, User
-from bina_api.schemas import SignList, SignOut
+from mithra_api.auth import current_user, same_org, visible_jobs
+from mithra_api.db import get_session
+from mithra_api.models import Job, Sign, User
+from mithra_api.schemas import SignList, SignOut
 
 router = APIRouter(prefix="/api/jobs", tags=["signs"])
 

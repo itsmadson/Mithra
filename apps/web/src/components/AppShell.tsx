@@ -30,7 +30,7 @@ export function useTheme(): [Theme, (t: Theme) => void] {
   const [theme, setThemeState] = useState<Theme>("dark");
 
   useEffect(() => {
-    const stored = (localStorage.getItem("bina-theme") as Theme | null) ?? "dark";
+    const stored = (localStorage.getItem("mithra-theme") as Theme | null) ?? "dark";
     setThemeState(stored);
     document.documentElement.dataset.theme = stored;
   }, []);
@@ -39,7 +39,7 @@ export function useTheme(): [Theme, (t: Theme) => void] {
     setThemeState(next);
     document.documentElement.dataset.theme = next;
     try {
-      localStorage.setItem("bina-theme", next);
+      localStorage.setItem("mithra-theme", next);
     } catch {
       /* private mode — the in-memory theme still applies */
     }

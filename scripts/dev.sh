@@ -13,7 +13,7 @@ API_PORT="${API_PORT:-8020}"
 WEB_PORT="${WEB_PORT:-3100}"
 
 export PYTHONPATH="services/api:services/worker:packages/ml"
-export DATABASE_URL="${DATABASE_URL:-postgresql+psycopg://bina:bina@localhost:5434/bina}"
+export DATABASE_URL="${DATABASE_URL:-postgresql+psycopg://mithra:mithra@localhost:5434/mithra}"
 export REDIS_URL="${REDIS_URL:-redis://localhost:6381/0}"
 export NEXT_PUBLIC_API_URL="http://localhost:${API_PORT}"
 
@@ -47,7 +47,7 @@ echo "==> checking services"
 if ! "$VENV/python" -c "
 import sys, psycopg
 try:
-    psycopg.connect('postgresql://bina:bina@localhost:5434/bina').close()
+    psycopg.connect('postgresql://mithra:mithra@localhost:5434/mithra').close()
 except Exception as exc:
     sys.exit(f'postgres unreachable: {exc}')
 "; then
@@ -56,7 +56,7 @@ except Exception as exc:
 fi
 
 echo "==> api        http://localhost:${API_PORT}/docs"
-"$VENV/uvicorn" bina_api.main:app --port "$API_PORT" --reload &
+"$VENV/uvicorn" mithra_api.main:app --port "$API_PORT" --reload &
 pids+=($!)
 
 if [ "$WORKER_ENABLED" = "1" ]; then

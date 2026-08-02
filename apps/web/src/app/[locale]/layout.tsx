@@ -59,11 +59,11 @@ export default async function LocaleLayout({
       suppressHydrationWarning
     >
       <head>
-        <meta name="bina-build" content={buildId} />
+        <meta name="mithra-build" content={buildId} />
         {/* Applied before paint so a stored light preference never flashes dark. */}
         <script
           dangerouslySetInnerHTML={{
-            __html: `try{var t=localStorage.getItem('bina-theme');if(t){document.documentElement.dataset.theme=t}}catch(e){}`,
+            __html: `try{var t=localStorage.getItem('mithra-theme');if(t){document.documentElement.dataset.theme=t}}catch(e){}`,
           }}
         />
       </head>

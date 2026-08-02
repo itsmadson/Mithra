@@ -5,9 +5,9 @@ from sqlalchemy.orm import Session
 
 from tests.conftest import DB_URL
 
-from bina_api.db import Base, get_session
-from bina_api.main import app
-from bina_api.models import Job, JobReason, JobStatus, Sign
+from mithra_api.db import Base, get_session
+from mithra_api.main import app
+from mithra_api.models import Job, JobReason, JobStatus, Sign
 
 
 
@@ -25,7 +25,7 @@ def client(monkeypatch):
 
     app.dependency_overrides[get_session] = override
     enqueued = []
-    monkeypatch.setattr("bina_api.routes.jobs.enqueue", lambda job_id: enqueued.append(job_id))
+    monkeypatch.setattr("mithra_api.routes.jobs.enqueue", lambda job_id: enqueued.append(job_id))
     test_client = TestClient(app)
     test_client.enqueued = enqueued
     test_client.engine = engine
@@ -60,7 +60,7 @@ def test_enqueue_failure_does_not_leave_an_orphan_queued_job(client, monkeypatch
     def unreachable(job_id):
         raise ConnectionError("Error 111 connecting to localhost:6381")
 
-    monkeypatch.setattr("bina_api.routes.jobs.enqueue", unreachable)
+    monkeypatch.setattr("mithra_api.routes.jobs.enqueue", unreachable)
 
     response = client.post("/api/jobs", json={"bbox": [59.60, 36.29, 59.61, 36.30]})
     assert response.status_code == 503
@@ -185,7 +185,7 @@ def test_enqueue_sets_a_timeout_long_enough_for_a_real_job(monkeypatch):
     A central Mashhad tile alone holds ~58 signs, each needing an image
     download and a CLIP forward pass. The default killed the job mid-run.
     """
-    from bina_api.routes.jobs import JOB_TIMEOUT_SECONDS, enqueue
+    from mithra_api.routes.jobs import JOB_TIMEOUT_SECONDS, enqueue
 
     assert JOB_TIMEOUT_SECONDS >= 3600
 
@@ -205,7 +205,7 @@ def test_enqueue_sets_a_timeout_long_enough_for_a_real_job(monkeypatch):
 
     enqueue("job-1")
 
-    assert captured["func"] == "bina_worker.pipeline.enqueue_job"
+    assert captured["func"] == "mithra_worker.pipeline.enqueue_job"
     assert captured["args"] == ("job-1",)
     assert captured["kwargs"]["job_timeout"] == JOB_TIMEOUT_SECONDS
 

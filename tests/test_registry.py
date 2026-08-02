@@ -1,7 +1,7 @@
 from PIL import Image
 
-from bina_ml import UNKNOWN, Prediction
-from bina_ml.registry import get_classifier, register_classifier, reset_registry
+from mithra_ml import UNKNOWN, Prediction
+from mithra_ml.registry import get_classifier, register_classifier, reset_registry
 
 
 class FakeClassifier:
@@ -37,9 +37,9 @@ def test_a_configured_probe_is_served_instead_of_zero_shot(tmp_path, monkeypatch
     """Promotion is a deployment decision: point the variable at a file."""
     import numpy as np
 
-    from bina_ml import SIGN_CLASSES
-    from bina_ml.probe import ProbeWeights, save
-    from bina_ml.registry import get_classifier, reset_registry
+    from mithra_ml import SIGN_CLASSES
+    from mithra_ml.probe import ProbeWeights, save
+    from mithra_ml.registry import get_classifier, reset_registry
 
     weights = ProbeWeights(
         weight=np.zeros((len(SIGN_CLASSES), 512), dtype=np.float32),
@@ -51,7 +51,7 @@ def test_a_configured_probe_is_served_instead_of_zero_shot(tmp_path, monkeypatch
     save(weights, path)
 
     reset_registry()
-    monkeypatch.setenv("BINA_PROBE_PATH", str(path))
+    monkeypatch.setenv("MITHRA_PROBE_PATH", str(path))
     try:
         assert get_classifier().version == weights.version
     finally:
@@ -60,13 +60,13 @@ def test_a_configured_probe_is_served_instead_of_zero_shot(tmp_path, monkeypatch
 
 def test_an_unloadable_probe_falls_back_rather_than_failing(tmp_path, monkeypatch, capsys):
     """A worker that refuses to start finds no signs at all — worse than old ones."""
-    from bina_ml.registry import get_classifier, reset_registry
+    from mithra_ml.registry import get_classifier, reset_registry
 
     broken = tmp_path / "broken.npz"
     broken.write_bytes(b"not a model")
 
     reset_registry()
-    monkeypatch.setenv("BINA_PROBE_PATH", str(broken))
+    monkeypatch.setenv("MITHRA_PROBE_PATH", str(broken))
     try:
         assert "zeroshot" in get_classifier().version
         assert "could not be loaded" in capsys.readouterr().err

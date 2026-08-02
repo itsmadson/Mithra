@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 
 from tests.test_api_jobs import client  # noqa: F401 - reuse the app fixture
 
-from bina_api.models import Basemap, Job, Sign
+from mithra_api.models import Basemap, Job, Sign
 
 OSM = "https://tile.openstreetmap.org/{z}/{x}/{y}.png"
 

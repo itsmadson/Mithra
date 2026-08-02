@@ -8,9 +8,9 @@ operator's IP to a third party on every keystroke.
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 
-from bina_api.auth import current_user
+from mithra_api.auth import current_user
 
-from bina_worker.osm import OsmError, search_streets
+from mithra_worker.osm import OsmError, search_streets
 
 router = APIRouter(prefix="/api/streets", tags=["streets"])
 

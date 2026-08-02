@@ -1,0 +1,43 @@
+Mithra · میترا — an open-source platform that turns street imagery into a road-sign inventory.
+
+Ask a city how many direction signs it owns, where they are, and when each was last seen. Most can't answer. The data exists — it's sitting in panoramic street imagery nobody has counted.
+
+So I built the thing that counts it.
+
+You type a street name. Mithra resolves the real centreline from OpenStreetMap, buffers a corridor around it, walks the imagery along that corridor, and returns every sign it finds — classified, mapped, and attached to the photograph it came from. One boulevard in Mashhad: 132 signs, 4 of 4 tiles, in about six minutes.
+
+The part I care about most is the part that admits what it doesn't know.
+
+Classification runs CLIP zero-shot, and it is confidently wrong about regulatory signs — it will call a pedestrian crossing a guide sign. Rather than hiding that behind a clean number, the dashboard plots the model's confidence distribution against the review threshold, so "the model is guessing" looks like what it is. Anything it isn't sure about goes to a human queue instead of into the count.
+
+Those human judgements then train a replacement classifier — which refuses to be installed unless it beats the model already in service, measured on data it never learned from. A number you can't trace back to a photograph isn't an inventory; it's a rumour with a decimal point.
+
+Built with FastAPI, PostGIS, Next.js, and PyTorch. Fully bilingual — Persian and English, right-to-left and left-to-right — with a palette drawn from Persian visual tradition: lapis, Achaemenid gold, turquoise, desert sand.
+
+Open source under MIT. Docker images published; it runs with one compose command.
+
+github.com/itsmadson/Mithra
+
+#OpenSource #ComputerVision #GIS #SmartCity #Python #MachineLearning #UrbanPlanning
+
+
+---
+NOT PART OF THE POST — posting notes:
+
+Attach 2–3 images. Best order:
+  1. The survey map — pins along the corridor, crops in the side list.
+  2. The dashboard — confidence histogram with the review threshold.
+  3. The same view in aerial basemap, or the Persian UI, to show bilingual + custom tiles.
+
+First comment (LinkedIn suppresses posts with links in the body — if you move
+the link down here, replace the line above with "Link in the first comment"):
+
+  Repo, docs and images: https://github.com/itsmadson/Mithra
+  Docs cover the pipeline, the model and how it gets retrained, deployment,
+  and an honest list of what it can't do yet.
+
+Two claims in this post are exact; keep them exact if you edit:
+  - "132 signs, 4 of 4 tiles" is a real survey of Boulevard Ahmadabad.
+  - The classifier genuinely is zero-shot today, and genuinely does refuse to
+    promote a probe that doesn't beat it. Don't upgrade either into "trained
+    on thousands of Persian signs" — it isn't, yet.

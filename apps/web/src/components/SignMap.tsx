@@ -204,17 +204,17 @@ export default function SignMap({
         const props = feature.properties as Record<string, string>;
         const [lng, lat] = (feature.geometry as GeoJSON.Point).coordinates;
         const crop = props.crop_url
-          ? `<img src="${API_BASE}${props.crop_url}" alt="" class="bina-pop-img" />`
+          ? `<img src="${API_BASE}${props.crop_url}" alt="" class="mithra-pop-img" />`
           : "";
         popup.current ??= new maplibregl.Popup({
           closeButton: false,
           closeOnClick: false,
           offset: 14,
-          className: "bina-pop",
+          className: "mithra-pop",
         });
         popup.current
           .setLngLat([lng, lat])
-          .setHTML(`<div class="bina-pop-card">${crop}</div>`)
+          .setHTML(`<div class="mithra-pop-card">${crop}</div>`)
           .addTo(instance);
       });
       instance.on("mouseleave", DOT, () => {

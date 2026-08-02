@@ -21,11 +21,11 @@ test.beforeEach(async ({ context, request }) => {
   const cookie = response
     .headersArray()
     .find((h) => h.name.toLowerCase() === "set-cookie")?.value;
-  const token = cookie?.match(/bina_session=([^;]+)/)?.[1];
+  const token = cookie?.match(/mithra_session=([^;]+)/)?.[1];
   if (!token) throw new Error("no session cookie returned");
 
   await context.addCookies([
-    { name: "bina_session", value: token, domain: "localhost", path: "/" },
+    { name: "mithra_session", value: token, domain: "localhost", path: "/" },
   ]);
 });
 

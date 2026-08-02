@@ -6,7 +6,7 @@ import httpx
 import pytest
 import respx
 
-from bina_worker.mapillary import (
+from mithra_worker.mapillary import (
     GRAPH,
     MapillaryAuthError,
     MapillaryClient,

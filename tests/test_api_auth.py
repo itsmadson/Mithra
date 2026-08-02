@@ -5,9 +5,9 @@ from sqlalchemy.orm import Session
 
 from tests.conftest import DB_URL
 
-from bina_api.db import Base, get_session
-from bina_api.main import app
-from bina_api.models import Job, Session as DbSession, User, UserRole
+from mithra_api.db import Base, get_session
+from mithra_api.main import app
+from mithra_api.models import Job, Session as DbSession, User, UserRole
 
 GOOD_PASSWORD = "a-long-enough-password"
 
@@ -25,7 +25,7 @@ def client(monkeypatch):
             yield s
 
     app.dependency_overrides[get_session] = override
-    monkeypatch.setattr("bina_api.routes.jobs.enqueue", lambda job_id: None)
+    monkeypatch.setattr("mithra_api.routes.jobs.enqueue", lambda job_id: None)
     test_client = TestClient(app)
     test_client.engine = engine
     yield test_client
@@ -173,7 +173,7 @@ def test_the_session_cookie_is_not_readable_by_javascript(client):
 
 def test_only_the_hash_of_the_session_token_is_stored(client):
     register_first(client)
-    token = client.cookies.get("bina_session")
+    token = client.cookies.get("mithra_session")
     with Session(client.engine) as session:
         stored = session.scalars(select(DbSession)).one()
         assert stored.token_hash != token
@@ -201,7 +201,7 @@ def test_an_expired_session_does_not_authenticate(client):
 
 
 def test_a_forged_session_cookie_does_not_authenticate(client):
-    client.cookies.set("bina_session", "not-a-real-token")
+    client.cookies.set("mithra_session", "not-a-real-token")
     assert client.get("/api/auth/me").status_code == 401
 
 
@@ -284,7 +284,7 @@ def test_an_administrator_cannot_lock_themselves_out(client):
 
 
 def test_a_label_records_who_made_it(client):
-    from bina_api.models import Label, Sign
+    from mithra_api.models import Label, Sign
 
     user = register_first(client)
     client.post("/api/jobs", json={"bbox": [59.60, 36.29, 59.61, 36.30]})

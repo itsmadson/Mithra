@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from bina_api.routes import (
+from mithra_api.routes import (
     auth,
     basemaps,
     crops,
@@ -15,7 +15,7 @@ from bina_api.routes import (
     streets,
 )
 
-app = FastAPI(title="bina", version="0.1.0")
+app = FastAPI(title="Mithra", version="0.1.0")
 
 app.add_middleware(
     CORSMiddleware,

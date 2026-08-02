@@ -11,6 +11,11 @@ RUN apt-get update \
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
     PIP_NO_CACHE_DIR=1 \
+    # Package downloads here are large (torch is hundreds of megabytes) and the
+    # connection they arrive over is not always steady. Without these, one
+    # dropped read fails the whole build.
+    PIP_DEFAULT_TIMEOUT=120 \
+    PIP_RETRIES=10 \
     PYTHONPATH=/app/services/api:/app/services/worker:/app/packages/ml
 
 WORKDIR /app
@@ -47,4 +52,4 @@ EXPOSE 8000
 HEALTHCHECK --interval=30s --timeout=5s --start-period=20s \
   CMD curl -fsS http://localhost:8000/api/health || exit 1
 
-CMD ["uvicorn", "bina_api.main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["uvicorn", "mithra_api.main:app", "--host", "0.0.0.0", "--port", "8000"]
