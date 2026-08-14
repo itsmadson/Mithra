@@ -24,7 +24,18 @@
     "street_name": "Street name sign",
     "city_entry": "City entry sign",
     "informational": "Informational sign",
-    "unknown": "Unknown"
+    "unknown": "Unknown",
+    "water": "Water",
+    "tree": "Tree",
+    "building": "Building",
+    "car": "Vehicle",
+    "road": "Road",
+    "ship": "Ship",
+    "solar_panel": "Solar panel",
+    "forest_cover": "Forest cover",
+    "built_up": "Built-up area",
+    "cropland": "Cropland",
+    "sign": "Road sign"
   },
   "mapillaryCategory": {
     "regulatory": "Regulatory",
@@ -191,7 +202,13 @@
     "training": "Training progress",
     "trainingHint": "Labels collected toward replacing the current model",
     "trainingHow": "When every class is complete, a new model can be trained and measured against the one in service.",
-    "trainingReady": "Enough labels. Train with scripts/train_probe.py."
+    "trainingReady": "Enough labels. Train with scripts/train_probe.py.",
+    "coverage": "Area covered",
+    "coverageHint": "Total extent of all runs",
+    "perKm2": "{count} features per km²",
+    "sources": "Imagery sources",
+    "sourcesHint": "What each run was read from",
+    "runCount": "{count} runs"
   },
   "basemap": {
     "title": "Basemaps",

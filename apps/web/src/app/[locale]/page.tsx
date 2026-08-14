@@ -118,7 +118,7 @@ export default function DashboardPage() {
             </p>
           )}
 
-          <div className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
+          <div className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-5">
             <StatTile
               label={t("dashboard.totalSigns")}
               value={data ? n(data.features.total) : "—"}
@@ -151,6 +151,15 @@ export default function DashboardPage() {
               tone={data && data.features.needs_review > 0 ? "warn" : "neutral"}
             />
             <StatTile
+              label={t("dashboard.coverage")}
+              value={data ? `${n(data.coverage.area_km2)} km²` : "—"}
+              hint={
+                data && data.coverage.per_km2 > 0
+                  ? t("dashboard.perKm2", { count: n(data.coverage.per_km2) })
+                  : t("dashboard.coverageHint")
+              }
+            />
+            <StatTile
               label={t("dashboard.running")}
               value={data ? n(data.surveys.running) : "—"}
               hint={
@@ -175,14 +184,15 @@ export default function DashboardPage() {
             <Panel title={t("dashboard.byClass")} hint={t("dashboard.byClassHint")}>
               {data && (
                 <StackedShare
-                  parts={CLASS_ORDER.filter(
-                    (cls) => (data.features.by_class[cls] ?? 0) > 0,
-                  ).map((cls) => ({
-                    key: cls,
-                    label: t(`classes.${cls}`),
-                    value: data.features.by_class[cls] ?? 0,
-                    color: colorForClass(cls),
-                  }))}
+                  parts={Object.entries(data.features.by_class)
+                    .filter(([, count]) => count > 0)
+                    .sort((a, b) => b[1] - a[1])
+                    .map(([cls, count]) => ({
+                      key: cls,
+                      label: t.has(`classes.${cls}`) ? t(`classes.${cls}`) : cls,
+                      value: count,
+                      color: colorForClass(cls),
+                    }))}
                 />
               )}
             </Panel>
@@ -243,6 +253,7 @@ export default function DashboardPage() {
             </Panel>
           </div>
 
+          {data && Object.keys(data.labels.short_by ?? {}).length > 0 && (
           <Panel title={t("dashboard.training")} hint={t("dashboard.trainingHint")}>
             {data && (
               <div className="grid gap-2.5">
@@ -294,6 +305,27 @@ export default function DashboardPage() {
               </div>
             )}
           </Panel>
+          )}
+
+          {data && Object.keys(data.sources).length > 1 && (
+            <Panel title={t("dashboard.sources")} hint={t("dashboard.sourcesHint")}>
+              <div className="grid gap-2">
+                {Object.entries(data.sources)
+                  .sort((a, b) => b[1] - a[1])
+                  .map(([source, count]) => (
+                    <div
+                      key={source}
+                      className="flex items-baseline justify-between gap-3 border-b border-[var(--line)] pb-2 text-[12px] last:border-0"
+                    >
+                      <span className="text-[var(--fg-muted)]">{source}</span>
+                      <span className="tabular-nums text-[var(--fg)]">
+                        {t("dashboard.runCount", { count: n(count) })}
+                      </span>
+                    </div>
+                  ))}
+              </div>
+            </Panel>
+          )}
 
           <Panel title={t("dashboard.recent")} hint={t("dashboard.recentHint")}>
             {data?.recent.length ? (

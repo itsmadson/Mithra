@@ -275,6 +275,9 @@ export interface Overview {
     needed_per_class: number;
     short_by: Record<string, number>;
   };
+  coverage: { area_km2: number; mapped_km2: number; per_km2: number };
+  sources: Record<string, number>;
+  detectors: Record<string, number>;
   activity: { features_per_day: { date: string; count: number }[]; days: number };
   confidence: {
     buckets: { from: number; to: number; count: number }[];

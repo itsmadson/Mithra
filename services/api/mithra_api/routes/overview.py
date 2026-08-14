@@ -15,6 +15,8 @@ from sqlalchemy.orm import Session
 
 from mithra_api.auth import current_user, visible_jobs
 from mithra_api.db import get_session
+from geoalchemy2 import Geography
+
 from mithra_api.models import Run, RunStatus, Label, Feature, FeatureReason, User
 
 router = APIRouter(prefix="/api/overview", tags=["overview"])
@@ -182,6 +184,44 @@ def overview(
         ).all()
     ]
 
+    # What the runs covered, and what they read. At one survey these are
+    # trivia; at a thousand they are the first questions asked — comparing two
+    # runs by raw count says nothing unless they covered comparable ground.
+    by_source = dict(
+        session.execute(
+            select(Run.source_kind, func.count())
+            .where(Run.id.in_(mine))
+            .group_by(Run.source_kind)
+        ).all()
+    )
+    by_detector = dict(
+        session.execute(
+            select(Run.detector, func.count()).where(Run.id.in_(mine)).group_by(Run.detector)
+        ).all()
+    )
+    # Area covered, computed on the geography type so it comes back in metres
+    # on the ellipsoid — degrees squared is not an area.
+    area_m2 = (
+        session.scalar(
+            select(
+                func.sum(
+                    func.ST_Area(
+                        func.ST_MakeEnvelope(
+                            Run.bbox_west, Run.bbox_south, Run.bbox_east, Run.bbox_north, 4326
+                        ).cast(Geography)
+                    )
+                )
+            ).where(Run.id.in_(mine))
+        )
+        or 0.0
+    )
+    # Mapped extent of everything with an outline: the answer for a water or
+    # canopy run, where "how many" is the wrong question.
+    mapped_m2 = (
+        session.scalar(select(func.sum(Feature.area_m2)).where(Feature.run_id.in_(mine)))
+        or 0.0
+    )
+
     failed_signs = (
         session.scalar(
             select(func.count())
@@ -245,6 +285,15 @@ def overview(
                 if labels_by_class.get(cls, 0) < MIN_PER_CLASS
             },
         },
+        "coverage": {
+            "area_km2": round(area_m2 / 1_000_000, 2),
+            "mapped_km2": round(mapped_m2 / 1_000_000, 4),
+            "per_km2": (
+                round(total_signs / (area_m2 / 1_000_000), 1) if area_m2 else 0.0
+            ),
+        },
+        "sources": by_source,
+        "detectors": by_detector,
         "activity": {"features_per_day": features_per_day, "days": days},
         "confidence": {"buckets": confidence_buckets, "threshold": REVIEW_THRESHOLD},
         "top_surveys": top_surveys,
