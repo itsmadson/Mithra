@@ -10,45 +10,45 @@ from sqlalchemy.orm import Session
 
 from mithra_api.auth import current_user, same_org
 from mithra_api.db import get_session
-from mithra_api.models import Job, Sign, User
+from mithra_api.models import Run, Feature, User
 
-router = APIRouter(prefix="/api/jobs", tags=["export"])
+router = APIRouter(prefix="/api/runs", tags=["export"])
 
 COLUMNS = [
     "id",
-    "sign_class",
+    "class_name",
     "confidence",
     "lon",
     "lat",
-    "mapillary_value",
+    "source_value",
     "needs_review",
 ]
 
 
-def _rows(session: Session, job_id: uuid.UUID, user: User):
-    job = session.get(Job, job_id)
+def _rows(session: Session, run_id: uuid.UUID, user: User):
+    job = session.get(Run, run_id)
     if job is None or not same_org(user, job):
         raise HTTPException(status_code=404, detail="job not found")
     return session.execute(
         select(
-            Sign.id,
-            Sign.sign_class,
-            Sign.confidence,
-            ST_X(Sign.geom),
-            ST_Y(Sign.geom),
-            Sign.mapillary_value,
-            Sign.needs_review,
-        ).where(Sign.job_id == job_id)
+            Feature.id,
+            Feature.class_name,
+            Feature.confidence,
+            ST_X(Feature.geom),
+            ST_Y(Feature.geom),
+            Feature.source_value,
+            Feature.needs_review,
+        ).where(Feature.run_id == run_id)
     ).all()
 
 
-@router.get("/{job_id}/export.csv")
+@router.get("/{run_id}/export.csv")
 def export_csv(
-    job_id: uuid.UUID,
+    run_id: uuid.UUID,
     session: Session = Depends(get_session),
     user: User = Depends(current_user),
 ) -> StreamingResponse:
-    rows = _rows(session, job_id, user)
+    rows = _rows(session, run_id, user)
     buffer = io.StringIO()
     writer = csv.writer(buffer)
     writer.writerow(COLUMNS)
@@ -60,17 +60,17 @@ def export_csv(
     return StreamingResponse(
         iter([buffer.getvalue()]),
         media_type="text/csv",
-        headers={"Content-Disposition": f'attachment; filename="mithra-{job_id}.csv"'},
+        headers={"Content-Disposition": f'attachment; filename="mithra-{run_id}.csv"'},
     )
 
 
-@router.get("/{job_id}/export.geojson")
+@router.get("/{run_id}/export.geojson")
 def export_geojson(
-    job_id: uuid.UUID,
+    run_id: uuid.UUID,
     session: Session = Depends(get_session),
     user: User = Depends(current_user),
 ) -> JSONResponse:
-    rows = _rows(session, job_id, user)
+    rows = _rows(session, run_id, user)
     return JSONResponse(
         {
             "type": "FeatureCollection",
@@ -80,14 +80,14 @@ def export_geojson(
                     "geometry": {"type": "Point", "coordinates": [row[3], row[4]]},
                     "properties": {
                         "id": str(row[0]),
-                        "sign_class": row[1],
+                        "class_name": row[1],
                         "confidence": row[2],
-                        "mapillary_value": row[5],
+                        "source_value": row[5],
                         "needs_review": row[6],
                     },
                 }
                 for row in rows
             ],
         },
-        headers={"Content-Disposition": f'attachment; filename="mithra-{job_id}.geojson"'},
+        headers={"Content-Disposition": f'attachment; filename="mithra-{run_id}.geojson"'},
     )

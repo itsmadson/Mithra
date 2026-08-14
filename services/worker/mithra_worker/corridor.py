@@ -2,7 +2,7 @@
 
 Mapillary is queried by bbox, so a street survey still ends in rectangles — but
 the rectangles should follow the road rather than enclose the whole city block
-grid around it, and a sign three streets away that happens to fall inside a
+grid around it, and a feature three streets away that happens to fall inside a
 tile must not be counted as belonging to this street.
 
 Distances are computed in a local equirectangular projection, metres on both
@@ -53,7 +53,7 @@ def corridor_tiles(segments: list[Segment], buffer_m: float) -> list[Bbox]:
 
     Tiles that touch no part of the corridor are dropped, which is the whole
     point: a long street produces a wide bounding box that is mostly not the
-    street, and querying all of it would be slow and would pull in signs that
+    street, and querying all of it would be slow and would pull in features that
     belong to other roads.
     """
     line = centreline(segments)
@@ -88,7 +88,7 @@ def corridor_tiles(segments: list[Segment], buffer_m: float) -> list[Bbox]:
 def within_corridor(
     segments: list[Segment], buffer_m: float, lon: float, lat: float
 ) -> bool:
-    """Is this sign close enough to the street to belong to it?"""
+    """Is this feature close enough to the street to belong to it?"""
     line = centreline(segments)
     lat0 = (line.bounds[1] + line.bounds[3]) / 2
     to_m = _projector(lat0)

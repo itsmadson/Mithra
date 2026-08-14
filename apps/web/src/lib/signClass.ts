@@ -1,4 +1,4 @@
-import type { SignClass } from "./api";
+import type { FeatureClass } from "./api";
 
 /**
  * One source of truth for how each class is coloured, everywhere it appears:
@@ -6,7 +6,7 @@ import type { SignClass } from "./api";
  * the map and orange in the table is two classes as far as the eye is
  * concerned.
  */
-export const CLASS_COLOR: Record<SignClass, string> = {
+export const CLASS_COLOR: Record<FeatureClass, string> = {
   direction_guide: "var(--c-direction)",
   street_name: "var(--c-street)",
   city_entry: "var(--c-city)",
@@ -15,7 +15,7 @@ export const CLASS_COLOR: Record<SignClass, string> = {
 };
 
 /** Literal hex per class, for MapLibre paint expressions, which cannot read CSS vars. */
-export const CLASS_HEX: Record<SignClass, { dark: string; light: string }> = {
+export const CLASS_HEX: Record<FeatureClass, { dark: string; light: string }> = {
   direction_guide: { dark: "#3690e3", light: "#0074ca" },
   street_name: { dark: "#c97500", light: "#ae5700" },
   city_entry: { dark: "#00a875", light: "#008d59" },
@@ -26,7 +26,7 @@ export const CLASS_HEX: Record<SignClass, { dark: string; light: string }> = {
 };
 
 /** The order classes are drawn in, everywhere. Colour follows the class, never its rank. */
-export const CLASS_ORDER: SignClass[] = [
+export const CLASS_ORDER: FeatureClass[] = [
   "direction_guide",
   "street_name",
   "city_entry",

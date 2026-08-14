@@ -152,7 +152,7 @@ def test_an_unknown_source_has_no_resolution():
 # --- the endpoint the console gates itself on --------------------------------
 
 
-from tests.test_api_jobs import client  # noqa: E402, F401 - reuse the app fixture
+from tests.test_api_runs import client  # noqa: E402, F401 - reuse the app fixture
 
 
 def test_the_catalogue_requires_a_session(client):  # noqa: F811
@@ -183,8 +183,8 @@ def test_availability_refuses_land_cover_on_street_imagery(client):  # noqa: F81
     assert body["viewpoint"] == "street"
     water = next(t for t in body["targets"] if t["key"] == "water")
     assert water["available"] is False
-    sign = next(t for t in body["targets"] if t["key"] == "sign")
-    assert sign["available"] is True
+    feature = next(t for t in body["targets"] if t["key"] == "sign")
+    assert feature["available"] is True
 
 
 def test_an_upload_reports_what_it_can_do_once_it_knows_its_resolution(client):  # noqa: F811

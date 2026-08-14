@@ -18,7 +18,7 @@ import httpx
 NOMINATIM = "https://nominatim.openstreetmap.org/search"
 OVERPASS = "https://overpass-api.de/api/interpreter"
 
-USER_AGENT = "mithra/0.1 (urban sign survey; contact: operator)"
+USER_AGENT = "mithra/0.1 (urban feature survey; contact: operator)"
 
 # Mashhad, as a viewbox to bias search results without hard-excluding others.
 MASHHAD_VIEWBOX = "59.30,36.45,59.90,36.10"

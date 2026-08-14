@@ -6,7 +6,7 @@ from sqlalchemy import create_engine, text
 from sqlalchemy.orm import Session
 
 from mithra_api.db import Base
-from mithra_api.models import Job, JobStatus, Sign, User, UserRole
+from mithra_api.models import Run, RunStatus, Feature, User, UserRole
 from mithra_api.security import hash_password
 
 DB_URL = "postgresql+psycopg://mithra:mithra@localhost:5434/mithra"
@@ -21,23 +21,23 @@ def main() -> None:
         conn.execute(text("CREATE EXTENSION IF NOT EXISTS postgis"))
     Base.metadata.create_all(engine)
     with Session(engine) as session:
-        session.query(Sign).filter(Sign.job_id == JOB_ID).delete()
-        session.query(Job).filter(Job.id == JOB_ID).delete()
+        session.query(Feature).filter(Feature.run_id == JOB_ID).delete()
+        session.query(Run).filter(Run.id == JOB_ID).delete()
         session.commit()
         session.add(
-            Job(
+            Run(
                 id=JOB_ID,
                 bbox_west=59.600,
                 bbox_south=36.293,
                 bbox_east=59.609,
                 bbox_north=36.302,
-                status=JobStatus.SUCCEEDED,
+                status=RunStatus.SUCCEEDED,
                 tile_count=1,
                 failed_tile_count=0,
             )
         )
         session.commit()
-        for i, (sign_class, confidence) in enumerate(
+        for i, (class_name, confidence) in enumerate(
             [
                 ("street_name", 0.91),
                 ("street_name", 0.88),
@@ -46,22 +46,22 @@ def main() -> None:
             ]
         ):
             session.add(
-                Sign(
-                    job_id=JOB_ID,
-                    mapillary_feature_id=f"seed{i}",
+                Feature(
+                    run_id=JOB_ID,
+                    source_feature_id=f"seed{i}",
                     geom=f"SRID=4326;POINT(59.60{i} 36.29{i})",
-                    sign_class=sign_class,
+                    class_name=class_name,
                     confidence=confidence,
                     model_version="seed-v1",
-                    needs_review=(sign_class == "unknown"),
-                    # The review queue only offers signs that can be looked at,
+                    needs_review=(class_name == "unknown"),
+                    # The review queue only offers features that can be looked at,
                     # so a seeded review item needs a crop path like a real one.
                     crop_path=f"data/crops/{JOB_ID}/{i}.jpg",
                 )
             )
         session.commit()
     # Every route now requires a session, so the browser suite needs an
-    # account to sign in with.
+    # account to feature in with.
     with Session(engine) as session:
         if session.query(User).filter(User.email == E2E_EMAIL).first() is None:
             session.add(

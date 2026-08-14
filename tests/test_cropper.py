@@ -71,7 +71,7 @@ def test_crop_uses_the_downloaded_image_size_not_the_reported_one():
     We download thumb_2048_url, which is a scaled-down copy. Decoding the
     detection geometry against the original dimensions put the box outside the
     thumbnail, and PIL pads out-of-bounds crops with black rather than failing.
-    That silently produced blank crops for 53 of 76 signs in a real Mashhad
+    That silently produced blank crops for 53 of 76 features in a real Mashhad
     run, and the classifier dutifully classified black rectangles.
     """
     quarter, three_quarters = EXTENT // 4, EXTENT * 3 // 4

@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 
 from mithra_api.auth import current_user, same_org, visible_jobs
 from mithra_api.db import get_session
-from mithra_api.models import Label, Sign, User
+from mithra_api.models import Label, Feature, User
 from mithra_api.schemas import SignList, SignOut
 from mithra_ml import ALL_CLASSES
 
@@ -16,14 +16,14 @@ router = APIRouter(prefix="/api/labels", tags=["labels"])
 
 
 class LabelCreate(BaseModel):
-    sign_id: uuid.UUID
-    sign_class: str
+    feature_id: uuid.UUID
+    class_name: str
 
-    @field_validator("sign_class")
+    @field_validator("class_name")
     @classmethod
     def _known_class(cls, v: str) -> str:
         if v not in ALL_CLASSES:
-            raise ValueError(f"sign_class must be one of {ALL_CLASSES}")
+            raise ValueError(f"class_name must be one of {ALL_CLASSES}")
         return v
 
 
@@ -35,37 +35,37 @@ def queue(
 ) -> SignList:
     rows = session.execute(
         select(
-            Sign.id,
-            Sign.sign_class,
-            Sign.confidence,
-            ST_X(Sign.geom),
-            ST_Y(Sign.geom),
-            Sign.crop_path,
-            Sign.needs_review,
-            Sign.mapillary_value,
+            Feature.id,
+            Feature.class_name,
+            Feature.confidence,
+            ST_X(Feature.geom),
+            ST_Y(Feature.geom),
+            Feature.crop_path,
+            Feature.needs_review,
+            Feature.source_value,
         )
         .where(
-            Sign.needs_review.is_(True),
-            Sign.job_id.in_(visible_jobs(user)),
+            Feature.needs_review.is_(True),
+            Feature.run_id.in_(visible_jobs(user)),
             # Without a crop there is nothing to look at, and the queue is
-            # ordered by lowest confidence — so one unviewable sign would sit
+            # ordered by lowest confidence — so one unviewable feature would sit
             # at the front and stop the whole queue.
-            Sign.crop_path.is_not(None),
+            Feature.crop_path.is_not(None),
         )
-        .order_by(Sign.confidence.asc())
+        .order_by(Feature.confidence.asc())
         .limit(limit)
     ).all()
     return SignList(
         items=[
             SignOut(
                 id=r[0],
-                sign_class=r[1],
+                class_name=r[1],
                 confidence=r[2],
                 lon=r[3],
                 lat=r[4],
                 crop_url=f"/api/crops/{r[0]}" if r[5] else None,
                 needs_review=r[6],
-                mapillary_value=r[7],
+                source_value=r[7],
             )
             for r in rows
         ]
@@ -78,20 +78,20 @@ def create_label(
     session: Session = Depends(get_session),
     user: User = Depends(current_user),
 ) -> dict[str, str]:
-    sign = session.get(Sign, payload.sign_id)
-    # Labelling another organisation's sign would write into their training
-    # data, so an out-of-scope sign is simply not there.
-    if sign is None or not same_org(user, sign.job):
-        raise HTTPException(status_code=404, detail="sign not found")
+    feature = session.get(Feature, payload.feature_id)
+    # Labelling another organisation's feature would write into their training
+    # data, so an out-of-scope feature is simply not there.
+    if feature is None or not same_org(user, feature.run):
+        raise HTTPException(status_code=404, detail="feature not found")
 
     session.add(
         Label(
-            sign_id=sign.id,
-            sign_class=payload.sign_class,
+            feature_id=feature.id,
+            class_name=payload.class_name,
             labelled_by_id=user.id,
         )
     )
-    sign.sign_class = payload.sign_class
-    sign.needs_review = False
+    feature.class_name = payload.class_name
+    feature.needs_review = False
     session.commit()
     return {"status": "ok"}

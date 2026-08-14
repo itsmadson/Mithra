@@ -1,10 +1,10 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import { SIGN_CLASSES, type JobStatus, type SignClass } from "../lib/api";
+import { SIGN_CLASSES, type JobStatus, type FeatureClass } from "../lib/api";
 import { CLASS_COLOR } from "../lib/signClass";
 
-const ORDER: SignClass[] = [...SIGN_CLASSES, "unknown"];
+const ORDER: FeatureClass[] = [...SIGN_CLASSES, "unknown"];
 
 /**
  * Legend and filter are the same control. A separate legend would be a second
@@ -18,9 +18,9 @@ export default function ClassFilter({
   onOnly,
 }: {
   job: JobStatus;
-  active: Set<SignClass>;
-  onToggle: (cls: SignClass) => void;
-  onOnly: (cls: SignClass) => void;
+  active: Set<FeatureClass>;
+  onToggle: (cls: FeatureClass) => void;
+  onOnly: (cls: FeatureClass) => void;
 }) {
   const t = useTranslations();
 

@@ -1,6 +1,6 @@
 """HTTP access to the Mapillary graph API.
 
-Knows about auth, proxying, and retry. Knows nothing about signs, jobs, or
+Knows about auth, proxying, and retry. Knows nothing about features, jobs, or
 the database — callers interpret the payloads.
 """
 
@@ -20,7 +20,7 @@ IMAGE_FIELDS = "id,width,height,thumb_2048_url,captured_at,geometry"
 
 RETRY_STATUSES = {429, 500, 502, 503, 504}
 
-# The value Mapillary reports in a map feature's object_type for traffic signs.
+# The value Mapillary reports in a map feature's object_type for traffic features.
 # Other observed values are 'panoptic' and 'mvd_fast', which are street objects.
 SIGN_OBJECT_TYPE = "trafficsign"
 
@@ -86,7 +86,7 @@ class MapillaryClient:
         )
 
     def get_sign_features(self, bbox: Bbox, limit: int = 2000) -> list[dict]:
-        """Return only the map features that are actually traffic signs.
+        """Return only the map features that are actually traffic features.
 
         The object_types query parameter below is sent for documentation value,
         but Mapillary ignores it: 'trafficsign', 'traffic_sign', 'points', and
@@ -94,7 +94,7 @@ class MapillaryClient:
         therefore happens here, against each feature's object_type field.
 
         This is not a marginal cleanup. One central Mashhad tile returns 454
-        features, of which 58 are signs; the other 396 are panoptic and mvd_fast
+        features, of which 58 are features; the other 396 are panoptic and mvd_fast
         detections of street furniture. Trusting the server-side filter would
         overcount by roughly eight times.
         """

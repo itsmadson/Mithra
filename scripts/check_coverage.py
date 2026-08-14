@@ -1,4 +1,4 @@
-"""Answer the blocking question: does Mashhad have usable Mapillary sign coverage?
+"""Answer the blocking question: does Mashhad have usable Mapillary feature coverage?
 
 Usage: MAPILLARY_TOKEN=... python scripts/check_coverage.py
 """
@@ -50,7 +50,7 @@ def main() -> int:
         print(feats.text[:500])
         return 1
     features = feats.json().get("data", [])
-    print(f"sign features found: {len(features)}")
+    print(f"feature features found: {len(features)}")
 
     counts = Counter(f.get("object_value", "?").split("--")[0] for f in features)
     for category, n in counts.most_common():
@@ -58,7 +58,7 @@ def main() -> int:
 
     if not features:
         print(
-            "\nVERDICT: no sign coverage in this tile. "
+            "\nVERDICT: no feature coverage in this tile. "
             "Widen the probe or reconsider imagery source."
         )
         return 1

@@ -15,7 +15,7 @@ from sqlalchemy.orm import Session
 
 from mithra_api.auth import current_user, visible_jobs
 from mithra_api.db import get_session
-from mithra_api.models import Job, JobStatus, Label, Sign, SignReason, User
+from mithra_api.models import Run, RunStatus, Label, Feature, FeatureReason, User
 
 router = APIRouter(prefix="/api/overview", tags=["overview"])
 
@@ -61,14 +61,14 @@ def overview(
 
     by_class = dict(
         session.execute(
-            select(Sign.sign_class, func.count())
-            .where(Sign.job_id.in_(mine))
-            .group_by(Sign.sign_class)
+            select(Feature.class_name, func.count())
+            .where(Feature.run_id.in_(mine))
+            .group_by(Feature.class_name)
         ).all()
     )
     by_status = dict(
         session.execute(
-            select(Job.status, func.count()).where(Job.id.in_(mine)).group_by(Job.status)
+            select(Run.status, func.count()).where(Run.id.in_(mine)).group_by(Run.status)
         ).all()
     )
 
@@ -76,28 +76,28 @@ def overview(
     needs_review = (
         session.scalar(
             select(func.count())
-            .select_from(Sign)
-            .where(Sign.job_id.in_(mine), Sign.needs_review.is_(True))
+            .select_from(Feature)
+            .where(Feature.run_id.in_(mine), Feature.needs_review.is_(True))
         )
         or 0
     )
 
     # Signs found per day. The pipeline's output over time is the one number
     # that says whether the tool is being used.
-    signs_per_day = _day_series(
+    features_per_day = _day_series(
         session.execute(
-            select(func.date(Sign.created_at), func.count())
-            .where(Sign.job_id.in_(mine), Sign.created_at >= since)
-            .group_by(func.date(Sign.created_at))
-            .order_by(func.date(Sign.created_at))
+            select(func.date(Feature.created_at), func.count())
+            .where(Feature.run_id.in_(mine), Feature.created_at >= since)
+            .group_by(func.date(Feature.created_at))
+            .order_by(func.date(Feature.created_at))
         ).all(),
         days,
     )
     labels_per_day = _day_series(
         session.execute(
             select(func.date(Label.created_at), func.count())
-            .join(Sign, Sign.id == Label.sign_id)
-            .where(Sign.job_id.in_(mine), Label.created_at >= since)
+            .join(Feature, Feature.id == Label.feature_id)
+            .where(Feature.run_id.in_(mine), Label.created_at >= since)
             .group_by(func.date(Label.created_at))
             .order_by(func.date(Label.created_at))
         ).all(),
@@ -109,11 +109,11 @@ def overview(
     # that is a decision to retrain, not a number to celebrate.
     # Labelled once and grouped by the label: Postgres will not group by a
     # repeated expression, and repeating it would risk the two drifting apart.
-    bucket = func.width_bucket(cast(Sign.confidence, Float), 0.0, 1.0, 10).label("bucket")
+    bucket = func.width_bucket(cast(Feature.confidence, Float), 0.0, 1.0, 10).label("bucket")
     confidence = dict(
         session.execute(
             select(bucket, func.count())
-            .where(Sign.job_id.in_(mine))
+            .where(Feature.run_id.in_(mine))
             .group_by(bucket)
         ).all()
     )
@@ -140,16 +140,16 @@ def overview(
         }
         for row in session.execute(
             select(
-                Job.id,
-                Job.name,
-                func.count(Sign.id),
-                func.count(case((Sign.needs_review.is_(True), 1))),
-                Job.status,
+                Run.id,
+                Run.name,
+                func.count(Feature.id),
+                func.count(case((Feature.needs_review.is_(True), 1))),
+                Run.status,
             )
-            .join(Sign, Sign.job_id == Job.id)
-            .where(Job.id.in_(mine))
-            .group_by(Job.id, Job.name, Job.status)
-            .order_by(func.count(Sign.id).desc())
+            .join(Feature, Feature.run_id == Run.id)
+            .where(Run.id.in_(mine))
+            .group_by(Run.id, Run.name, Run.status)
+            .order_by(func.count(Feature.id).desc())
             .limit(8)
         ).all()
     ]
@@ -166,18 +166,18 @@ def overview(
         }
         for row in session.execute(
             select(
-                Job.id,
-                Job.name,
-                Job.status,
-                Job.reason,
-                Job.kind,
-                Job.created_at,
-                func.count(Sign.id),
+                Run.id,
+                Run.name,
+                Run.status,
+                Run.reason,
+                Run.kind,
+                Run.created_at,
+                func.count(Feature.id),
             )
-            .outerjoin(Sign, Sign.job_id == Job.id)
-            .where(Job.id.in_(mine))
-            .group_by(Job.id)
-            .order_by(Job.created_at.desc())
+            .outerjoin(Feature, Feature.run_id == Run.id)
+            .where(Run.id.in_(mine))
+            .group_by(Run.id)
+            .order_by(Run.created_at.desc())
             .limit(6)
         ).all()
     ]
@@ -185,8 +185,8 @@ def overview(
     failed_signs = (
         session.scalar(
             select(func.count())
-            .select_from(Sign)
-            .where(Sign.job_id.in_(mine), Sign.reason != SignReason.OK)
+            .select_from(Feature)
+            .where(Feature.run_id.in_(mine), Feature.reason != FeatureReason.OK)
         )
         or 0
     )
@@ -195,10 +195,10 @@ def overview(
     # labelling is the person who deserves to see the distance left.
     labels_by_class = dict(
         session.execute(
-            select(Label.sign_class, func.count())
-            .join(Sign, Sign.id == Label.sign_id)
-            .where(Sign.job_id.in_(mine))
-            .group_by(Label.sign_class)
+            select(Label.class_name, func.count())
+            .join(Feature, Feature.id == Label.feature_id)
+            .where(Feature.run_id.in_(mine))
+            .group_by(Label.class_name)
         ).all()
     )
 
@@ -206,20 +206,20 @@ def overview(
         session.scalar(
             select(func.count())
             .select_from(Label)
-            .join(Sign, Sign.id == Label.sign_id)
-            .where(Sign.job_id.in_(mine))
+            .join(Feature, Feature.id == Label.feature_id)
+            .where(Feature.run_id.in_(mine))
         )
         or 0
     )
 
     return {
         "org": {"id": str(user.org_id) if user.org_id else None},
-        "signs": {
+        "features": {
             "total": total_signs,
             "by_class": by_class,
             "needs_review": needs_review,
             "failed": failed_signs,
-            # Share of signs the pipeline was confident enough to keep. This is
+            # Share of features the pipeline was confident enough to keep. This is
             # the headline quality number, and it is deliberately not rounded up.
             "confident_share": (
                 round((total_signs - needs_review) / total_signs * 100, 1)
@@ -230,8 +230,8 @@ def overview(
         "surveys": {
             "total": sum(by_status.values()),
             "by_status": by_status,
-            "running": by_status.get(JobStatus.RUNNING, 0) + by_status.get(JobStatus.QUEUED, 0),
-            "failed": by_status.get(JobStatus.FAILED, 0),
+            "running": by_status.get(RunStatus.RUNNING, 0) + by_status.get(RunStatus.QUEUED, 0),
+            "failed": by_status.get(RunStatus.FAILED, 0),
         },
         "labels": {
             "total": labels_total,
@@ -245,7 +245,7 @@ def overview(
                 if labels_by_class.get(cls, 0) < MIN_PER_CLASS
             },
         },
-        "activity": {"signs_per_day": signs_per_day, "days": days},
+        "activity": {"features_per_day": features_per_day, "days": days},
         "confidence": {"buckets": confidence_buckets, "threshold": REVIEW_THRESHOLD},
         "top_surveys": top_surveys,
         "recent": recent,

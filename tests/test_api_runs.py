@@ -7,7 +7,7 @@ from tests.conftest import DB_URL
 
 from mithra_api.db import Base, get_session
 from mithra_api.main import app
-from mithra_api.models import Job, JobReason, JobStatus, Sign
+from mithra_api.models import Run, RunReason, RunStatus, Feature
 
 
 
@@ -25,7 +25,7 @@ def client(monkeypatch):
 
     app.dependency_overrides[get_session] = override
     enqueued = []
-    monkeypatch.setattr("mithra_api.routes.jobs.enqueue", lambda job_id: enqueued.append(job_id))
+    monkeypatch.setattr("mithra_api.routes.runs.enqueue", lambda run_id: enqueued.append(run_id))
     test_client = TestClient(app)
     test_client.enqueued = enqueued
     test_client.engine = engine
@@ -48,9 +48,9 @@ def client(monkeypatch):
 
 
 def test_creating_a_job_returns_queued_and_enqueues_work(client):
-    response = client.post("/api/jobs", json={"bbox": [59.60, 36.29, 59.64, 36.33]})
+    response = client.post("/api/runs", json={"bbox": [59.60, 36.29, 59.64, 36.33]})
     assert response.status_code == 201
-    assert response.json()["status"] == JobStatus.QUEUED
+    assert response.json()["status"] == RunStatus.QUEUED
     assert len(client.enqueued) == 1
 
 
@@ -62,49 +62,49 @@ def test_enqueue_failure_does_not_leave_an_orphan_queued_job(client, monkeypatch
     it has to be marked failed rather than left looking like it is waiting.
     """
 
-    def unreachable(job_id):
+    def unreachable(run_id):
         raise ConnectionError("Error 111 connecting to localhost:6381")
 
-    monkeypatch.setattr("mithra_api.routes.jobs.enqueue", unreachable)
+    monkeypatch.setattr("mithra_api.routes.runs.enqueue", unreachable)
 
-    response = client.post("/api/jobs", json={"bbox": [59.60, 36.29, 59.61, 36.30]})
+    response = client.post("/api/runs", json={"bbox": [59.60, 36.29, 59.61, 36.30]})
     assert response.status_code == 503
 
     with Session(client.engine) as session:
-        job = session.scalars(select(Job)).one()
-        assert job.status == JobStatus.FAILED
-        assert job.reason == JobReason.ENQUEUE_FAILED
+        job = session.scalars(select(Run)).one()
+        assert job.status == RunStatus.FAILED
+        assert job.reason == RunReason.ENQUEUE_FAILED
 
 
 def test_inverted_bbox_is_rejected(client):
-    response = client.post("/api/jobs", json={"bbox": [59.64, 36.29, 59.60, 36.33]})
+    response = client.post("/api/runs", json={"bbox": [59.64, 36.29, 59.60, 36.33]})
     assert response.status_code == 422
 
 
 def test_out_of_range_coordinates_are_rejected(client):
-    response = client.post("/api/jobs", json={"bbox": [200.0, 36.29, 201.0, 36.33]})
+    response = client.post("/api/runs", json={"bbox": [200.0, 36.29, 201.0, 36.33]})
     assert response.status_code == 422
 
 
 def test_oversized_bbox_is_rejected(client):
-    response = client.post("/api/jobs", json={"bbox": [58.0, 35.0, 61.0, 38.0]})
+    response = client.post("/api/runs", json={"bbox": [58.0, 35.0, 61.0, 38.0]})
     assert response.status_code == 422
 
 
 def test_status_reports_counts_per_class_and_failures(client):
     with Session(client.engine) as session:
-        job = Job(
+        job = Run(
             bbox_west=59.60,
             bbox_south=36.29,
             bbox_east=59.61,
             bbox_north=36.30,
-            status=JobStatus.SUCCEEDED,
+            status=RunStatus.SUCCEEDED,
             tile_count=4,
             failed_tile_count=0,
         )
         session.add(job)
         session.commit()
-        for i, (sign_class, reason) in enumerate(
+        for i, (class_name, reason) in enumerate(
             [
                 ("street_name", "ok"),
                 ("street_name", "ok"),
@@ -113,20 +113,20 @@ def test_status_reports_counts_per_class_and_failures(client):
             ]
         ):
             session.add(
-                Sign(
-                    job_id=job.id,
-                    mapillary_feature_id=f"f{i}",
+                Feature(
+                    run_id=job.id,
+                    source_feature_id=f"f{i}",
                     geom="SRID=4326;POINT(59.601 36.294)",
-                    sign_class=sign_class,
+                    class_name=class_name,
                     confidence=0.8,
                     model_version="v1",
                     reason=reason,
                 )
             )
         session.commit()
-        job_id = str(job.id)
+        run_id = str(job.id)
 
-    body = client.get(f"/api/jobs/{job_id}").json()
+    body = client.get(f"/api/runs/{run_id}").json()
     assert body["counts"]["street_name"] == 2
     assert body["counts"]["direction_guide"] == 1
     assert body["total"] == 4
@@ -134,52 +134,52 @@ def test_status_reports_counts_per_class_and_failures(client):
 
 
 def test_unknown_job_returns_404(client):
-    assert client.get("/api/jobs/00000000-0000-0000-0000-000000000000").status_code == 404
+    assert client.get("/api/runs/00000000-0000-0000-0000-000000000000").status_code == 404
 
 
 def test_signs_can_be_filtered_by_class(client):
     with Session(client.engine) as session:
-        job = Job(bbox_west=59.60, bbox_south=36.29, bbox_east=59.61, bbox_north=36.30)
+        job = Run(bbox_west=59.60, bbox_south=36.29, bbox_east=59.61, bbox_north=36.30)
         session.add(job)
         session.commit()
-        for i, sign_class in enumerate(["street_name", "city_entry"]):
+        for i, class_name in enumerate(["street_name", "city_entry"]):
             session.add(
-                Sign(
-                    job_id=job.id,
-                    mapillary_feature_id=f"f{i}",
+                Feature(
+                    run_id=job.id,
+                    source_feature_id=f"f{i}",
                     geom="SRID=4326;POINT(59.601 36.294)",
-                    sign_class=sign_class,
+                    class_name=class_name,
                     confidence=0.8,
                     model_version="v1",
                 )
             )
         session.commit()
-        job_id = str(job.id)
+        run_id = str(job.id)
 
-    items = client.get(f"/api/jobs/{job_id}/signs?sign_class=city_entry").json()["items"]
+    items = client.get(f"/api/runs/{run_id}/features?class_name=city_entry").json()["items"]
     assert len(items) == 1
-    assert items[0]["sign_class"] == "city_entry"
+    assert items[0]["class_name"] == "city_entry"
 
 
 def test_signs_expose_coordinates(client):
     with Session(client.engine) as session:
-        job = Job(bbox_west=59.60, bbox_south=36.29, bbox_east=59.61, bbox_north=36.30)
+        job = Run(bbox_west=59.60, bbox_south=36.29, bbox_east=59.61, bbox_north=36.30)
         session.add(job)
         session.commit()
         session.add(
-            Sign(
-                job_id=job.id,
-                mapillary_feature_id="f1",
+            Feature(
+                run_id=job.id,
+                source_feature_id="f1",
                 geom="SRID=4326;POINT(59.601 36.294)",
-                sign_class="street_name",
+                class_name="street_name",
                 confidence=0.8,
                 model_version="v1",
             )
         )
         session.commit()
-        job_id = str(job.id)
+        run_id = str(job.id)
 
-    item = client.get(f"/api/jobs/{job_id}/signs").json()["items"][0]
+    item = client.get(f"/api/runs/{run_id}/features").json()["items"][0]
     assert item["lon"] == pytest.approx(59.601)
     assert item["lat"] == pytest.approx(36.294)
 
@@ -187,10 +187,10 @@ def test_signs_expose_coordinates(client):
 def test_enqueue_sets_a_timeout_long_enough_for_a_real_job(monkeypatch):
     """RQ defaults to a 180 second job timeout, which real jobs exceed.
 
-    A central Mashhad tile alone holds ~58 signs, each needing an image
+    A central Mashhad tile alone holds ~58 features, each needing an image
     download and a CLIP forward pass. The default killed the job mid-run.
     """
-    from mithra_api.routes.jobs import JOB_TIMEOUT_SECONDS, enqueue
+    from mithra_api.routes.runs import JOB_TIMEOUT_SECONDS, enqueue
 
     assert JOB_TIMEOUT_SECONDS >= 3600
 
@@ -218,48 +218,48 @@ def test_enqueue_sets_a_timeout_long_enough_for_a_real_job(monkeypatch):
 def test_signs_expose_detection_provenance(client):
     """A count that cannot be traced back to an image is not auditable."""
     with Session(client.engine) as session:
-        job = Job(bbox_west=59.60, bbox_south=36.29, bbox_east=59.61, bbox_north=36.30)
+        job = Run(bbox_west=59.60, bbox_south=36.29, bbox_east=59.61, bbox_north=36.30)
         session.add(job)
         session.commit()
         session.add(
-            Sign(
-                job_id=job.id,
-                mapillary_feature_id="f1",
+            Feature(
+                run_id=job.id,
+                source_feature_id="f1",
                 image_id="1020361045275024",
                 geom="SRID=4326;POINT(59.601 36.294)",
-                sign_class="direction_guide",
+                class_name="direction_guide",
                 confidence=0.81,
                 model_version="clip-zeroshot-ViT-B-32-v1",
-                mapillary_value="information--general-directions--g1",
+                source_value="information--general-directions--g1",
                 reason="ok",
             )
         )
         session.commit()
-        job_id = str(job.id)
+        run_id = str(job.id)
 
-    item = client.get(f"/api/jobs/{job_id}/signs").json()["items"][0]
+    item = client.get(f"/api/runs/{run_id}/features").json()["items"][0]
     assert item["image_id"] == "1020361045275024"
     assert item["model_version"] == "clip-zeroshot-ViT-B-32-v1"
-    assert item["mapillary_value"] == "information--general-directions--g1"
+    assert item["source_value"] == "information--general-directions--g1"
     assert item["reason"] == "ok"
 
 
 def test_job_status_returns_the_requested_bbox(client):
     """The client frames its map on this; without it an empty result has no context."""
     with Session(client.engine) as session:
-        job = Job(bbox_west=59.600, bbox_south=36.293, bbox_east=59.609, bbox_north=36.302)
+        job = Run(bbox_west=59.600, bbox_south=36.293, bbox_east=59.609, bbox_north=36.302)
         session.add(job)
         session.commit()
-        job_id = str(job.id)
+        run_id = str(job.id)
 
-    body = client.get(f"/api/jobs/{job_id}").json()
+    body = client.get(f"/api/runs/{run_id}").json()
     assert body["bbox"] == pytest.approx([59.600, 36.293, 59.609, 36.302])
 
 
 def test_street_survey_is_created_without_a_bbox(client):
     """A survey is defined by a معبر; the corridor bbox is the worker's job."""
     response = client.post(
-        "/api/jobs",
+        "/api/runs",
         json={
             "street_name": "خیابان امام رضا",
             "osm_id": 44641660,
@@ -271,7 +271,7 @@ def test_street_survey_is_created_without_a_bbox(client):
     assert response.status_code == 201
 
     with Session(client.engine) as session:
-        job = session.scalars(select(Job)).one()
+        job = session.scalars(select(Run)).one()
         assert job.kind == "street"
         assert job.name == "خیابان امام رضا"
         assert job.osm_id == 44641660
@@ -280,7 +280,7 @@ def test_street_survey_is_created_without_a_bbox(client):
 
 def test_a_survey_cannot_be_both_a_street_and_a_bbox(client):
     response = client.post(
-        "/api/jobs",
+        "/api/runs",
         json={
             "street_name": "x",
             "lat": 36.3,
@@ -292,17 +292,17 @@ def test_a_survey_cannot_be_both_a_street_and_a_bbox(client):
 
 
 def test_a_survey_must_be_one_or_the_other(client):
-    assert client.post("/api/jobs", json={}).status_code == 422
+    assert client.post("/api/runs", json={}).status_code == 422
 
 
 def test_a_street_survey_needs_an_anchor_point(client):
-    response = client.post("/api/jobs", json={"street_name": "x", "osm_id": 1})
+    response = client.post("/api/runs", json={"street_name": "x", "osm_id": 1})
     assert response.status_code == 422
 
 
 def test_buffer_width_is_bounded(client):
     response = client.post(
-        "/api/jobs",
+        "/api/runs",
         json={"street_name": "x", "lat": 36.3, "lon": 59.6, "buffer_m": 5000},
     )
     assert response.status_code == 422
@@ -311,7 +311,7 @@ def test_buffer_width_is_bounded(client):
 def test_job_list_is_newest_first_and_carries_counts(client):
     with Session(client.engine) as session:
         for i in range(3):
-            job = Job(
+            job = Run(
                 name=f"survey {i}",
                 bbox_west=59.60,
                 bbox_south=36.29,
@@ -322,18 +322,18 @@ def test_job_list_is_newest_first_and_carries_counts(client):
             session.commit()
             if i == 2:
                 session.add(
-                    Sign(
-                        job_id=job.id,
-                        mapillary_feature_id="f1",
+                    Feature(
+                        run_id=job.id,
+                        source_feature_id="f1",
                         geom="SRID=4326;POINT(59.601 36.294)",
-                        sign_class="street_name",
+                        class_name="street_name",
                         confidence=0.8,
                         model_version="v1",
                     )
                 )
                 session.commit()
 
-    body = client.get("/api/jobs").json()
+    body = client.get("/api/runs").json()
     assert body["total"] == 3
     assert [i["name"] for i in body["items"]] == ["survey 2", "survey 1", "survey 0"]
     assert body["items"][0]["total"] == 1
@@ -342,36 +342,36 @@ def test_job_list_is_newest_first_and_carries_counts(client):
 
 def test_a_survey_can_be_deleted(client):
     with Session(client.engine) as session:
-        job = Job(bbox_west=59.60, bbox_south=36.29, bbox_east=59.61, bbox_north=36.30)
+        job = Run(bbox_west=59.60, bbox_south=36.29, bbox_east=59.61, bbox_north=36.30)
         session.add(job)
         session.commit()
-        job_id = str(job.id)
+        run_id = str(job.id)
 
-    assert client.delete(f"/api/jobs/{job_id}").status_code == 204
-    assert client.get(f"/api/jobs/{job_id}").status_code == 404
+    assert client.delete(f"/api/runs/{run_id}").status_code == 204
+    assert client.get(f"/api/runs/{run_id}").status_code == 404
 
 
 def test_features_endpoint_serves_geojson(client):
     with Session(client.engine) as session:
-        job = Job(bbox_west=59.60, bbox_south=36.29, bbox_east=59.61, bbox_north=36.30)
+        job = Run(bbox_west=59.60, bbox_south=36.29, bbox_east=59.61, bbox_north=36.30)
         session.add(job)
         session.commit()
         session.add(
-            Sign(
-                job_id=job.id,
-                mapillary_feature_id="f1",
+            Feature(
+                run_id=job.id,
+                source_feature_id="f1",
                 image_id="img1",
                 geom="SRID=4326;POINT(59.601 36.294)",
-                sign_class="direction_guide",
+                class_name="direction_guide",
                 confidence=0.81,
                 model_version="clip-v1",
-                mapillary_value="information--general-directions--g1",
+                source_value="information--general-directions--g1",
             )
         )
         session.commit()
-        job_id = str(job.id)
+        run_id = str(job.id)
 
-    response = client.get(f"/api/jobs/{job_id}/features")
+    response = client.get(f"/api/runs/{run_id}/features.geojson")
     assert response.status_code == 200
     assert "geo+json" in response.headers["content-type"]
 
@@ -379,29 +379,29 @@ def test_features_endpoint_serves_geojson(client):
     assert body["type"] == "FeatureCollection"
     feature = body["features"][0]
     assert feature["geometry"] == {"type": "Point", "coordinates": [59.601, 36.294]}
-    assert feature["properties"]["sign_class"] == "direction_guide"
+    assert feature["properties"]["class_name"] == "direction_guide"
     assert feature["properties"]["image_id"] == "img1"
 
 
 def test_features_can_be_filtered_by_class(client):
     with Session(client.engine) as session:
-        job = Job(bbox_west=59.60, bbox_south=36.29, bbox_east=59.61, bbox_north=36.30)
+        job = Run(bbox_west=59.60, bbox_south=36.29, bbox_east=59.61, bbox_north=36.30)
         session.add(job)
         session.commit()
         for i, cls in enumerate(["direction_guide", "street_name"]):
             session.add(
-                Sign(
-                    job_id=job.id,
-                    mapillary_feature_id=f"f{i}",
+                Feature(
+                    run_id=job.id,
+                    source_feature_id=f"f{i}",
                     geom="SRID=4326;POINT(59.601 36.294)",
-                    sign_class=cls,
+                    class_name=cls,
                     confidence=0.8,
                     model_version="v1",
                 )
             )
         session.commit()
-        job_id = str(job.id)
+        run_id = str(job.id)
 
-    body = client.get(f"/api/jobs/{job_id}/features?sign_class=street_name").json()
+    body = client.get(f"/api/runs/{run_id}/features.geojson?class_name=street_name").json()
     assert len(body["features"]) == 1
-    assert body["features"][0]["properties"]["sign_class"] == "street_name"
+    assert body["features"][0]["properties"]["class_name"] == "street_name"

@@ -1,7 +1,7 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import { API_BASE, type Sign } from "../lib/api";
+import { API_BASE, type Feature } from "../lib/api";
 import { IconClose, IconExternal, IconFlag } from "./icons";
 import {
   CLASS_COLOR,
@@ -23,14 +23,14 @@ export default function SignDetail({
   sign,
   onClose,
 }: {
-  sign: Sign;
+  sign: Feature;
   onClose: () => void;
 }) {
   const t = useTranslations();
-  const color = CLASS_COLOR[sign.sign_class];
+  const color = CLASS_COLOR[sign.class_name];
   const sourceUrl = mapillaryImageUrl(sign.image_id);
-  const category = mapillaryCategory(sign.mapillary_value);
-  const name = mapillaryName(sign.mapillary_value);
+  const category = mapillaryCategory(sign.source_value);
+  const name = mapillaryName(sign.source_value);
   const pct = Math.round(sign.confidence * 100);
 
   return (
@@ -42,7 +42,7 @@ export default function SignDetail({
           aria-hidden
         />
         <h2 className="text-sm font-semibold flex-1 truncate">
-          {t(`classes.${sign.sign_class}`)}
+          {t(`classes.${sign.class_name}`)}
         </h2>
         <button
           onClick={onClose}

@@ -11,7 +11,7 @@ from sqlalchemy import delete, select
 from sqlalchemy.orm import Session as DbSession
 
 from mithra_api.db import get_session
-from mithra_api.models import Job, Organisation, Session, User, UserRole
+from mithra_api.models import Run, Organisation, Session, User, UserRole
 from mithra_api.security import (
     SESSION_COOKIE,
     hash_session_token,
@@ -108,10 +108,10 @@ def visible_jobs(user: User):
     rather than disappearing, because hiding an existing inventory behind a
     migration would look like data loss; new surveys always carry an owner.
     """
-    return select(Job.id).where(
-        (Job.org_id == user.org_id) | (Job.org_id.is_(None))
+    return select(Run.id).where(
+        (Run.org_id == user.org_id) | (Run.org_id.is_(None))
     )
 
 
-def same_org(user: User, job: Job) -> bool:
+def same_org(user: User, job: Run) -> bool:
     return job.org_id is None or job.org_id == user.org_id

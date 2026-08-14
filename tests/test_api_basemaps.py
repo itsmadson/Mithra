@@ -1,12 +1,12 @@
-"""Custom tile sources, and the review queue's requirement that a sign be viewable."""
+"""Custom tile sources, and the review queue's requirement that a feature be viewable."""
 
 import pytest
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from tests.test_api_jobs import client  # noqa: F401 - reuse the app fixture
+from tests.test_api_runs import client  # noqa: F401 - reuse the app fixture
 
-from mithra_api.models import Basemap, Job, Sign
+from mithra_api.models import Basemap, Run, Feature
 
 OSM = "https://tile.openstreetmap.org/{z}/{x}/{y}.png"
 
@@ -86,32 +86,32 @@ def test_an_operator_cannot_add_a_basemap(client):  # noqa: F811
     assert client.get("/api/basemaps").status_code == 200
 
 
-def _sign(session, job_id, *, crop, confidence):
-    sign = Sign(
-        job_id=job_id,
-        mapillary_feature_id=f"f{confidence}",
+def _sign(session, run_id, *, crop, confidence):
+    feature = Feature(
+        run_id=run_id,
+        source_feature_id=f"f{confidence}",
         geom="SRID=4326;POINT(59.601 36.294)",
-        sign_class="unknown",
+        class_name="unknown",
         confidence=confidence,
         model_version="v1",
         needs_review=True,
         crop_path=crop,
     )
-    session.add(sign)
-    return sign
+    session.add(feature)
+    return feature
 
 
 def test_the_review_queue_skips_signs_with_no_crop(client):  # noqa: F811
     """The queue is ordered by lowest confidence first.
 
-    A sign with no crop cannot be judged — there is nothing to look at — so one
+    A feature with no crop cannot be judged — there is nothing to look at — so one
     of them at the front of the queue stops the operator entirely. That is
-    exactly what happened: the lowest-confidence sign in the database had no
+    exactly what happened: the lowest-confidence feature in the database had no
     saved crop, and the review screen showed "no image saved" and went no
     further.
     """
     with Session(client.engine) as session:
-        job = Job(bbox_west=59.6, bbox_south=36.29, bbox_east=59.61, bbox_north=36.3)
+        job = Run(bbox_west=59.6, bbox_south=36.29, bbox_east=59.61, bbox_north=36.3)
         session.add(job)
         session.commit()
         _sign(session, job.id, crop=None, confidence=0.10)
@@ -125,7 +125,7 @@ def test_the_review_queue_skips_signs_with_no_crop(client):  # noqa: F811
 
 def test_the_queue_is_still_ordered_by_least_confident(client):  # noqa: F811
     with Session(client.engine) as session:
-        job = Job(bbox_west=59.6, bbox_south=36.29, bbox_east=59.61, bbox_north=36.3)
+        job = Run(bbox_west=59.6, bbox_south=36.29, bbox_east=59.61, bbox_north=36.3)
         session.add(job)
         session.commit()
         _sign(session, job.id, crop="data/crops/b.jpg", confidence=0.50)

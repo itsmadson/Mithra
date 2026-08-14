@@ -1,7 +1,7 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import { API_BASE, type Sign } from "../lib/api";
+import { API_BASE, type Feature } from "../lib/api";
 import { CLASS_COLOR, mapillaryName } from "../lib/signClass";
 import { IconFlag, IconImage } from "./icons";
 
@@ -10,7 +10,7 @@ export default function SignList({
   selectedId,
   onSelect,
 }: {
-  signs: Sign[];
+  signs: Feature[];
   selectedId: string | null;
   onSelect: (id: string) => void;
 }) {
@@ -30,7 +30,7 @@ export default function SignList({
     <ul data-testid="sign-list">
       {signs.map((sign) => {
         const selected = sign.id === selectedId;
-        const color = CLASS_COLOR[sign.sign_class];
+        const color = CLASS_COLOR[sign.class_name];
         return (
           <li key={sign.id}>
             <button
@@ -65,7 +65,7 @@ export default function SignList({
                     aria-hidden
                   />
                   <span className="truncate text-[13px] text-[var(--fg)]">
-                    {t(`classes.${sign.sign_class}`)}
+                    {t(`classes.${sign.class_name}`)}
                   </span>
                   {sign.needs_review && (
                     <IconFlag size={12} className="shrink-0 text-[var(--warn)]" />
@@ -75,7 +75,7 @@ export default function SignList({
                   <span className="tabular-nums">{Math.round(sign.confidence * 100)}%</span>
                   <span aria-hidden>·</span>
                   <span className="truncate capitalize">
-                    {mapillaryName(sign.mapillary_value) ?? t("list.unlabelled")}
+                    {mapillaryName(sign.source_value) ?? t("list.unlabelled")}
                   </span>
                 </span>
               </span>

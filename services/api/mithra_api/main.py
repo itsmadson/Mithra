@@ -8,10 +8,12 @@ from mithra_api.routes import (
     crops,
     export,
     features,
-    jobs,
+    geojson,
+    runs,
     labels,
     overview,
-    signs,
+    features,
+    geojson,
     stats,
     streets,
 )
@@ -29,16 +31,16 @@ app.add_middleware(
 app.include_router(auth.router)
 app.include_router(basemaps.router)
 app.include_router(catalog.router)
-app.include_router(jobs.router)
-app.include_router(signs.router)
+app.include_router(runs.router)
+app.include_router(features.router)
+app.include_router(geojson.router)
 app.include_router(export.router)
 app.include_router(labels.router)
 app.include_router(crops.router)
-app.include_router(features.router)
 app.include_router(streets.router)
 app.include_router(stats.router)
 app.include_router(overview.router)
-app.include_router(signs.all_signs)
+app.include_router(features.all_features)
 
 
 @app.get("/api/health")

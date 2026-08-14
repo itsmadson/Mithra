@@ -6,7 +6,7 @@ export const SIGN_CLASSES = [
   "city_entry",
   "informational",
 ] as const;
-export type SignClass = (typeof SIGN_CLASSES)[number] | "unknown";
+export type FeatureClass = (typeof SIGN_CLASSES)[number] | "unknown";
 
 export type JobState = "queued" | "running" | "succeeded" | "partial" | "failed";
 
@@ -52,23 +52,23 @@ export interface JobStatus {
   finished_at: string | null;
   tile_count: number;
   failed_tile_count: number;
-  counts: Partial<Record<SignClass, number>>;
+  counts: Partial<Record<FeatureClass, number>>;
   total: number;
   failed_count: number;
 }
 
-export interface Sign {
+export interface Feature {
   id: string;
-  sign_class: SignClass;
+  class_name: FeatureClass;
   confidence: number;
   lon: number;
   lat: number;
   crop_url: string | null;
   needs_review: boolean;
-  mapillary_value: string | null;
+  source_value: string | null;
   /** Provenance — which Mapillary image the crop came from. */
   image_id: string | null;
-  /** Which model version produced sign_class. */
+  /** Which model version produced class_name. */
   model_version: string | null;
   /** ok | crop_failed | no_detection | classify_failed */
   reason: string | null;
@@ -152,7 +152,7 @@ export function updateAccount(
 }
 
 export function createBboxJob(bbox: Bbox, name?: string) {
-  return request<{ id: string; status: string }>("/api/jobs", {
+  return request<{ id: string; status: string }>("/api/runs", {
     method: "POST",
     body: JSON.stringify({ bbox, name }),
   });
@@ -160,7 +160,7 @@ export function createBboxJob(bbox: Bbox, name?: string) {
 
 /** The primary path: survey a street, not a rectangle. */
 export function createStreetJob(street: StreetHit, bufferM: number, name?: string) {
-  return request<{ id: string; status: string }>("/api/jobs", {
+  return request<{ id: string; status: string }>("/api/runs", {
     method: "POST",
     body: JSON.stringify({
       osm_id: street.osm_id,
@@ -175,12 +175,12 @@ export function createStreetJob(street: StreetHit, bufferM: number, name?: strin
 
 export function listJobs(limit = 50, offset = 0) {
   return request<{ items: JobSummary[]; total: number }>(
-    `/api/jobs?limit=${limit}&offset=${offset}`,
+    `/api/runs?limit=${limit}&offset=${offset}`,
   );
 }
 
 export function deleteJob(id: string) {
-  return request<void>(`/api/jobs/${id}`, { method: "DELETE" });
+  return request<void>(`/api/runs/${id}`, { method: "DELETE" });
 }
 
 export function searchStreets(q: string, signal?: AbortSignal) {
@@ -192,9 +192,9 @@ export function searchStreets(q: string, signal?: AbortSignal) {
 
 export interface Stats {
   surveys: { total: number; by_status: Record<string, number>; running: number };
-  signs: {
+  features: {
     total: number;
-    by_class: Partial<Record<SignClass, number>>;
+    by_class: Partial<Record<FeatureClass, number>>;
     needs_review: number;
     unclassified: number;
   };
@@ -210,20 +210,20 @@ export function listAllSigns(
   filters: { signClass?: string; needsReview?: boolean; limit?: number } = {},
 ) {
   const params = new URLSearchParams();
-  if (filters.signClass) params.set("sign_class", filters.signClass);
+  if (filters.signClass) params.set("class_name", filters.signClass);
   if (filters.needsReview !== undefined)
     params.set("needs_review", String(filters.needsReview));
   params.set("limit", String(filters.limit ?? 1000));
-  return request<{ items: Sign[] }>(`/api/signs?${params}`);
+  return request<{ items: Feature[] }>(`/api/features?${params}`);
 }
 
 /** GeoJSON the map renders directly and any GIS client can consume. */
 export function featuresUrl(id: string) {
-  return `${API_BASE}/api/jobs/${id}/features`;
+  return `${API_BASE}/api/runs/${id}/features.geojson`;
 }
 
 export function getJob(id: string) {
-  return request<JobStatus>(`/api/jobs/${id}`);
+  return request<JobStatus>(`/api/runs/${id}`);
 }
 
 export function listSigns(
@@ -231,31 +231,31 @@ export function listSigns(
   filters: { signClass?: string; needsReview?: boolean } = {},
 ) {
   const params = new URLSearchParams();
-  if (filters.signClass) params.set("sign_class", filters.signClass);
+  if (filters.signClass) params.set("class_name", filters.signClass);
   if (filters.needsReview !== undefined)
     params.set("needs_review", String(filters.needsReview));
   const query = params.toString();
-  return request<{ items: Sign[] }>(`/api/jobs/${id}/signs${query ? `?${query}` : ""}`);
+  return request<{ items: Feature[] }>(`/api/runs/${id}/features${query ? `?${query}` : ""}`);
 }
 
 export function getLabelQueue(limit = 50) {
-  return request<{ items: Sign[] }>(`/api/labels/queue?limit=${limit}`);
+  return request<{ items: Feature[] }>(`/api/labels/queue?limit=${limit}`);
 }
 
 export function postLabel(signId: string, signClass: string) {
   return request<{ status: string }>("/api/labels", {
     method: "POST",
-    body: JSON.stringify({ sign_id: signId, sign_class: signClass }),
+    body: JSON.stringify({ sign_id: signId, class_name: signClass }),
   });
 }
 
 export function exportUrl(id: string, format: "csv" | "geojson") {
-  return `${API_BASE}/api/jobs/${id}/export.${format}`;
+  return `${API_BASE}/api/runs/${id}/export.${format}`;
 }
 
 export interface Overview {
   org: { id: string | null };
-  signs: {
+  features: {
     total: number;
     by_class: Record<string, number>;
     needs_review: number;
@@ -275,7 +275,7 @@ export interface Overview {
     needed_per_class: number;
     short_by: Record<string, number>;
   };
-  activity: { signs_per_day: { date: string; count: number }[]; days: number };
+  activity: { features_per_day: { date: string; count: number }[]; days: number };
   confidence: {
     buckets: { from: number; to: number; count: number }[];
     threshold: number;

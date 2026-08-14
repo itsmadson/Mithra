@@ -18,8 +18,8 @@ import {
   listSigns,
   type Bbox,
   type JobStatus,
-  type Sign,
-  type SignClass,
+  type Feature,
+  type FeatureClass,
 } from "../../../../lib/api";
 import { isTerminal } from "../../../../lib/counts";
 import { mapillaryName } from "../../../../lib/signClass";
@@ -30,7 +30,7 @@ const SignMap = dynamic(() => import("../../../../components/SignMap"), {
   loading: () => <div className="absolute inset-0 bg-[var(--panel-2)]" />,
 });
 
-const ALL: SignClass[] = [...SIGN_CLASSES, "unknown"];
+const ALL: FeatureClass[] = [...SIGN_CLASSES, "unknown"];
 
 export default function JobPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
@@ -44,10 +44,10 @@ export default function JobPage({ params }: { params: Promise<{ id: string }> })
   } = useBasemap();
 
   const [job, setJob] = useState<JobStatus | null>(null);
-  const [signs, setSigns] = useState<Sign[]>([]);
+  const [signs, setSigns] = useState<Feature[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [active, setActive] = useState<Set<SignClass>>(new Set(ALL));
+  const [active, setActive] = useState<Set<FeatureClass>>(new Set(ALL));
   const [query, setQuery] = useState("");
   const [reviewOnly, setReviewOnly] = useState(false);
 
@@ -82,13 +82,13 @@ export default function JobPage({ params }: { params: Promise<{ id: string }> })
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
     return signs.filter((s) => {
-      if (!active.has(s.sign_class)) return false;
+      if (!active.has(s.class_name)) return false;
       if (reviewOnly && !s.needs_review) return false;
       if (!q) return true;
-      const name = mapillaryName(s.mapillary_value) ?? "";
+      const name = mapillaryName(s.source_value) ?? "";
       return (
         name.toLowerCase().includes(q) ||
-        (s.mapillary_value ?? "").toLowerCase().includes(q) ||
+        (s.source_value ?? "").toLowerCase().includes(q) ||
         (s.image_id ?? "").includes(q)
       );
     });
@@ -109,7 +109,7 @@ export default function JobPage({ params }: { params: Promise<{ id: string }> })
     [bboxKey],
   );
 
-  function toggle(cls: SignClass) {
+  function toggle(cls: FeatureClass) {
     setActive((prev) => {
       const next = new Set(prev);
       if (next.has(cls)) next.delete(cls);

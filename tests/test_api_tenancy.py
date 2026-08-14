@@ -1,6 +1,6 @@
 """One organisation must never see another's inventory.
 
-These tests build two organisations with real surveys and signs, then try every
+These tests build two organisations with real surveys and features, then try every
 route from the wrong side. A tenancy bug is not a bug that shows up in normal
 use — it shows up as one city reading another city's survey — so the boundary
 is tested route by route rather than trusted to a shared helper.
@@ -15,7 +15,7 @@ from tests.conftest import DB_URL
 
 from mithra_api.db import Base, get_session
 from mithra_api.main import app
-from mithra_api.models import Job, JobStatus, Sign, User
+from mithra_api.models import Run, RunStatus, Feature, User
 
 PASSWORD = "a-long-enough-password"
 
@@ -33,7 +33,7 @@ def client(monkeypatch):
             yield s
 
     app.dependency_overrides[get_session] = override
-    monkeypatch.setattr("mithra_api.routes.jobs.enqueue", lambda job_id: None)
+    monkeypatch.setattr("mithra_api.routes.runs.enqueue", lambda run_id: None)
     test_client = TestClient(app)
     test_client.engine = engine
     yield test_client
@@ -86,34 +86,34 @@ def two_orgs(client):
         session.commit()
         org_b_id = org_b.id
 
-    # One survey with one sign in each organisation.
+    # One survey with one feature in each organisation.
     ids = {}
     for label, org_id in (("a", a["org_id"]), ("b", str(org_b_id))):
         with Session(client.engine) as session:
-            job = Job(
+            job = Run(
                 name=f"survey {label}",
                 org_id=org_id,
                 bbox_west=59.60,
                 bbox_south=36.29,
                 bbox_east=59.61,
                 bbox_north=36.30,
-                status=JobStatus.SUCCEEDED,
+                status=RunStatus.SUCCEEDED,
             )
             session.add(job)
             session.commit()
-            sign = Sign(
-                job_id=job.id,
-                mapillary_feature_id=f"feature-{label}",
+            feature = Feature(
+                run_id=job.id,
+                source_feature_id=f"feature-{label}",
                 geom="SRID=4326;POINT(59.601 36.294)",
-                sign_class="street_name",
+                class_name="street_name",
                 confidence=0.3,
                 model_version="v1",
                 needs_review=True,
                 crop_path=f"data/crops/{label}/1.jpg",
             )
-            session.add(sign)
+            session.add(feature)
             session.commit()
-            ids[label] = {"job": str(job.id), "sign": str(sign.id)}
+            ids[label] = {"job": str(job.id), "feature": str(feature.id)}
     return ids
 
 
@@ -122,47 +122,47 @@ def two_orgs(client):
 
 def test_the_survey_list_shows_only_your_own(client, two_orgs):
     sign_in(client, "a@example.com")
-    names = [item["name"] for item in client.get("/api/jobs").json()["items"]]
+    names = [item["name"] for item in client.get("/api/runs").json()["items"]]
     assert names == ["survey a"]
 
 
 def test_another_organisations_survey_reads_as_absent(client, two_orgs):
     """404 rather than 403: "you may not see this" still confirms it exists."""
     sign_in(client, "a@example.com")
-    assert client.get(f"/api/jobs/{two_orgs['b']['job']}").status_code == 404
+    assert client.get(f"/api/runs/{two_orgs['b']['job']}").status_code == 404
 
 
 def test_the_cross_survey_sign_list_is_scoped(client, two_orgs):
     sign_in(client, "a@example.com")
-    items = client.get("/api/signs").json()["items"]
+    items = client.get("/api/features").json()["items"]
     assert len(items) == 1
 
 
 def test_the_review_queue_is_scoped(client, two_orgs):
-    """Both signs need review; only one belongs to this organisation."""
+    """Both features need review; only one belongs to this organisation."""
     sign_in(client, "a@example.com")
     items = client.get("/api/labels/queue").json()["items"]
-    assert [item["id"] for item in items] == [two_orgs["a"]["sign"]]
+    assert [item["id"] for item in items] == [two_orgs["a"]["feature"]]
 
 
 def test_the_overview_counts_only_your_own(client, two_orgs):
     sign_in(client, "a@example.com")
     body = client.get("/api/overview").json()
-    assert body["signs"]["total"] == 1
+    assert body["features"]["total"] == 1
     assert body["surveys"]["total"] == 1
 
 
 def test_features_and_export_refuse_another_organisations_survey(client, two_orgs):
     sign_in(client, "a@example.com")
     job_b = two_orgs["b"]["job"]
-    assert client.get(f"/api/jobs/{job_b}/features").status_code == 404
-    assert client.get(f"/api/jobs/{job_b}/export.csv").status_code == 404
-    assert client.get(f"/api/jobs/{job_b}/signs").status_code == 404
+    assert client.get(f"/api/runs/{job_b}/features").status_code == 404
+    assert client.get(f"/api/runs/{job_b}/export.csv").status_code == 404
+    assert client.get(f"/api/runs/{job_b}/features").status_code == 404
 
 
 def test_a_crop_from_another_organisation_is_not_served(client, two_orgs):
     sign_in(client, "a@example.com")
-    assert client.get(f"/api/crops/{two_orgs['b']['sign']}").status_code == 404
+    assert client.get(f"/api/crops/{two_orgs['b']['feature']}").status_code == 404
 
 
 # --- writes ------------------------------------------------------------------
@@ -170,11 +170,11 @@ def test_a_crop_from_another_organisation_is_not_served(client, two_orgs):
 
 def test_you_cannot_delete_another_organisations_survey(client, two_orgs):
     sign_in(client, "a@example.com")
-    assert client.delete(f"/api/jobs/{two_orgs['b']['job']}").status_code == 404
+    assert client.delete(f"/api/runs/{two_orgs['b']['job']}").status_code == 404
 
     # And it is still there afterwards.
     with Session(client.engine) as session:
-        assert session.get(Job, two_orgs["b"]["job"]) is not None
+        assert session.get(Run, two_orgs["b"]["job"]) is not None
 
 
 def test_you_cannot_label_another_organisations_sign(client, two_orgs):
@@ -182,16 +182,16 @@ def test_you_cannot_label_another_organisations_sign(client, two_orgs):
     sign_in(client, "a@example.com")
     response = client.post(
         "/api/labels",
-        json={"sign_id": two_orgs["b"]["sign"], "sign_class": "city_entry"},
+        json={"feature_id": two_orgs["b"]["feature"], "class_name": "city_entry"},
     )
     assert response.status_code == 404
 
 
 def test_a_new_survey_belongs_to_your_organisation(client, two_orgs):
     user = sign_in(client, "a@example.com")
-    client.post("/api/jobs", json={"bbox": [59.60, 36.29, 59.61, 36.30]})
+    client.post("/api/runs", json={"bbox": [59.60, 36.29, 59.61, 36.30]})
     with Session(client.engine) as session:
-        job = session.scalar(select(Job).order_by(Job.created_at.desc()))
+        job = session.scalar(select(Run).order_by(Run.created_at.desc()))
         assert str(job.org_id) == user["org_id"]
 
 

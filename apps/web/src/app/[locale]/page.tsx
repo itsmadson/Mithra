@@ -6,7 +6,7 @@ import { useEffect, useState } from "react";
 import { AppShell } from "../../components/AppShell";
 import { Histogram, StackedShare, StatTile, TimeSeries } from "../../components/charts";
 import { IconAlert } from "../../components/icons";
-import { getOverview, type Overview, type SignClass } from "../../lib/api";
+import { getOverview, type Overview, type FeatureClass } from "../../lib/api";
 import { CLASS_COLOR, CLASS_ORDER } from "../../lib/signClass";
 
 const RANGES = [7, 30, 90] as const;
@@ -121,9 +121,9 @@ export default function DashboardPage() {
           <div className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
             <StatTile
               label={t("dashboard.totalSigns")}
-              value={data ? n(data.signs.total) : "—"}
+              value={data ? n(data.features.total) : "—"}
               hint={t("dashboard.acrossSurveys", { count: n(data?.surveys.total ?? 0) })}
-              spark={data?.activity.signs_per_day.map((p) => p.count)}
+              spark={data?.activity.features_per_day.map((p) => p.count)}
             />
             <StatTile
               label={t("dashboard.confident")}
@@ -132,12 +132,12 @@ export default function DashboardPage() {
                   ? new Intl.NumberFormat(locale, {
                       style: "percent",
                       maximumFractionDigits: 1,
-                    }).format(data.signs.confident_share / 100)
+                    }).format(data.features.confident_share / 100)
                   : "—"
               }
               hint={t("dashboard.confidentHint")}
               tone={
-                data && data.signs.confident_share < 60
+                data && data.features.confident_share < 60
                   ? "warn"
                   : data
                     ? "good"
@@ -146,9 +146,9 @@ export default function DashboardPage() {
             />
             <StatTile
               label={t("dashboard.queue")}
-              value={data ? n(data.signs.needs_review) : "—"}
+              value={data ? n(data.features.needs_review) : "—"}
               hint={t("dashboard.queueHint")}
-              tone={data && data.signs.needs_review > 0 ? "warn" : "neutral"}
+              tone={data && data.features.needs_review > 0 ? "warn" : "neutral"}
             />
             <StatTile
               label={t("dashboard.running")}
@@ -166,7 +166,7 @@ export default function DashboardPage() {
             <Panel title={t("dashboard.activity")} hint={t("dashboard.activityHint")}>
               {data && (
                 <TimeSeries
-                  points={data.activity.signs_per_day}
+                  points={data.activity.features_per_day}
                   label={t("dashboard.activity")}
                 />
               )}
@@ -176,12 +176,12 @@ export default function DashboardPage() {
               {data && (
                 <StackedShare
                   parts={CLASS_ORDER.filter(
-                    (cls) => (data.signs.by_class[cls] ?? 0) > 0,
+                    (cls) => (data.features.by_class[cls] ?? 0) > 0,
                   ).map((cls) => ({
                     key: cls,
                     label: t(`classes.${cls}`),
-                    value: data.signs.by_class[cls] ?? 0,
-                    color: CLASS_COLOR[cls as SignClass],
+                    value: data.features.by_class[cls] ?? 0,
+                    color: CLASS_COLOR[cls as FeatureClass],
                   }))}
                 />
               )}
@@ -256,7 +256,7 @@ export default function DashboardPage() {
                         <span className="flex min-w-0 items-center gap-2">
                           <span
                             className="size-2 shrink-0 rounded-[2px]"
-                            style={{ background: CLASS_COLOR[cls as SignClass] }}
+                            style={{ background: CLASS_COLOR[cls as FeatureClass] }}
                             aria-hidden
                           />
                           <span className="truncate text-[var(--fg-muted)]">

@@ -76,7 +76,7 @@ class JobList(BaseModel):
     total: int
 
 
-class JobStatusOut(BaseModel):
+class RunStatusOut(BaseModel):
     id: uuid.UUID
     name: str
     kind: str
@@ -100,14 +100,14 @@ class JobStatusOut(BaseModel):
 
 class SignOut(BaseModel):
     id: uuid.UUID
-    sign_class: str
+    class_name: str
     confidence: float
     lon: float
     lat: float
     crop_url: str | None
     needs_review: bool
-    mapillary_value: str | None
-    # Provenance: which Mapillary image this sign was cropped from, and which
+    source_value: str | None
+    # Provenance: which Mapillary image this feature was cropped from, and which
     # model version produced the class. Without these a count cannot be audited.
     image_id: str | None = None
     model_version: str | None = None

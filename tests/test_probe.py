@@ -155,7 +155,7 @@ def test_an_unsure_prediction_becomes_unknown(monkeypatch):
     )
 
     prediction = classifier.predict(object())
-    assert prediction.sign_class == UNKNOWN
+    assert prediction.class_name == UNKNOWN
     assert prediction.confidence == pytest.approx(0.25)
 
 
@@ -176,7 +176,7 @@ def test_a_confident_prediction_names_its_class(monkeypatch):
     monkeypatch.setattr("mithra_ml.probe.encode_image", lambda image: features)
 
     prediction = classifier.predict(object())
-    assert prediction.sign_class == SIGN_CLASSES[2]
+    assert prediction.class_name == SIGN_CLASSES[2]
     assert prediction.confidence > 0.9
 
 

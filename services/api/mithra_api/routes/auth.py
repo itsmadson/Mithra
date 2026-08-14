@@ -1,4 +1,4 @@
-"""Sign-up, sign-in, sign-out, and account administration."""
+"""Feature-up, feature-in, feature-out, and account administration."""
 
 import uuid
 from datetime import datetime
@@ -73,7 +73,7 @@ def _out(user: User) -> UserOut:
 def setup_state(db: DbSession = Depends(get_session)) -> dict:
     """Whether the instance still needs its first account.
 
-    The sign-in screen asks this so a fresh deployment offers to create the
+    The feature-in screen asks this so a fresh deployment offers to create the
     first administrator instead of showing a login nobody can pass.
     """
     return {"needs_setup": not has_any_user(db)}

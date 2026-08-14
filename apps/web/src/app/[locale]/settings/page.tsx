@@ -140,16 +140,16 @@ export default function SettingsPage() {
 
           <Card title={t("settings.inventory")}>
             <Row label={t("settings.totalSigns")}>
-              {stats?.signs.total.toLocaleString(locale) ?? "—"}
+              {stats?.features.total.toLocaleString(locale) ?? "—"}
             </Row>
             <Row label={t("settings.totalSurveys")}>
               {stats?.surveys.total.toLocaleString(locale) ?? "—"}
             </Row>
             <Row label={t("settings.needsReview")}>
-              {stats?.signs.needs_review.toLocaleString(locale) ?? "—"}
+              {stats?.features.needs_review.toLocaleString(locale) ?? "—"}
             </Row>
             <Row label={t("settings.unclassified")}>
-              {stats?.signs.unclassified.toLocaleString(locale) ?? "—"}
+              {stats?.features.unclassified.toLocaleString(locale) ?? "—"}
             </Row>
             <Row label={t("settings.labels")}>
               {stats?.labels.total.toLocaleString(locale) ?? "—"}
@@ -159,8 +159,8 @@ export default function SettingsPage() {
           <Card title={t("settings.byClass")}>
             {stats && (
               <div className="mt-2 space-y-2">
-                {Object.entries(stats.signs.by_class).map(([cls, count]) => {
-                  const share = stats.signs.total > 0 ? (count / stats.signs.total) * 100 : 0;
+                {Object.entries(stats.features.by_class).map(([cls, count]) => {
+                  const share = stats.features.total > 0 ? (count / stats.features.total) * 100 : 0;
                   return (
                     <div key={cls}>
                       <div className="flex items-baseline justify-between text-[12px]">

@@ -36,7 +36,7 @@ describe("api client", () => {
   it("passes the class filter as a query param", async () => {
     const spy = mockFetch({ items: [] });
     await listSigns("abc", { signClass: "city_entry" });
-    expect(String(spy.mock.calls[0][0])).toContain("sign_class=city_entry");
+    expect(String(spy.mock.calls[0][0])).toContain("class_name=city_entry");
   });
 
   it("throws on a non-ok response", async () => {
@@ -74,6 +74,6 @@ describe("api client", () => {
     const spy = mockFetch({ status: "ok" });
     await postLabel("sign-1", "city_entry");
     const body = JSON.parse(spy.mock.calls[0][1].body);
-    expect(body).toEqual({ sign_id: "sign-1", sign_class: "city_entry" });
+    expect(body).toEqual({ sign_id: "sign-1", class_name: "city_entry" });
   });
 });

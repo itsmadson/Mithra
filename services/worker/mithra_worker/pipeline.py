@@ -12,7 +12,7 @@ from pathlib import Path
 from shapely.geometry import shape
 from sqlalchemy.orm import Session
 
-from mithra_api.models import Job, JobKind, JobReason, JobStatus, JobTile, Sign, SignReason
+from mithra_api.models import Run, RunKind, RunReason, RunStatus, RunTile, Feature, FeatureReason
 from mithra_worker.corridor import (
     corridor_bbox,
     corridor_geojson,
@@ -54,15 +54,15 @@ def _point(coordinates: list[float]) -> str:
 
 
 def _classify_feature(feature, client, classifier, crop_dir: Path):
-    """Return (sign_class, confidence, model_version, crop_path, image_id, reason)."""
+    """Return (class_name, confidence, model_version, crop_path, image_id, reason)."""
     image_ids = [i["id"] for i in feature.get("images", {}).get("data", [])]
     for image_id in image_ids:
         try:
             # A single image carries hundreds of detections — one real Mashhad
             # image held 486, nearly all curbs and fences. Only a detection
-            # whose value matches this sign may be cropped. There is no
-            # fallback: cropping an arbitrary object and filing it as a sign is
-            # worse than recording that the sign was not located.
+            # whose value matches this feature may be cropped. There is no
+            # fallback: cropping an arbitrary object and filing it as a feature is
+            # worse than recording that the feature was not located.
             detections = [
                 d
                 for d in client.get_detections(image_id)
@@ -76,7 +76,7 @@ def _classify_feature(feature, client, classifier, crop_dir: Path):
                 image_bytes, detections[0]["geometry"], meta["width"], meta["height"]
             )
         except CropError:
-            return UNKNOWN, 0.0, "", None, image_id, SignReason.CROP_FAILED
+            return UNKNOWN, 0.0, "", None, image_id, FeatureReason.CROP_FAILED
         except MapillaryError:
             continue
 
@@ -85,12 +85,12 @@ def _classify_feature(feature, client, classifier, crop_dir: Path):
         crop.save(crop_path, format="JPEG", quality=90)
         prediction = classifier.predict(crop)
         return (
-            prediction.sign_class,
+            prediction.class_name,
             prediction.confidence,
             prediction.model_version,
             str(crop_path),
             image_id,
-            SignReason.OK,
+            FeatureReason.OK,
         )
 
     return (
@@ -99,21 +99,21 @@ def _classify_feature(feature, client, classifier, crop_dir: Path):
         "",
         None,
         (image_ids[0] if image_ids else None),
-        SignReason.NO_DETECTION,
+        FeatureReason.NO_DETECTION,
     )
 
 
 def run_job(
     session: Session,
-    job_id: uuid.UUID,
+    run_id: uuid.UUID,
     client,
     classifier,
     crop_dir: Path,
     low_confidence_threshold: float = 0.45,
 ) -> None:
-    job = session.get(Job, job_id)
+    job = session.get(Run, run_id)
     if job is None:
-        raise ValueError(f"job {job_id} not found")
+        raise ValueError(f"job {run_id} not found")
 
     try:
         _run_job(session, job, client, classifier, crop_dir, low_confidence_threshold)
@@ -122,14 +122,14 @@ def run_job(
         # JobTimeoutException, and a killed worker must not leave the row in
         # `running`, which is indistinguishable from a job still progressing.
         session.rollback()
-        job = session.get(Job, job_id)
+        job = session.get(Run, run_id)
         if job is not None and job.status not in (
-            JobStatus.SUCCEEDED,
-            JobStatus.PARTIAL,
-            JobStatus.FAILED,
+            RunStatus.SUCCEEDED,
+            RunStatus.PARTIAL,
+            RunStatus.FAILED,
         ):
-            job.status = JobStatus.FAILED
-            job.reason = JobReason.WORKER_ERROR
+            job.status = RunStatus.FAILED
+            job.reason = RunReason.WORKER_ERROR
             job.finished_at = datetime.now(UTC)
             session.commit()
         raise
@@ -137,25 +137,25 @@ def run_job(
 
 def _run_job(
     session: Session,
-    job: Job,
+    job: Run,
     client,
     classifier,
     crop_dir: Path,
     low_confidence_threshold: float,
 ) -> None:
-    job.status = JobStatus.RUNNING
+    job.status = RunStatus.RUNNING
     session.commit()
 
     # A street survey resolves its geometry first: the tiles follow the road,
-    # and signs are afterwards checked against the centreline so a tile that
-    # happens to clip a neighbouring street does not contribute its signs.
+    # and features are afterwards checked against the centreline so a tile that
+    # happens to clip a neighbouring street does not contribute its features.
     segments: list[list[tuple[float, float]]] | None = None
-    if job.kind == JobKind.STREET:
+    if job.kind == RunKind.STREET:
         try:
             segments = _resolve_street(job)
         except OsmError as exc:
-            job.status = JobStatus.FAILED
-            job.reason = JobReason.STREET_NOT_FOUND
+            job.status = RunStatus.FAILED
+            job.reason = RunReason.STREET_NOT_FOUND
             job.finished_at = datetime.now(UTC)
             session.commit()
             raise ValueError(f"street lookup failed for job {job.id}: {exc}") from exc
@@ -182,21 +182,21 @@ def _run_job(
     job_crop_dir = Path(crop_dir) / str(job.id)
 
     for west, south, east, north in tiles:
-        tile = JobTile(job_id=job.id, west=west, south=south, east=east, north=north)
+        tile = RunTile(run_id=job.id, west=west, south=south, east=east, north=north)
         session.add(tile)
         try:
             features = client.get_sign_features((west, south, east, north))
         except MapillaryAuthError as exc:
-            tile.status = JobStatus.FAILED
+            tile.status = RunStatus.FAILED
             tile.error = str(exc)[:500]
-            job.status = JobStatus.FAILED
-            job.reason = JobReason.AUTH_FAILED
+            job.status = RunStatus.FAILED
+            job.reason = RunReason.AUTH_FAILED
             job.failed_tile_count += 1
             job.finished_at = datetime.now(UTC)
             session.commit()
             return
         except MapillaryError as exc:
-            tile.status = JobStatus.FAILED
+            tile.status = RunStatus.FAILED
             tile.error = str(exc)[:500]
             job.failed_tile_count += 1
             session.commit()
@@ -217,7 +217,7 @@ def _run_job(
             seen.add(feature_id)
 
             (
-                sign_class,
+                class_name,
                 confidence,
                 version,
                 crop_path,
@@ -225,37 +225,37 @@ def _run_job(
                 reason,
             ) = _classify_feature(feature, client, classifier, job_crop_dir)
             session.add(
-                Sign(
-                    job_id=job.id,
-                    mapillary_feature_id=feature_id,
+                Feature(
+                    run_id=job.id,
+                    source_feature_id=feature_id,
                     image_id=image_id,
                     geom=_point(feature["geometry"]["coordinates"]),
-                    sign_class=sign_class,
+                    class_name=class_name,
                     confidence=confidence,
                     model_version=version or getattr(classifier, "version", "unknown"),
-                    mapillary_value=feature.get("object_value"),
+                    source_value=feature.get("object_value"),
                     crop_path=crop_path,
                     needs_review=(
-                        sign_class == UNKNOWN or confidence < low_confidence_threshold
+                        class_name == UNKNOWN or confidence < low_confidence_threshold
                     ),
                     reason=reason,
                 )
             )
 
-        tile.status = JobStatus.SUCCEEDED
+        tile.status = RunStatus.SUCCEEDED
         session.commit()
 
     if job.failed_tile_count:
-        job.status = JobStatus.PARTIAL
+        job.status = RunStatus.PARTIAL
     else:
-        job.status = JobStatus.SUCCEEDED
+        job.status = RunStatus.SUCCEEDED
         if not seen:
-            job.reason = JobReason.NO_IMAGERY
+            job.reason = RunReason.NO_IMAGERY
     job.finished_at = datetime.now(UTC)
     session.commit()
 
 
-def enqueue_job(job_id: str) -> None:
+def enqueue_job(run_id: str) -> None:
     """RQ task entrypoint. Builds its own dependencies so it can run in a worker process."""
     from sqlalchemy.orm import Session as _Session
 
@@ -273,7 +273,7 @@ def enqueue_job(job_id: str) -> None:
     ):
         run_job(
             session,
-            uuid.UUID(job_id),
+            uuid.UUID(run_id),
             client,
             get_classifier(),
             Path(settings.crop_dir),

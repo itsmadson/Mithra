@@ -11,7 +11,7 @@ from mithra_worker.corridor import (
 STREET = [[(59.600, 36.2970), (59.605, 36.2971), (59.610, 36.2972)]]
 
 # Two parallel streets one block apart, the case that matters most: a survey of
-# one must not silently count the other's signs.
+# one must not silently count the other's features.
 TWO_STREETS = [
     [(59.600, 36.2970), (59.610, 36.2970)],
     [(59.600, 36.3000), (59.610, 36.3000)],

@@ -45,7 +45,7 @@ def test_non_sign_features_are_filtered_out(client):
 
     Verified against the live API: passing 'trafficsign', 'traffic_sign',
     'points', or nothing at all returns byte-identical results. In one central
-    Mashhad tile that is 454 features of which only 58 are actually signs — the
+    Mashhad tile that is 454 features of which only 58 are actually features — the
     rest are panoptic and mvd_fast detections of street furniture. Filtering has
     to happen here, or a survey reports an eightfold overcount.
     """
@@ -55,7 +55,7 @@ def test_non_sign_features_are_filtered_out(client):
             json={
                 "data": [
                     {
-                        "id": "sign",
+                        "id": "feature",
                         "object_value": "regulatory--stop--g1",
                         "object_type": "trafficsign",
                         "geometry": {"type": "Point", "coordinates": [59.601, 36.294]},
@@ -77,7 +77,7 @@ def test_non_sign_features_are_filtered_out(client):
         )
     )
     features = client.get_sign_features(BBOX)
-    assert [f["id"] for f in features] == ["sign"]
+    assert [f["id"] for f in features] == ["feature"]
 
 
 @respx.mock

@@ -9,14 +9,14 @@ import {
   SIGN_CLASSES,
   getLabelQueue,
   postLabel,
-  type Sign,
+  type Feature,
 } from "../../../lib/api";
 import { CLASS_COLOR, mapillaryImageUrl, mapillaryName } from "../../../lib/signClass";
 import { advance, needsRefill } from "../../../lib/labelQueue";
 
 export default function LabelPage() {
   const t = useTranslations();
-  const [items, setItems] = useState<Sign[]>([]);
+  const [items, setItems] = useState<Feature[]>([]);
   const [index, setIndex] = useState(0);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -110,7 +110,7 @@ export default function LabelPage() {
 
               <div className="mt-3 flex items-center justify-between text-[11px] text-[var(--fg-faint)]">
                 <span className="capitalize">
-                  {mapillaryName(current.mapillary_value) ?? t("list.unlabelled")}
+                  {mapillaryName(current.source_value) ?? t("list.unlabelled")}
                 </span>
                 <span className="tabular-nums">
                   {Math.round(current.confidence * 100)}%

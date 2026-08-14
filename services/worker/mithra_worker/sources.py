@@ -64,7 +64,7 @@ SOURCES: tuple[ImagerySource, ...] = (
         bulk_use=BulkUse.ALLOWED,
         viewpoint="street",
         needs_credentials=True,
-        notes_en="Panoramas from the street, not from above. The only source that sees a sign face.",
+        notes_en="Panoramas from the street, not from above. The only source that sees a feature face.",
     ),
     ImagerySource(
         key="sentinel2",

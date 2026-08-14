@@ -13,6 +13,7 @@ from sqlalchemy import (
     UniqueConstraint,
     func,
 )
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.dialects.postgresql import UUID as PgUUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -43,7 +44,7 @@ class Organisation(Base):
 class UserRole:
     """Two roles is all the product distinguishes today.
 
-    An operator runs surveys and labels signs. An admin additionally manages
+    An operator runs surveys and labels features. An admin additionally manages
     accounts. Anything finer would be invented rather than observed.
     """
 
@@ -108,7 +109,7 @@ class Basemap(Base):
     """A tile source an organisation has added.
 
     Municipalities run their own tile servers — a cadastral layer, an aerial
-    survey, a plan not published to the world — and a sign inventory is read
+    survey, a plan not published to the world — and a feature inventory is read
     against the map the organisation already trusts. Stored per organisation
     because a tile URL can carry an access key in its path.
     """
@@ -134,14 +135,15 @@ class Basemap(Base):
     )
 
 
-class JobKind:
-    """How the surveyed area was chosen."""
+class RunKind:
+    """How the area of interest was chosen."""
 
     BBOX = "bbox"
     STREET = "street"
+    POLYGON = "polygon"
 
 
-class JobStatus:
+class RunStatus:
     QUEUED = "queued"
     RUNNING = "running"
     SUCCEEDED = "succeeded"
@@ -149,14 +151,14 @@ class JobStatus:
     FAILED = "failed"
 
 
-class SignReason:
+class FeatureReason:
     OK = "ok"
     CROP_FAILED = "crop_failed"
     NO_DETECTION = "no_detection"
     CLASSIFY_FAILED = "classify_failed"
 
 
-class JobReason:
+class RunReason:
     NO_IMAGERY = "no_imagery"
     AUTH_FAILED = "auth_failed"
     ENQUEUE_FAILED = "enqueue_failed"
@@ -164,8 +166,16 @@ class JobReason:
     STREET_NOT_FOUND = "street_not_found"
 
 
-class Job(Base):
-    __tablename__ = "jobs"
+class Run(Base):
+    """One detection run: an area, an imagery source, and what to look for.
+
+    This was a "job" that only ever meant "survey a street with Mapillary".
+    It carries the source and the targets now, because the same area can be
+    run against Sentinel-2 for water and against aerial imagery for trees, and
+    those are different runs with different answers — not one survey.
+    """
+
+    __tablename__ = "runs"
 
     id: Mapped[uuid.UUID] = mapped_column(
         PgUUID(as_uuid=True), primary_key=True, default=uuid.uuid4
@@ -174,7 +184,22 @@ class Job(Base):
     # street survey this is the street; for a bbox it is generated from the
     # coordinates.
     name: Mapped[str] = mapped_column(String(200), default="")
-    kind: Mapped[str] = mapped_column(String(16), default=JobKind.BBOX, index=True)
+    kind: Mapped[str] = mapped_column(String(16), default=RunKind.BBOX, index=True)
+
+    # Which imagery this run read, and how to read it. The config is opaque
+    # here on purpose: an XYZ template, a STAC collection and date window, or
+    # an uploaded file id are different shapes, and the source adapter owns
+    # their meaning.
+    source_kind: Mapped[str] = mapped_column(String(24), default="mapillary", index=True)
+    source_config: Mapped[dict] = mapped_column(JSONB, default=dict)
+    # Metres per pixel the run actually worked at. Stored rather than derived,
+    # because it decides what the counts can be trusted to mean and the source
+    # may change under the same key later.
+    gsd_m: Mapped[float | None] = mapped_column(Float, nullable=True)
+
+    # What was asked for, and which model answered.
+    targets: Mapped[list] = mapped_column(JSONB, default=list)
+    detector: Mapped[str] = mapped_column(String(40), default="clip-zeroshot")
 
     # Nullable because surveys created before accounts existed have no owner.
     # Backfilling them to an arbitrary account would be a lie about who ran them.
@@ -203,7 +228,7 @@ class Job(Base):
         Geometry("MULTILINESTRING", srid=4326), nullable=True
     )
 
-    status: Mapped[str] = mapped_column(String(16), default=JobStatus.QUEUED, index=True)
+    status: Mapped[str] = mapped_column(String(16), default=RunStatus.QUEUED, index=True)
     reason: Mapped[str | None] = mapped_column(String(32), nullable=True)
     tile_count: Mapped[int] = mapped_column(Integer, default=0)
     failed_tile_count: Mapped[int] = mapped_column(Integer, default=0)
@@ -214,60 +239,76 @@ class Job(Base):
         DateTime(timezone=True), nullable=True
     )
 
-    signs: Mapped[list["Sign"]] = relationship(
-        back_populates="job", cascade="all, delete-orphan"
+    features: Mapped[list["Feature"]] = relationship(
+        back_populates="run", cascade="all, delete-orphan"
     )
-    tiles: Mapped[list["JobTile"]] = relationship(
-        back_populates="job", cascade="all, delete-orphan"
+    tiles: Mapped[list["RunTile"]] = relationship(
+        back_populates="run", cascade="all, delete-orphan"
     )
 
 
-class JobTile(Base):
-    __tablename__ = "job_tiles"
+class RunTile(Base):
+    __tablename__ = "run_tiles"
 
     id: Mapped[uuid.UUID] = mapped_column(
         PgUUID(as_uuid=True), primary_key=True, default=uuid.uuid4
     )
-    job_id: Mapped[uuid.UUID] = mapped_column(
-        ForeignKey("jobs.id", ondelete="CASCADE"), index=True
+    run_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("runs.id", ondelete="CASCADE"), index=True
     )
     west: Mapped[float] = mapped_column(Float)
     south: Mapped[float] = mapped_column(Float)
     east: Mapped[float] = mapped_column(Float)
     north: Mapped[float] = mapped_column(Float)
-    status: Mapped[str] = mapped_column(String(16), default=JobStatus.QUEUED)
+    status: Mapped[str] = mapped_column(String(16), default=RunStatus.QUEUED)
     error: Mapped[str | None] = mapped_column(String(500), nullable=True)
 
-    job: Mapped[Job] = relationship(back_populates="tiles")
+    run: Mapped[Run] = relationship(back_populates="tiles")
 
 
-class Sign(Base):
-    __tablename__ = "signs"
+class Feature(Base):
+    """One detected thing.
+
+    Was a Feature. It holds a lake, a tree crown or a car now, so the class is
+    free text from the catalogue rather than an enum, and the geometry is a
+    point OR a polygon: a feature is a location, a lake is an outline, and
+    forcing either into the other's shape loses the answer.
+    """
+
+    __tablename__ = "features"
     __table_args__ = (
-        UniqueConstraint("job_id", "mapillary_feature_id", name="uq_sign_per_job"),
+        UniqueConstraint("run_id", "source_feature_id", name="uq_feature_per_run"),
     )
 
     id: Mapped[uuid.UUID] = mapped_column(
         PgUUID(as_uuid=True), primary_key=True, default=uuid.uuid4
     )
-    job_id: Mapped[uuid.UUID] = mapped_column(
-        ForeignKey("jobs.id", ondelete="CASCADE"), index=True
+    run_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("runs.id", ondelete="CASCADE"), index=True
     )
-    mapillary_feature_id: Mapped[str] = mapped_column(String(64), index=True)
+    # Whatever the source calls this detection: a Mapillary feature id, a tile
+    # and instance index, a row in an uploaded raster's output. Unique per run,
+    # so re-running cannot double-count.
+    source_feature_id: Mapped[str] = mapped_column(String(120), index=True)
     image_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
-    geom: Mapped[str] = mapped_column(Geometry("POINT", srid=4326))
-    sign_class: Mapped[str] = mapped_column(String(32), index=True)
+    # GEOMETRY rather than POINT: a detection is a location or an outline
+    # depending on what was detected.
+    geom: Mapped[str] = mapped_column(Geometry("GEOMETRY", srid=4326))
+    class_name: Mapped[str] = mapped_column(String(64), index=True)
+    # Square metres, for anything with an outline. A lake's area is the answer
+    # the question was asking for; a count of lakes is not.
+    area_m2: Mapped[float | None] = mapped_column(Float, nullable=True)
     confidence: Mapped[float] = mapped_column(Float)
     model_version: Mapped[str] = mapped_column(String(80))
-    mapillary_value: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    source_value: Mapped[str | None] = mapped_column(String(120), nullable=True)
     crop_path: Mapped[str | None] = mapped_column(String(400), nullable=True)
     needs_review: Mapped[bool] = mapped_column(Boolean, default=False, index=True)
-    reason: Mapped[str | None] = mapped_column(String(32), default=SignReason.OK)
+    reason: Mapped[str | None] = mapped_column(String(32), default=FeatureReason.OK)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )
 
-    job: Mapped[Job] = relationship(back_populates="signs")
+    run: Mapped[Run] = relationship(back_populates="features")
 
 
 class Label(Base):
@@ -276,15 +317,15 @@ class Label(Base):
     id: Mapped[uuid.UUID] = mapped_column(
         PgUUID(as_uuid=True), primary_key=True, default=uuid.uuid4
     )
-    sign_id: Mapped[uuid.UUID] = mapped_column(
-        ForeignKey("signs.id", ondelete="CASCADE"), index=True
+    feature_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("features.id", ondelete="CASCADE"), index=True
     )
     # Who judged it. Training data without provenance cannot be audited when a
     # model trained on it turns out to be biased towards one labeller's habits.
     labelled_by_id: Mapped[uuid.UUID | None] = mapped_column(
         ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True
     )
-    sign_class: Mapped[str] = mapped_column(String(32))
+    class_name: Mapped[str] = mapped_column(String(64))
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )

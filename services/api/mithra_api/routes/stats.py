@@ -11,7 +11,7 @@ from sqlalchemy.orm import Session
 
 from mithra_api.auth import current_user
 from mithra_api.db import get_session
-from mithra_api.models import Job, JobStatus, Label, Sign, SignReason
+from mithra_api.models import Run, RunStatus, Label, Feature, FeatureReason
 
 router = APIRouter(prefix="/api/stats", tags=["stats"])
 
@@ -21,17 +21,17 @@ def stats(
     session: Session = Depends(get_session), _user=Depends(current_user)
 ) -> dict:
     counts = dict(
-        session.execute(select(Sign.sign_class, func.count()).group_by(Sign.sign_class)).all()
+        session.execute(select(Feature.class_name, func.count()).group_by(Feature.class_name)).all()
     )
     by_status = dict(
-        session.execute(select(Job.status, func.count()).group_by(Job.status)).all()
+        session.execute(select(Run.status, func.count()).group_by(Run.status)).all()
     )
 
     model_versions = [
         row[0]
         for row in session.execute(
-            select(Sign.model_version, func.count())
-            .group_by(Sign.model_version)
+            select(Feature.model_version, func.count())
+            .group_by(Feature.model_version)
             .order_by(func.count().desc())
         ).all()
         if row[0]
@@ -41,20 +41,20 @@ def stats(
         "surveys": {
             "total": sum(by_status.values()),
             "by_status": by_status,
-            "running": by_status.get(JobStatus.RUNNING, 0)
-            + by_status.get(JobStatus.QUEUED, 0),
+            "running": by_status.get(RunStatus.RUNNING, 0)
+            + by_status.get(RunStatus.QUEUED, 0),
         },
-        "signs": {
+        "features": {
             "total": sum(counts.values()),
             "by_class": counts,
             "needs_review": session.scalar(
-                select(func.count()).select_from(Sign).where(Sign.needs_review.is_(True))
+                select(func.count()).select_from(Feature).where(Feature.needs_review.is_(True))
             )
             or 0,
             "unclassified": session.scalar(
                 select(func.count())
-                .select_from(Sign)
-                .where(Sign.reason != SignReason.OK)
+                .select_from(Feature)
+                .where(Feature.reason != FeatureReason.OK)
             )
             or 0,
         },

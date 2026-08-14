@@ -9,7 +9,7 @@ class FakeClassifier:
 
     def predict(self, image):
         return Prediction(
-            sign_class="street_name", confidence=0.9, model_version=self.version
+            class_name="street_name", confidence=0.9, model_version=self.version
         )
 
 
@@ -30,7 +30,7 @@ def test_prediction_carries_the_model_version():
     register_classifier(FakeClassifier())
     prediction = get_classifier().predict(Image.new("RGB", (32, 32)))
     assert prediction.model_version == "fake-v1"
-    assert prediction.sign_class != UNKNOWN
+    assert prediction.class_name != UNKNOWN
 
 
 def test_a_configured_probe_is_served_instead_of_zero_shot(tmp_path, monkeypatch):
@@ -59,7 +59,7 @@ def test_a_configured_probe_is_served_instead_of_zero_shot(tmp_path, monkeypatch
 
 
 def test_an_unloadable_probe_falls_back_rather_than_failing(tmp_path, monkeypatch, capsys):
-    """A worker that refuses to start finds no signs at all — worse than old ones."""
+    """A worker that refuses to start finds no features at all — worse than old ones."""
     from mithra_ml.registry import get_classifier, reset_registry
 
     broken = tmp_path / "broken.npz"

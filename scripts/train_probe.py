@@ -37,7 +37,7 @@ def main() -> int:
     from sqlalchemy.orm import Session
 
     from mithra_api.db import get_engine
-    from mithra_api.models import Label, Sign
+    from mithra_api.models import Label, Feature
     from mithra_ml import SIGN_CLASSES
     from mithra_ml.encoder import encode_images
     from mithra_ml.probe import MIN_PER_CLASS, NotEnoughLabels, save, train
@@ -45,9 +45,9 @@ def main() -> int:
     with Session(get_engine()) as session:
         total_labels = session.scalar(select(func.count()).select_from(Label)) or 0
         rows = session.execute(
-            select(Label.sign_class, Sign.crop_path, Sign.sign_class)
-            .join(Sign, Sign.id == Label.sign_id)
-            .where(Sign.crop_path.is_not(None))
+            select(Label.class_name, Feature.crop_path, Feature.class_name)
+            .join(Feature, Feature.id == Label.feature_id)
+            .where(Feature.crop_path.is_not(None))
             .order_by(Label.created_at)
         ).all()
 
@@ -57,7 +57,7 @@ def main() -> int:
         # saved, and no amount of labelling will fix it.
         if total_labels:
             print(
-                f"{total_labels} labels exist, but none of the signs they describe "
+                f"{total_labels} labels exist, but none of the features they describe "
                 "have a saved crop, so there is nothing to encode."
             )
         else:

@@ -8,25 +8,25 @@ from sqlalchemy.orm import Session
 
 from mithra_api.auth import current_user, same_org, visible_jobs
 from mithra_api.db import get_session
-from mithra_api.models import Job, JobKind, JobReason, JobStatus, Sign, SignReason, User
+from mithra_api.models import Run, RunKind, RunReason, RunStatus, Feature, FeatureReason, User
 from mithra_api.schemas import (
     JobCreate,
     JobCreated,
     JobList,
-    JobStatusOut,
+    RunStatusOut,
     JobSummary,
 )
 
-router = APIRouter(prefix="/api/jobs", tags=["jobs"])
+router = APIRouter(prefix="/api/runs", tags=["runs"])
 
 # RQ defaults to a 180 second job timeout. A single Mapillary-legal tile in
-# central Mashhad holds around 58 signs, each needing an image download and a
+# central Mashhad holds around 58 features, each needing an image download and a
 # CLIP forward pass, so the default killed real jobs part-way through and left
 # them stuck looking like they were still running.
 JOB_TIMEOUT_SECONDS = 6 * 60 * 60
 
 
-def enqueue(job_id: str) -> None:
+def enqueue(run_id: str) -> None:
     """Indirection so tests can substitute a recorder for the queue."""
     import redis
     import rq
@@ -36,24 +36,24 @@ def enqueue(job_id: str) -> None:
     queue = rq.Queue(connection=redis.Redis.from_url(get_settings().redis_url))
     queue.enqueue(
         "mithra_worker.pipeline.enqueue_job",
-        job_id,
+        run_id,
         job_timeout=JOB_TIMEOUT_SECONDS,
         result_ttl=24 * 60 * 60,
     )
 
 
-def _counts(session: Session, job_id: uuid.UUID) -> tuple[dict[str, int], int]:
+def _counts(session: Session, run_id: uuid.UUID) -> tuple[dict[str, int], int]:
     rows = session.execute(
-        select(Sign.sign_class, func.count())
-        .where(Sign.job_id == job_id)
-        .group_by(Sign.sign_class)
+        select(Feature.class_name, func.count())
+        .where(Feature.run_id == run_id)
+        .group_by(Feature.class_name)
     ).all()
-    counts = {sign_class: n for sign_class, n in rows}
+    counts = {class_name: n for class_name, n in rows}
     failed = (
         session.scalar(
             select(func.count())
-            .select_from(Sign)
-            .where(Sign.job_id == job_id, Sign.reason != SignReason.OK)
+            .select_from(Feature)
+            .where(Feature.run_id == run_id, Feature.reason != FeatureReason.OK)
         )
         or 0
     )
@@ -69,9 +69,9 @@ def create_job(
     if payload.bbox is not None:
         west, south, east, north = payload.bbox
         name = payload.name or f"{south:.4f},{west:.4f} → {north:.4f},{east:.4f}"
-        job = Job(
+        job = Run(
             name=name,
-            kind=JobKind.BBOX,
+            kind=RunKind.BBOX,
             bbox_west=west,
             bbox_south=south,
             bbox_east=east,
@@ -85,9 +85,9 @@ def create_job(
         # row is valid before the worker replaces it with the real extent.
         lat, lon = payload.lat, payload.lon
         assert lat is not None and lon is not None  # guaranteed by JobCreate
-        job = Job(
+        job = Run(
             name=payload.name or payload.street_name or f"way {payload.osm_id}",
-            kind=JobKind.STREET,
+            kind=RunKind.STREET,
             osm_id=payload.osm_id,
             buffer_m=payload.buffer_m,
             bbox_west=lon - 0.001,
@@ -108,8 +108,8 @@ def create_job(
     try:
         enqueue(str(job.id))
     except Exception as exc:  # noqa: BLE001 - any queue failure has one outcome
-        job.status = JobStatus.FAILED
-        job.reason = JobReason.ENQUEUE_FAILED
+        job.status = RunStatus.FAILED
+        job.reason = RunReason.ENQUEUE_FAILED
         session.commit()
         raise HTTPException(
             status_code=503, detail="job queue unavailable, job not started"
@@ -127,28 +127,28 @@ def list_jobs(
 ) -> JobList:
     """Newest first, and only this organisation's surveys."""
     mine = visible_jobs(user)
-    total = session.scalar(select(func.count()).select_from(Job).where(Job.id.in_(mine))) or 0
+    total = session.scalar(select(func.count()).select_from(Run).where(Run.id.in_(mine))) or 0
 
     # One grouped query for the per-job totals rather than N queries in a loop.
     sign_totals = dict(
         session.execute(
-            select(Sign.job_id, func.count())
-            .where(Sign.job_id.in_(mine))
-            .group_by(Sign.job_id)
+            select(Feature.run_id, func.count())
+            .where(Feature.run_id.in_(mine))
+            .group_by(Feature.run_id)
         ).all()
     )
     failed_totals = dict(
         session.execute(
-            select(Sign.job_id, func.count())
-            .where(Sign.job_id.in_(mine), Sign.reason != SignReason.OK)
-            .group_by(Sign.job_id)
+            select(Feature.run_id, func.count())
+            .where(Feature.run_id.in_(mine), Feature.reason != FeatureReason.OK)
+            .group_by(Feature.run_id)
         ).all()
     )
 
     jobs = session.scalars(
-        select(Job)
-        .where(Job.id.in_(mine))
-        .order_by(Job.created_at.desc())
+        select(Run)
+        .where(Run.id.in_(mine))
+        .order_by(Run.created_at.desc())
         .limit(limit)
         .offset(offset)
     ).all()
@@ -174,13 +174,13 @@ def list_jobs(
     )
 
 
-@router.get("/{job_id}", response_model=JobStatusOut)
+@router.get("/{run_id}", response_model=RunStatusOut)
 def get_job(
-    job_id: uuid.UUID,
+    run_id: uuid.UUID,
     session: Session = Depends(get_session),
     user: User = Depends(current_user),
-) -> JobStatusOut:
-    job = session.get(Job, job_id)
+) -> RunStatusOut:
+    job = session.get(Run, run_id)
     # Another organisation's survey is reported as absent rather than
     # forbidden: "you may not see this" still confirms it exists.
     if job is None or not same_org(user, job):
@@ -190,11 +190,11 @@ def get_job(
 
     geometry = None
     if job.geom is not None:
-        raw = session.scalar(select(ST_AsGeoJSON(Job.geom)).where(Job.id == job.id))
+        raw = session.scalar(select(ST_AsGeoJSON(Run.geom)).where(Run.id == job.id))
         if raw:
             geometry = json.loads(raw)
 
-    return JobStatusOut(
+    return RunStatusOut(
         id=job.id,
         name=job.name,
         kind=job.kind,
@@ -214,13 +214,13 @@ def get_job(
     )
 
 
-@router.delete("/{job_id}", status_code=204)
+@router.delete("/{run_id}", status_code=204)
 def delete_job(
-    job_id: uuid.UUID,
+    run_id: uuid.UUID,
     session: Session = Depends(get_session),
     user: User = Depends(current_user),
 ) -> None:
-    job = session.get(Job, job_id)
+    job = session.get(Run, run_id)
     if job is None or not same_org(user, job):
         raise HTTPException(status_code=404, detail="job not found")
 

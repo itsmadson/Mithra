@@ -15,7 +15,7 @@ ALL_CLASSES: tuple[str, ...] = SIGN_CLASSES + (UNKNOWN,)
 
 @dataclass(frozen=True)
 class Prediction:
-    sign_class: str
+    class_name: str
     confidence: float
     model_version: str
 

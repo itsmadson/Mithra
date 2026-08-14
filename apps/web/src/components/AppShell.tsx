@@ -59,8 +59,8 @@ type Section = {
 const SECTIONS: Section[] = [
   { href: "", key: "dashboard", icon: IconChart },
   { href: "/surveys", key: "surveys", icon: IconLayers, badge: (s) => s.surveys.running },
-  { href: "/signs", key: "signs", icon: IconPin, badge: (s) => s.signs.total },
-  { href: "/label", key: "review", icon: IconFlag, badge: (s) => s.signs.needs_review },
+  { href: "/signs", key: "signs", icon: IconPin, badge: (s) => s.features.total },
+  { href: "/label", key: "review", icon: IconFlag, badge: (s) => s.features.needs_review },
   { href: "/settings", key: "settings", icon: IconSettings },
 ];
 

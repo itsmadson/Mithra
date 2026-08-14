@@ -1,6 +1,6 @@
 """Tile sources an organisation has added.
 
-A sign inventory is read against a map, and the map a municipality trusts is
+A feature inventory is read against a map, and the map a municipality trusts is
 often its own: a cadastral layer, an aerial survey, a plan that was never
 published to the world. This lets them point the console at it.
 """

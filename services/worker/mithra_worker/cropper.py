@@ -1,8 +1,8 @@
-"""Cut a detected sign out of its source image.
+"""Cut a detected feature out of its source image.
 
-Padding matters: a sign cropped exactly to its detection outline loses the
+Padding matters: a feature cropped exactly to its detection outline loses the
 border and backing plate, which are strong signals for distinguishing a
-street-name plate from a direction sign.
+street-name plate from a direction feature.
 """
 
 import io

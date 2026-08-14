@@ -2,7 +2,7 @@
 
 import maplibregl, { Map as MapLibreMap, Popup, type GeoJSONSource } from "maplibre-gl";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { API_BASE, type Bbox, type Sign, type SignClass } from "../lib/api";
+import { API_BASE, type Bbox, type Feature, type FeatureClass } from "../lib/api";
 import {
   OSM_TILES,
   SIGNS_ATTRIBUTION,
@@ -29,15 +29,15 @@ const DOT = "signs-dot";
 const SELECTED = "signs-selected";
 
 function colorExpression(theme: "dark" | "light") {
-  const expression: unknown[] = ["match", ["get", "sign_class"]];
-  (Object.keys(CLASS_HEX) as SignClass[]).forEach((cls) => {
+  const expression: unknown[] = ["match", ["get", "class_name"]];
+  (Object.keys(CLASS_HEX) as FeatureClass[]).forEach((cls) => {
     expression.push(cls, CLASS_HEX[cls][theme]);
   });
   expression.push(CLASS_HEX.unknown[theme]);
   return expression;
 }
 
-function toFeatureCollection(signs: Sign[]): GeoJSON.FeatureCollection {
+function toFeatureCollection(signs: Feature[]): GeoJSON.FeatureCollection {
   return {
     type: "FeatureCollection",
     features: signs.map((s) => ({
@@ -45,11 +45,11 @@ function toFeatureCollection(signs: Sign[]): GeoJSON.FeatureCollection {
       id: s.id,
       properties: {
         id: s.id,
-        sign_class: s.sign_class,
+        class_name: s.class_name,
         confidence: s.confidence,
         needs_review: s.needs_review ? 1 : 0,
         crop_url: s.crop_url ?? "",
-        mapillary_value: s.mapillary_value ?? "",
+        source_value: s.source_value ?? "",
       },
       geometry: { type: "Point", coordinates: [s.lon, s.lat] },
     })),
@@ -90,7 +90,7 @@ export default function SignMap({
   theme,
   basemap,
 }: {
-  signs: Sign[];
+  signs: Feature[];
   bbox: Bbox | null;
   /** Optional survey geometry (a street corridor) drawn instead of the bbox. */
   geometry?: GeoJSON.Geometry | null;

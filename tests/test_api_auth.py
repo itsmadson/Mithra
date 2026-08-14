@@ -7,7 +7,7 @@ from tests.conftest import DB_URL
 
 from mithra_api.db import Base, get_session
 from mithra_api.main import app
-from mithra_api.models import Job, Session as DbSession, User, UserRole
+from mithra_api.models import Run, Session as DbSession, User, UserRole
 
 GOOD_PASSWORD = "a-long-enough-password"
 
@@ -25,7 +25,7 @@ def client(monkeypatch):
             yield s
 
     app.dependency_overrides[get_session] = override
-    monkeypatch.setattr("mithra_api.routes.jobs.enqueue", lambda job_id: None)
+    monkeypatch.setattr("mithra_api.routes.runs.enqueue", lambda run_id: None)
     test_client = TestClient(app)
     test_client.engine = engine
     yield test_client
@@ -214,9 +214,9 @@ def test_a_forged_session_cookie_does_not_authenticate(client):
 
 
 ANONYMOUS_FORBIDDEN = [
-    ("get", "/api/jobs"),
+    ("get", "/api/runs"),
     ("get", "/api/stats"),
-    ("get", "/api/signs"),
+    ("get", "/api/features"),
     ("get", "/api/labels/queue"),
     ("get", "/api/streets/search?q=test"),
 ]
@@ -228,35 +228,35 @@ def test_data_endpoints_refuse_anonymous_requests(client, method, path):
 
 
 def test_creating_a_survey_requires_a_session(client):
-    response = client.post("/api/jobs", json={"bbox": [59.60, 36.29, 59.61, 36.30]})
+    response = client.post("/api/runs", json={"bbox": [59.60, 36.29, 59.61, 36.30]})
     assert response.status_code == 401
 
 
 def test_a_survey_records_who_ran_it(client):
     user = register_first(client)
-    client.post("/api/jobs", json={"bbox": [59.60, 36.29, 59.61, 36.30]})
+    client.post("/api/runs", json={"bbox": [59.60, 36.29, 59.61, 36.30]})
     with Session(client.engine) as session:
-        job = session.scalars(select(Job)).one()
+        job = session.scalars(select(Run)).one()
         assert str(job.owner_id) == user["id"]
 
 
 def test_only_the_owner_or_an_administrator_may_delete_a_survey(client):
     register_first(client)
-    client.post("/api/jobs", json={"bbox": [59.60, 36.29, 59.61, 36.30]})
+    client.post("/api/runs", json={"bbox": [59.60, 36.29, 59.61, 36.30]})
     with Session(client.engine) as session:
-        job_id = str(session.scalars(select(Job)).one().id)
+        run_id = str(session.scalars(select(Run)).one().id)
 
     # A second operator must not be able to destroy someone else's work.
     client.post("/api/auth/register", json={"email": "op@example.com", "password": GOOD_PASSWORD})
     client.post("/api/auth/logout")
     client.post("/api/auth/login", json={"email": "op@example.com", "password": GOOD_PASSWORD})
-    assert client.delete(f"/api/jobs/{job_id}").status_code == 403
+    assert client.delete(f"/api/runs/{run_id}").status_code == 403
 
     client.post("/api/auth/logout")
     client.post(
         "/api/auth/login", json={"email": "admin@example.com", "password": GOOD_PASSWORD}
     )
-    assert client.delete(f"/api/jobs/{job_id}").status_code == 204
+    assert client.delete(f"/api/runs/{run_id}").status_code == 204
 
 
 # --- administration ----------------------------------------------------------
@@ -289,26 +289,26 @@ def test_an_administrator_cannot_lock_themselves_out(client):
 
 
 def test_a_label_records_who_made_it(client):
-    from mithra_api.models import Label, Sign
+    from mithra_api.models import Label, Feature
 
     user = register_first(client)
-    client.post("/api/jobs", json={"bbox": [59.60, 36.29, 59.61, 36.30]})
+    client.post("/api/runs", json={"bbox": [59.60, 36.29, 59.61, 36.30]})
     with Session(client.engine) as session:
-        job = session.scalars(select(Job)).one()
-        sign = Sign(
-            job_id=job.id,
-            mapillary_feature_id="f1",
+        job = session.scalars(select(Run)).one()
+        feature = Feature(
+            run_id=job.id,
+            source_feature_id="f1",
             geom="SRID=4326;POINT(59.601 36.294)",
-            sign_class="unknown",
+            class_name="unknown",
             confidence=0.1,
             model_version="v1",
             needs_review=True,
         )
-        session.add(sign)
+        session.add(feature)
         session.commit()
-        sign_id = str(sign.id)
+        feature_id = str(feature.id)
 
-    client.post("/api/labels", json={"sign_id": sign_id, "sign_class": "city_entry"})
+    client.post("/api/labels", json={"feature_id": feature_id, "class_name": "city_entry"})
     with Session(client.engine) as session:
         label = session.scalars(select(Label)).one()
         assert str(label.labelled_by_id) == user["id"]
