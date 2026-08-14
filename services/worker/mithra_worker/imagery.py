@@ -12,6 +12,7 @@ the COG format exists precisely so that the difference is a range request.
 
 from __future__ import annotations
 
+import io
 import math
 from dataclasses import dataclass
 from pathlib import Path
@@ -110,34 +111,85 @@ def read_upload(path: str | Path, bbox: Bbox | None = None, max_size: int = 2048
         raise ImageryError(f"could not read uploaded raster: {exc}") from exc
 
 
-def read_xyz(template: str, bbox: Bbox, zoom: int, max_size: int = 2048) -> Chip:
+def read_xyz(
+    template: str,
+    bbox: Bbox,
+    zoom: int,
+    max_tiles: int = 256,
+    timeout: float = 20.0,
+    user_agent: str = "mithra/0.1 (urban feature survey)",
+) -> Chip:
     """Mosaic a tile service over an area.
 
-    The zoom decides the resolution, so the caller picks it from the resolution
-    it needs rather than guessing: at the equator, zoom 19 is about 0.3 m per
-    pixel and each step down doubles that.
+    Written out rather than delegated: rio-tiler reads rasters, not slippy-map
+    tile pyramids, and an earlier version of this function imported a reader
+    that does not exist — so the source was offered in the console and failed
+    at run time.
+
+    The zoom decides the resolution; `zoom_for_gsd` picks it from the
+    resolution a run needs. Tiles are capped because an area at zoom 20 can be
+    tens of thousands of requests, which is both slow and rude to the server.
     """
-    from rio_tiler.io import Reader
+    import httpx
+    import morecantile
+    import numpy as np
+    from PIL import Image
 
-    if not all(part in template for part in ("{z}", "{x}", "{y}")):
-        raise ImageryError("tile template must contain {z}, {x} and {y}")
+    for placeholder in ("{z}", "{x}", "{y}"):
+        if placeholder not in template:
+            raise ImageryError("tile template must contain {z}, {x} and {y}")
 
-    try:
-        # rio-tiler speaks XYZ through its own mosaic reader; a single Reader
-        # over the template is enough for the contiguous window we need.
-        from rio_tiler.io import XYZReader  # type: ignore[attr-defined]
-
-        with XYZReader(template) as tiles:  # pragma: no cover - optional backend
-            part = tiles.part(bbox, max_size=max_size)
-            west, south, east, north = bbox
-            width_m = (east - west) * metres_per_degree_lon((south + north) / 2)
-            return Chip(data=part.data, bounds=bbox, gsd_m=width_m / max(1, part.width))
-    except ImportError:
+    tms = morecantile.tms.get("WebMercatorQuad")
+    west, south, east, north = bbox
+    tiles = list(tms.tiles(west, south, east, north, [zoom]))
+    if not tiles:
+        raise ImageryError("no tiles cover this area at that zoom")
+    if len(tiles) > max_tiles:
         raise ImageryError(
-            "this build cannot mosaic XYZ tiles; use a COG or an upload"
-        ) from None
-    except Exception as exc:  # noqa: BLE001
-        raise ImageryError(f"could not read tiles from {template}: {exc}") from exc
+            f"{len(tiles)} tiles needed at zoom {zoom}; the limit is {max_tiles}. "
+            "Use a smaller area or a coarser resolution."
+        )
+
+    xs = [t.x for t in tiles]
+    ys = [t.y for t in tiles]
+    min_x, max_x, min_y, max_y = min(xs), max(xs), min(ys), max(ys)
+    tile_size = 256
+    canvas = Image.new("RGB", ((max_x - min_x + 1) * tile_size, (max_y - min_y + 1) * tile_size))
+
+    headers = {"User-Agent": user_agent}
+    fetched = 0
+    with httpx.Client(timeout=timeout, headers=headers, follow_redirects=True) as client:
+        for tile in tiles:
+            url = template.replace("{z}", str(tile.z)).replace("{x}", str(tile.x)).replace(
+                "{y}", str(tile.y)
+            )
+            try:
+                response = client.get(url)
+                response.raise_for_status()
+                image = Image.open(io.BytesIO(response.content)).convert("RGB")
+            except Exception:  # noqa: BLE001
+                # One missing tile is a hole in the mosaic, not a failed run:
+                # tile services routinely have gaps, and refusing the whole
+                # area because of one 404 would be worse than a black square.
+                continue
+            canvas.paste(image, ((tile.x - min_x) * tile_size, (tile.y - min_y) * tile_size))
+            fetched += 1
+
+    if fetched == 0:
+        raise ImageryError(f"no tiles could be fetched from {template}")
+
+    # The mosaic covers whole tiles, so its bounds are the tile grid's bounds
+    # rather than the requested box. Reporting the real extent keeps every
+    # detection's coordinates honest.
+    top_left = tms.bounds(morecantile.Tile(min_x, min_y, zoom))
+    bottom_right = tms.bounds(morecantile.Tile(max_x, max_y, zoom))
+    mosaic_bounds = (top_left.left, bottom_right.bottom, bottom_right.right, top_left.top)
+
+    data = np.asarray(canvas).transpose(2, 0, 1)
+    width_m = (mosaic_bounds[2] - mosaic_bounds[0]) * metres_per_degree_lon(
+        (mosaic_bounds[1] + mosaic_bounds[3]) / 2
+    )
+    return Chip(data=data, bounds=mosaic_bounds, gsd_m=width_m / max(1, data.shape[-1]))
 
 
 def zoom_for_gsd(gsd_m: float, latitude: float = 0.0) -> int:

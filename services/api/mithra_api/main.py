@@ -16,6 +16,7 @@ from mithra_api.routes import (
     geojson,
     stats,
     streets,
+    uploads,
 )
 
 app = FastAPI(title="Mithra", version="0.1.0")
@@ -38,6 +39,7 @@ app.include_router(export.router)
 app.include_router(labels.router)
 app.include_router(crops.router)
 app.include_router(streets.router)
+app.include_router(uploads.router)
 app.include_router(stats.router)
 app.include_router(overview.router)
 app.include_router(features.all_features)

@@ -73,3 +73,29 @@ def test_a_chip_reports_its_own_dimensions():
 
     chip = Chip(data=np.zeros((3, 40, 60), dtype="uint16"), bounds=(0, 0, 1, 1), gsd_m=10.0)
     assert (chip.width, chip.height) == (60, 40)
+
+
+# --- tile services -----------------------------------------------------------
+
+
+def test_a_tile_mosaic_is_capped(monkeypatch):
+    """An area at zoom 20 can be tens of thousands of requests: slow, and rude
+    to whoever runs the server."""
+    with pytest.raises(ImageryError, match="the limit is"):
+        read_xyz(
+            "https://tiles.example.com/{z}/{x}/{y}.png",
+            (59.0, 36.0, 60.0, 37.0),
+            zoom=18,
+            max_tiles=16,
+        )
+
+
+def test_a_tile_service_that_answers_nothing_is_reported(monkeypatch):
+    """Every tile failing is a broken source, not an empty area."""
+    with pytest.raises(ImageryError, match="no tiles could be fetched"):
+        read_xyz(
+            "https://tiles.invalid.example/{z}/{x}/{y}.png",
+            (59.600, 36.290, 59.601, 36.291),
+            zoom=14,
+            timeout=2.0,
+        )

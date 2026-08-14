@@ -16,6 +16,8 @@ from mithra_worker.imagery import (
     Chip,
     ImageryError,
     read_cog,
+    read_xyz,
+    zoom_for_gsd,
     read_stac_scene,
     read_upload,
     search_stac,
@@ -93,6 +95,17 @@ def fetch_chip(source_key: str, config: dict, bbox: tuple, bands: tuple[str, ...
             "cloud_cover": scene["cloud_cover"],
             "collection": collection,
         }
+
+    if source.kind.value == "xyz":
+        template = config.get("template")
+        if not template:
+            raise ImageryError("a tile source needs a {z}/{x}/{y} template")
+        # The zoom follows the resolution the source claims, so a run gets the
+        # pixels the catalogue promised it when it allowed the target.
+        target_gsd = source.gsd_m or 0.3
+        zoom = config.get("zoom") or zoom_for_gsd(target_gsd, (bbox[1] + bbox[3]) / 2)
+        chip = read_xyz(template, bbox, zoom=int(zoom))
+        return chip, {"template": template, "zoom": int(zoom)}
 
     if source.kind.value == "cog":
         url = config.get("url")
