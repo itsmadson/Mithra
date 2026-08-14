@@ -40,6 +40,11 @@ def client(monkeypatch):
     yield test_client
     app.dependency_overrides.clear()
     Base.metadata.drop_all(engine)
+    # Dispose the pool, not just the tables: every fixture opens its own
+    # engine, and Postgres allows 100 clients. Leaving them behind means the
+    # suite fails on whichever test happens to be running when it crosses that
+    # line, which reads as a bug in that test rather than in the fixtures.
+    engine.dispose()
 
 
 def test_creating_a_job_returns_queued_and_enqueues_work(client):
