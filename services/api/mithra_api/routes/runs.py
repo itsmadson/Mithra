@@ -10,11 +10,11 @@ from mithra_api.auth import current_user, same_org, visible_jobs
 from mithra_api.db import get_session
 from mithra_api.models import Run, RunKind, RunReason, RunStatus, Feature, FeatureReason, User
 from mithra_api.schemas import (
-    JobCreate,
-    JobCreated,
-    JobList,
+    RunCreate,
+    RunCreated,
+    RunList,
     RunStatusOut,
-    JobSummary,
+    RunSummary,
 )
 
 router = APIRouter(prefix="/api/runs", tags=["runs"])
@@ -60,12 +60,24 @@ def _counts(session: Session, run_id: uuid.UUID) -> tuple[dict[str, int], int]:
     return counts, failed
 
 
-@router.post("", response_model=JobCreated, status_code=201)
+@router.post("", response_model=RunCreated, status_code=201)
 def create_job(
-    payload: JobCreate,
+    payload: RunCreate,
     session: Session = Depends(get_session),
     user: User = Depends(current_user),
-) -> JobCreated:
+) -> RunCreated:
+    # The catalogue decides whether this pairing can produce an honest answer.
+    # Refusing here costs a millisecond; refusing after the run costs an hour
+    # and hands back an empty layer that reads as "there is none of that here".
+    try:
+        from mithra_worker.raster_pipeline import RunRefused, check_targets
+
+        check_targets(payload.source_kind, payload.targets, payload.source_config.get("gsd_m"))
+    except RunRefused as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    except ImportError:  # pragma: no cover - the API can run without the worker
+        pass
+
     if payload.bbox is not None:
         west, south, east, north = payload.bbox
         name = payload.name or f"{south:.4f},{west:.4f} → {north:.4f},{east:.4f}"
@@ -78,13 +90,17 @@ def create_job(
             bbox_north=north,
             owner_id=user.id,
             org_id=user.org_id,
+            source_kind=payload.source_kind,
+            source_config=payload.source_config,
+            targets=payload.targets,
+            detector=payload.detector,
         )
     else:
         # The corridor geometry is resolved by the worker, which owns the OSM
         # calls; the bbox here is a placeholder around the anchor point so the
         # row is valid before the worker replaces it with the real extent.
         lat, lon = payload.lat, payload.lon
-        assert lat is not None and lon is not None  # guaranteed by JobCreate
+        assert lat is not None and lon is not None  # guaranteed by RunCreate
         job = Run(
             name=payload.name or payload.street_name or f"way {payload.osm_id}",
             kind=RunKind.STREET,
@@ -96,6 +112,10 @@ def create_job(
             bbox_north=lat + 0.001,
             owner_id=user.id,
             org_id=user.org_id,
+            source_kind=payload.source_kind,
+            source_config=payload.source_config,
+            targets=payload.targets,
+            detector=payload.detector,
         )
 
     session.add(job)
@@ -115,16 +135,16 @@ def create_job(
             status_code=503, detail="job queue unavailable, job not started"
         ) from exc
 
-    return JobCreated(id=job.id, status=job.status)
+    return RunCreated(id=job.id, status=job.status)
 
 
-@router.get("", response_model=JobList)
+@router.get("", response_model=RunList)
 def list_jobs(
     limit: int = Query(default=50, ge=1, le=200),
     offset: int = Query(default=0, ge=0),
     session: Session = Depends(get_session),
     user: User = Depends(current_user),
-) -> JobList:
+) -> RunList:
     """Newest first, and only this organisation's surveys."""
     mine = visible_jobs(user)
     total = session.scalar(select(func.count()).select_from(Run).where(Run.id.in_(mine))) or 0
@@ -153,10 +173,10 @@ def list_jobs(
         .offset(offset)
     ).all()
 
-    return JobList(
+    return RunList(
         total=total,
         items=[
-            JobSummary(
+            RunSummary(
                 id=job.id,
                 name=job.name,
                 kind=job.kind,

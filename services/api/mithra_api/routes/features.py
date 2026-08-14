@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 from mithra_api.auth import current_user, same_org, visible_jobs
 from mithra_api.db import get_session
 from mithra_api.models import Run, Feature, User
-from mithra_api.schemas import SignList, SignOut
+from mithra_api.schemas import FeatureList, FeatureOut
 
 router = APIRouter(prefix="/api/runs", tags=["features"])
 
@@ -18,7 +18,7 @@ router = APIRouter(prefix="/api/runs", tags=["features"])
 all_features = APIRouter(prefix="/api/features", tags=["features"])
 
 
-@all_features.get("", response_model=SignList)
+@all_features.get("", response_model=FeatureList)
 def list_all_features(
     class_name: str | None = Query(default=None),
     needs_review: bool | None = Query(default=None),
@@ -26,7 +26,7 @@ def list_all_features(
     offset: int = Query(default=0, ge=0),
     session: Session = Depends(get_session),
     user: User = Depends(current_user),
-) -> SignList:
+) -> FeatureList:
     statement = select(
         Feature.id,
         Feature.class_name,
@@ -46,9 +46,9 @@ def list_all_features(
     if needs_review is not None:
         statement = statement.where(Feature.needs_review.is_(needs_review))
 
-    return SignList(
+    return FeatureList(
         items=[
-            SignOut(
+            FeatureOut(
                 id=row[0],
                 class_name=row[1],
                 confidence=row[2],
@@ -66,7 +66,7 @@ def list_all_features(
     )
 
 
-@router.get("/{run_id}/features", response_model=SignList)
+@router.get("/{run_id}/features", response_model=FeatureList)
 def list_signs(
     run_id: uuid.UUID,
     class_name: str | None = Query(default=None),
@@ -74,7 +74,7 @@ def list_signs(
     limit: int = Query(default=1000, le=5000),
     session: Session = Depends(get_session),
     user: User = Depends(current_user),
-) -> SignList:
+) -> FeatureList:
     job = session.get(Run, run_id)
     if job is None or not same_org(user, job):
         raise HTTPException(status_code=404, detail="job not found")
@@ -98,7 +98,7 @@ def list_signs(
         statement = statement.where(Feature.needs_review.is_(needs_review))
 
     items = [
-        SignOut(
+        FeatureOut(
             id=row[0],
             class_name=row[1],
             confidence=row[2],
@@ -113,4 +113,4 @@ def list_signs(
         )
         for row in session.execute(statement.limit(limit)).all()
     ]
-    return SignList(items=items)
+    return FeatureList(items=items)

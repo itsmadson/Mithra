@@ -5,6 +5,7 @@ and the database at the same time. Everything it calls is independently
 testable; this file is the wiring.
 """
 
+import json
 import uuid
 from datetime import UTC, datetime
 from pathlib import Path
@@ -116,7 +117,13 @@ def run_job(
         raise ValueError(f"job {run_id} not found")
 
     try:
-        _run_job(session, job, client, classifier, crop_dir, low_confidence_threshold)
+        # Two genuinely different jobs share this record: walking a street with
+        # panoramas, and reading a window of overhead imagery. They branch here
+        # rather than inside one function pretending to do both.
+        if job.source_kind and job.source_kind != "mapillary":
+            _run_raster(session, job)
+        else:
+            _run_job(session, job, client, classifier, crop_dir, low_confidence_threshold)
     except BaseException:
         # Deliberately BaseException: RQ enforces its job timeout by raising
         # JobTimeoutException, and a killed worker must not leave the row in
@@ -133,6 +140,66 @@ def run_job(
             job.finished_at = datetime.now(UTC)
             session.commit()
         raise
+
+
+def _run_raster(session: Session, job: Run) -> None:
+    """A detection run over satellite, aerial or uploaded imagery."""
+    from mithra_worker.raster_pipeline import (
+        RunRefused,
+        detect_over_area,
+        geometry_to_ewkt,
+    )
+    from mithra_worker.imagery import ImageryError
+
+    job.status = RunStatus.RUNNING
+    session.commit()
+
+    bbox = (job.bbox_west, job.bbox_south, job.bbox_east, job.bbox_north)
+    try:
+        detections, provenance = detect_over_area(
+            job.source_kind,
+            dict(job.source_config or {}),
+            bbox,
+            list(job.targets or []),
+            job.detector,
+        )
+    except RunRefused as exc:
+        # A refusal is a finished run with an answer, not a crash: the answer
+        # is "this cannot be asked of this imagery", and it belongs on the row.
+        job.status = RunStatus.FAILED
+        job.reason = str(exc)[:32]
+        job.finished_at = datetime.now(UTC)
+        session.commit()
+        return
+    except ImageryError as exc:
+        job.status = RunStatus.FAILED
+        job.reason = RunReason.NO_IMAGERY
+        job.finished_at = datetime.now(UTC)
+        session.commit()
+        raise RuntimeError(str(exc)) from exc
+
+    job.gsd_m = provenance.get("gsd_m")
+    job.tile_count = 1
+
+    for index, detection in enumerate(detections):
+        session.add(
+            Feature(
+                run_id=job.id,
+                # Stable within the run, so a re-run cannot double-count.
+                source_feature_id=f"{provenance.get('scene_id', job.source_kind)}:{index}",
+                geom=geometry_to_ewkt(detection.geometry),
+                class_name=detection.class_name,
+                confidence=detection.confidence,
+                area_m2=detection.area_m2,
+                model_version=job.detector,
+                source_value=provenance.get("scene_id"),
+                needs_review=False,
+            )
+        )
+
+    job.status = RunStatus.SUCCEEDED
+    job.finished_at = datetime.now(UTC)
+    session.commit()
 
 
 def _run_job(

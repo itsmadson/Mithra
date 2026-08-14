@@ -135,3 +135,115 @@ def test_an_area_with_no_water_returns_nothing_rather_than_failing(monkeypatch):
     )
     assert found == []
     assert provenance["scene_id"] == "S2_DRY"
+
+
+# --- the worker writing detections into the database -------------------------
+
+
+def test_geojson_becomes_the_well_known_text_postgis_wants():
+    """Handing PostGIS raw JSON fails at insert with a parse error that names
+    neither the run nor the detection."""
+    from mithra_worker.raster_pipeline import geometry_to_ewkt
+
+    ewkt = geometry_to_ewkt(
+        {"type": "Polygon", "coordinates": [[[0, 0], [0, 1], [1, 1], [1, 0], [0, 0]]]}
+    )
+    assert ewkt.startswith("SRID=4326;POLYGON")
+
+
+def test_a_raster_run_writes_features_with_area_and_provenance(monkeypatch, tmp_path):
+    """The whole worker path, against a real database."""
+    from sqlalchemy import create_engine, select, text
+    from sqlalchemy.orm import Session as DbSession
+
+    from tests.conftest import DB_URL
+
+    from mithra_api.db import Base
+    from mithra_api.models import Feature, Run, RunStatus
+
+    monkeypatch.setattr(
+        "mithra_worker.raster_pipeline.fetch_chip",
+        lambda *a, **k: (_fake_chip(), {"scene_id": "S2_TEST", "captured": "2026-07-03"}),
+    )
+
+    engine = create_engine(DB_URL)
+    with engine.begin() as conn:
+        conn.execute(text("CREATE EXTENSION IF NOT EXISTS postgis"))
+    Base.metadata.drop_all(engine)
+    Base.metadata.create_all(engine)
+
+    try:
+        from mithra_worker.pipeline import run_job
+
+        with DbSession(engine) as session:
+            run = Run(
+                name="Anzali water",
+                kind="bbox",
+                source_kind="sentinel2",
+                source_config={},
+                targets=["water"],
+                detector="ndwi-water",
+                bbox_west=49.40, bbox_south=37.40, bbox_east=49.41, bbox_north=37.41,
+            )
+            session.add(run)
+            session.commit()
+            run_id = run.id
+
+            run_job(session, run_id, client=None, classifier=None, crop_dir=tmp_path)
+
+            session.expire_all()
+            done = session.get(Run, run_id)
+            assert done.status == RunStatus.SUCCEEDED
+            assert done.gsd_m == 10.0
+
+            features = session.scalars(select(Feature).where(Feature.run_id == run_id)).all()
+            assert features, "the run found nothing"
+            assert features[0].class_name == "water"
+            assert features[0].area_m2 > 0
+            # The image the count came from, on every row.
+            assert features[0].source_value == "S2_TEST"
+    finally:
+        Base.metadata.drop_all(engine)
+        engine.dispose()
+
+
+def test_an_impossible_run_finishes_refused_rather_than_crashing(monkeypatch, tmp_path):
+    """A refusal is an answer — "this cannot be asked of this imagery" — and it
+    belongs on the row, not in a stack trace."""
+    from sqlalchemy import create_engine, text
+    from sqlalchemy.orm import Session as DbSession
+
+    from tests.conftest import DB_URL
+
+    from mithra_api.db import Base
+    from mithra_api.models import Run, RunStatus
+
+    engine = create_engine(DB_URL)
+    with engine.begin() as conn:
+        conn.execute(text("CREATE EXTENSION IF NOT EXISTS postgis"))
+    Base.metadata.drop_all(engine)
+    Base.metadata.create_all(engine)
+
+    try:
+        from mithra_worker.pipeline import run_job
+
+        with DbSession(engine) as session:
+            run = Run(
+                name="trees from space",
+                kind="bbox",
+                source_kind="sentinel2",
+                targets=["tree"],
+                detector="ndwi-water",
+                bbox_west=49.40, bbox_south=37.40, bbox_east=49.41, bbox_north=37.41,
+            )
+            session.add(run)
+            session.commit()
+            run_id = run.id
+
+            run_job(session, run_id, client=None, classifier=None, crop_dir=tmp_path)
+
+            session.expire_all()
+            assert session.get(Run, run_id).status == RunStatus.FAILED
+    finally:
+        Base.metadata.drop_all(engine)
+        engine.dispose()

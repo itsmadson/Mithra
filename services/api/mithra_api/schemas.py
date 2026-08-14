@@ -7,7 +7,13 @@ MAX_JOB_SIDE_DEGREES = 0.5  # ~55 km; a whole-city box, not a whole-country one
 MAX_BUFFER_M = 200
 
 
-class JobCreate(BaseModel):
+class RunCreate(BaseModel):
+    """What to run: an area, an imagery source, and what to look for.
+
+    The street fields are still here because a street survey is still a run;
+    it is now one shape of request among several rather than the only one.
+    """
+
     """A survey is defined either by a street or by a rectangle.
 
     The street is the primary path — an operator surveys a معبر, not an abstract
@@ -27,8 +33,15 @@ class JobCreate(BaseModel):
     # Rectangle survey.
     bbox: list[float] | None = Field(default=None, min_length=4, max_length=4)
 
+    # Which imagery, and how to read it. Defaults preserve the original
+    # behaviour: a street survey of Mapillary panoramas looking for signs.
+    source_kind: str = "mapillary"
+    source_config: dict = Field(default_factory=dict)
+    targets: list[str] = Field(default_factory=lambda: ["sign"])
+    detector: str = "clip-zeroshot"
+
     @model_validator(mode="after")
-    def _check(self) -> "JobCreate":
+    def _check(self) -> "RunCreate":
         is_street = self.osm_id is not None or self.street_name is not None
         if is_street == (self.bbox is not None):
             raise ValueError("provide either a street or a bbox, not both and not neither")
@@ -50,12 +63,12 @@ class JobCreate(BaseModel):
         return self
 
 
-class JobCreated(BaseModel):
+class RunCreated(BaseModel):
     id: uuid.UUID
     status: str
 
 
-class JobSummary(BaseModel):
+class RunSummary(BaseModel):
     """One row in the survey list."""
 
     id: uuid.UUID
@@ -71,8 +84,8 @@ class JobSummary(BaseModel):
     finished_at: datetime | None
 
 
-class JobList(BaseModel):
-    items: list[JobSummary]
+class RunList(BaseModel):
+    items: list[RunSummary]
     total: int
 
 
@@ -98,7 +111,7 @@ class RunStatusOut(BaseModel):
     finished_at: datetime | None
 
 
-class SignOut(BaseModel):
+class FeatureOut(BaseModel):
     id: uuid.UUID
     class_name: str
     confidence: float
@@ -114,5 +127,5 @@ class SignOut(BaseModel):
     reason: str | None = None
 
 
-class SignList(BaseModel):
-    items: list[SignOut]
+class FeatureList(BaseModel):
+    items: list[FeatureOut]

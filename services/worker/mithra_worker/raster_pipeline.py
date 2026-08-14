@@ -9,7 +9,6 @@ and pretending otherwise would make both harder to follow.
 
 from __future__ import annotations
 
-import json
 from datetime import UTC, datetime, timedelta
 
 from mithra_ml.catalog import availability
@@ -138,6 +137,13 @@ def detect_over_area(
     return detections, provenance
 
 
-def geometry_to_wkt_element(geometry: dict) -> str:
-    """GeoJSON to something PostGIS accepts, without a shapely round trip."""
-    return f"SRID=4326;{json.dumps(geometry)}"
+def geometry_to_ewkt(geometry: dict) -> str:
+    """GeoJSON to EWKT, which is what the geometry column accepts.
+
+    Handing PostGIS a JSON string in place of well-known text fails at insert
+    time with a parse error that names neither the run nor the detection, so
+    the conversion is explicit and tested.
+    """
+    from shapely.geometry import shape
+
+    return f"SRID=4326;{shape(geometry).wkt}"

@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 from mithra_api.auth import current_user, same_org, visible_jobs
 from mithra_api.db import get_session
 from mithra_api.models import Label, Feature, User
-from mithra_api.schemas import SignList, SignOut
+from mithra_api.schemas import FeatureList, FeatureOut
 from mithra_ml import ALL_CLASSES
 
 router = APIRouter(prefix="/api/labels", tags=["labels"])
@@ -27,12 +27,12 @@ class LabelCreate(BaseModel):
         return v
 
 
-@router.get("/queue", response_model=SignList)
+@router.get("/queue", response_model=FeatureList)
 def queue(
     limit: int = Query(default=50, le=500),
     session: Session = Depends(get_session),
     user: User = Depends(current_user),
-) -> SignList:
+) -> FeatureList:
     rows = session.execute(
         select(
             Feature.id,
@@ -55,9 +55,9 @@ def queue(
         .order_by(Feature.confidence.asc())
         .limit(limit)
     ).all()
-    return SignList(
+    return FeatureList(
         items=[
-            SignOut(
+            FeatureOut(
                 id=r[0],
                 class_name=r[1],
                 confidence=r[2],
