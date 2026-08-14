@@ -207,6 +207,13 @@ DETECTORS: tuple[Detector, ...] = (
         notes="Purpose-trained on crowns; ~64-70% on the NEON benchmark.",
     ),
     Detector(
+        key="ndwi-water",
+        label="NDWI water index",
+        targets=frozenset({"water"}),
+        weights="none - a spectral index, not a trained model",
+        notes="McFeeters 1996. Needs green and near-infrared bands; works at Sentinel-2 resolution.",
+    ),
+    Detector(
         key="omniwatermask",
         label="OmniWaterMask (water and flood)",
         targets=frozenset({"water"}),

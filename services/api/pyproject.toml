@@ -17,6 +17,8 @@ dependencies = [
   "mapbox-vector-tile>=2.1",
   "shapely>=2.0",
   "argon2-cffi>=23.1",
+  "rio-tiler>=9.0",
+  "pystac-client>=0.8",
   "email-validator>=2.2",
 ]
 
