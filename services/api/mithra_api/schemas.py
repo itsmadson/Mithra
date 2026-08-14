@@ -117,6 +117,8 @@ class FeatureOut(BaseModel):
     confidence: float
     lon: float
     lat: float
+    # Populated for anything with an outline; None for a point detection.
+    area_m2: float | None = None
     crop_url: str | None
     needs_review: bool
     source_value: str | None

@@ -2,7 +2,7 @@
 
 import { useTranslations } from "next-intl";
 import { API_BASE, type Feature } from "../lib/api";
-import { CLASS_COLOR, mapillaryName } from "../lib/signClass";
+import { colorForClass, mapillaryName } from "../lib/signClass";
 import { IconFlag, IconImage } from "./icons";
 
 export default function SignList({
@@ -30,7 +30,7 @@ export default function SignList({
     <ul data-testid="sign-list">
       {signs.map((sign) => {
         const selected = sign.id === selectedId;
-        const color = CLASS_COLOR[sign.class_name];
+        const color = colorForClass(sign.class_name);
         return (
           <li key={sign.id}>
             <button
@@ -65,7 +65,7 @@ export default function SignList({
                     aria-hidden
                   />
                   <span className="truncate text-[13px] text-[var(--fg)]">
-                    {t(`classes.${sign.class_name}`)}
+                    {t.has(`classes.${sign.class_name}`) ? t(`classes.${sign.class_name}`) : sign.class_name}
                   </span>
                   {sign.needs_review && (
                     <IconFlag size={12} className="shrink-0 text-[var(--warn)]" />

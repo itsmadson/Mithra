@@ -1,7 +1,10 @@
 import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from geoalchemy2.functions import ST_X, ST_Y
+# A detection may be a polygon now, and ST_X only accepts points. The
+# list needs one location to show; the centroid is it. The map layer
+# keeps the real outline, through the GeoJSON route.
+from geoalchemy2.functions import ST_Centroid, ST_X, ST_Y
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -31,8 +34,8 @@ def list_all_features(
         Feature.id,
         Feature.class_name,
         Feature.confidence,
-        ST_X(Feature.geom),
-        ST_Y(Feature.geom),
+        ST_X(ST_Centroid(Feature.geom)),
+        ST_Y(ST_Centroid(Feature.geom)),
         Feature.crop_path,
         Feature.needs_review,
         Feature.source_value,
@@ -83,8 +86,8 @@ def list_signs(
         Feature.id,
         Feature.class_name,
         Feature.confidence,
-        ST_X(Feature.geom),
-        ST_Y(Feature.geom),
+        ST_X(ST_Centroid(Feature.geom)),
+        ST_Y(ST_Centroid(Feature.geom)),
         Feature.crop_path,
         Feature.needs_review,
         Feature.source_value,

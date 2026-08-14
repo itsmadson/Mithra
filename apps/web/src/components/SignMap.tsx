@@ -89,6 +89,7 @@ export default function SignMap({
   onSelect,
   theme,
   basemap,
+  outlinesUrl,
 }: {
   signs: Feature[];
   bbox: Bbox | null;
@@ -99,6 +100,8 @@ export default function SignMap({
   theme: "dark" | "light";
   /** Which tile source to draw underneath. Omitted means the built-in one. */
   basemap?: BasemapChoice | null;
+  /** GeoJSON of detections that have outlines rather than positions. */
+  outlinesUrl?: string | null;
 }) {
   const container = useRef<HTMLDivElement>(null);
   const map = useRef<MapLibreMap | null>(null);
@@ -127,6 +130,23 @@ export default function SignMap({
 
     instance.on("load", () => {
       instance.addSource("area", { type: "geojson", data: { type: "FeatureCollection", features: [] } });
+      instance.addSource("outlines", {
+        type: "geojson",
+        data: { type: "FeatureCollection", features: [] },
+      });
+      // Under the pins: an outline is context for the points drawn on it.
+      instance.addLayer({
+        id: "outline-fill",
+        type: "fill",
+        source: "outlines",
+        paint: { "fill-color": CLASS_HEX.city_entry[theme], "fill-opacity": 0.28 },
+      });
+      instance.addLayer({
+        id: "outline-line",
+        type: "line",
+        source: "outlines",
+        paint: { "line-color": CLASS_HEX.city_entry[theme], "line-width": 1.5 },
+      });
       instance.addLayer({
         id: "area-fill",
         type: "fill",
@@ -250,6 +270,35 @@ export default function SignMap({
     if (!ready) return;
     (map.current?.getSource("signs") as GeoJSONSource | undefined)?.setData(data);
   }, [data, ready]);
+
+  // Outlines are a separate layer from the pins, because they are a different
+  // kind of answer: a lake has an extent, and drawing it as a dot at its
+  // centroid would throw away the thing the run was measuring.
+  useEffect(() => {
+    const instance = map.current;
+    if (!instance || !ready) return;
+
+    const empty = { type: "FeatureCollection", features: [] } as GeoJSON.FeatureCollection;
+    const source = instance.getSource("outlines") as GeoJSONSource | undefined;
+    if (!source) return;
+
+    if (!outlinesUrl) {
+      source.setData(empty);
+      return;
+    }
+
+    let cancelled = false;
+    fetch(outlinesUrl, { credentials: "include" })
+      .then((r) => (r.ok ? r.json() : empty))
+      .then((data) => {
+        if (!cancelled) source.setData(data);
+      })
+      .catch(() => source.setData(empty));
+
+    return () => {
+      cancelled = true;
+    };
+  }, [outlinesUrl, ready]);
 
   // Changing the backdrop must not disturb the view: the tiles and their
   // credit are swapped on the existing source rather than by rebuilding the

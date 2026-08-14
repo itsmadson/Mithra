@@ -56,3 +56,26 @@ export function mapillaryName(value: string | null | undefined): string | null {
 export function mapillaryImageUrl(imageId: string | null | undefined): string | null {
   return imageId ? `https://www.mapillary.com/app/?pKey=${imageId}&focus=photo` : null;
 }
+
+/**
+ * A colour for any class, including ones the sign palette never named.
+ *
+ * The catalogue grows with every detector, so the palette cannot enumerate
+ * every class ahead of time. Known classes keep their validated hue; anything
+ * else gets a stable colour derived from its name, so the same class is the
+ * same colour on every screen and between sessions.
+ */
+const EXTRA_HUES = [
+  "var(--ai)",
+  "var(--c-city)",
+  "var(--c-direction)",
+  "var(--c-info)",
+  "var(--secondary)",
+];
+
+export function colorForClass(cls: string): string {
+  if (cls in CLASS_COLOR) return CLASS_COLOR[cls as FeatureClass];
+  let hash = 0;
+  for (let i = 0; i < cls.length; i += 1) hash = (hash * 31 + cls.charCodeAt(i)) >>> 0;
+  return EXTRA_HUES[hash % EXTRA_HUES.length];
+}

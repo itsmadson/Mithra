@@ -14,6 +14,7 @@ import { IconAlert, IconDownload, IconSearch } from "../../../../components/icon
 import {
   SIGN_CLASSES,
   exportUrl,
+  featuresUrl,
   getJob,
   listSigns,
   type Bbox,
@@ -30,7 +31,7 @@ const SignMap = dynamic(() => import("../../../../components/SignMap"), {
   loading: () => <div className="absolute inset-0 bg-[var(--panel-2)]" />,
 });
 
-const ALL: FeatureClass[] = [...SIGN_CLASSES, "unknown"];
+const ALL: string[] = [...SIGN_CLASSES, "unknown"];
 
 export default function JobPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
@@ -47,7 +48,7 @@ export default function JobPage({ params }: { params: Promise<{ id: string }> })
   const [signs, setSigns] = useState<Feature[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [active, setActive] = useState<Set<FeatureClass>>(new Set(ALL));
+  const [active, setActive] = useState<Set<string>>(new Set(ALL));
   const [query, setQuery] = useState("");
   const [reviewOnly, setReviewOnly] = useState(false);
 
@@ -59,6 +60,14 @@ export default function JobPage({ params }: { params: Promise<{ id: string }> })
         const next = await getJob(id);
         if (cancelled) return;
         setJob(next);
+        // Seed the filter from what this run actually found. Starting from the
+        // sign classes meant a water run filtered every one of its own
+        // detections out and showed "nothing matches" over a full map.
+        setActive((prev) => {
+          const classes = Object.keys(next.counts ?? {});
+          const overlaps = classes.some((c) => prev.has(c));
+          return overlaps || classes.length === 0 ? prev : new Set([...prev, ...classes]);
+        });
 
         // Load signs as they appear, not only at the end: a long run should
         // fill the map while it works rather than showing an empty rectangle.
@@ -109,7 +118,7 @@ export default function JobPage({ params }: { params: Promise<{ id: string }> })
     [bboxKey],
   );
 
-  function toggle(cls: FeatureClass) {
+  function toggle(cls: string) {
     setActive((prev) => {
       const next = new Set(prev);
       if (next.has(cls)) next.delete(cls);
@@ -224,6 +233,7 @@ export default function JobPage({ params }: { params: Promise<{ id: string }> })
         <div className="relative min-h-[320px] flex-1">
           <SignMap
             basemap={basemap}
+            outlinesUrl={featuresUrl(id)}
             key={theme}
             signs={filtered}
             bbox={bbox}

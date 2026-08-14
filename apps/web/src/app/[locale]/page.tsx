@@ -7,7 +7,7 @@ import { AppShell } from "../../components/AppShell";
 import { Histogram, StackedShare, StatTile, TimeSeries } from "../../components/charts";
 import { IconAlert } from "../../components/icons";
 import { getOverview, type Overview, type FeatureClass } from "../../lib/api";
-import { CLASS_COLOR, CLASS_ORDER } from "../../lib/signClass";
+import { colorForClass, CLASS_ORDER } from "../../lib/signClass";
 
 const RANGES = [7, 30, 90] as const;
 
@@ -181,7 +181,7 @@ export default function DashboardPage() {
                     key: cls,
                     label: t(`classes.${cls}`),
                     value: data.features.by_class[cls] ?? 0,
-                    color: CLASS_COLOR[cls as FeatureClass],
+                    color: colorForClass(cls),
                   }))}
                 />
               )}
@@ -256,7 +256,7 @@ export default function DashboardPage() {
                         <span className="flex min-w-0 items-center gap-2">
                           <span
                             className="size-2 shrink-0 rounded-[2px]"
-                            style={{ background: CLASS_COLOR[cls as FeatureClass] }}
+                            style={{ background: colorForClass(cls) }}
                             aria-hidden
                           />
                           <span className="truncate text-[var(--fg-muted)]">

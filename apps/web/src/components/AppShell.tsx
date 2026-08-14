@@ -18,6 +18,7 @@ import {
   IconChart,
   IconFlag,
   IconLayers,
+  IconTarget,
   IconMoon,
   IconPin,
   IconSettings,
@@ -50,7 +51,7 @@ export function useTheme(): [Theme, (t: Theme) => void] {
 
 type Section = {
   href: string;
-  key: "dashboard" | "surveys" | "signs" | "review" | "settings";
+  key: "dashboard" | "detect" | "surveys" | "signs" | "review" | "settings";
   icon: typeof IconLayers;
   /** Which live number belongs beside this section, if any. */
   badge?: (s: Stats) => number;
@@ -58,6 +59,7 @@ type Section = {
 
 const SECTIONS: Section[] = [
   { href: "", key: "dashboard", icon: IconChart },
+  { href: "/detect", key: "detect", icon: IconTarget },
   { href: "/surveys", key: "surveys", icon: IconLayers, badge: (s) => s.surveys.running },
   { href: "/signs", key: "signs", icon: IconPin, badge: (s) => s.features.total },
   { href: "/label", key: "review", icon: IconFlag, badge: (s) => s.features.needs_review },

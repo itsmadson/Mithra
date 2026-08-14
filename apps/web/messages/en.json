@@ -92,16 +92,13 @@
     "emptyBody": "Pick a street in the panel beside this to start scanning it."
   },
   "compose": {
-    "title": "New survey",
-    "subtitle": "Choose a street to count the signs along it.",
-    "streetLabel": "Street",
-    "streetPlaceholder": "Type a street name",
-    "noHits": "No street found with that name.",
-    "bufferLabel": "Corridor width",
-    "bufferHelp": "How far from the centreline a sign still counts as belonging to this street. Widen it for dual carriageways.",
-    "start": "Start scan",
-    "starting": "Submitting…",
-    "bboxHint": "Scanning follows OpenStreetMap geometry."
+    "imagery": "Imagery",
+    "targets": "What to detect",
+    "start": "Start detection",
+    "starting": "Starting…",
+    "needArea": "Choose an area on the map first.",
+    "tryInstead": "try instead:",
+    "licenceWarning": "Check this service's terms before running a model across it."
   },
   "jobReason": {
     "street_not_found": "Street not found in OpenStreetMap"
@@ -112,7 +109,8 @@
     "signs": "Signs",
     "review": "Review",
     "settings": "Settings",
-    "dashboard": "Dashboard"
+    "dashboard": "Dashboard",
+    "detect": "Detect"
   },
   "signs": {
     "subtitle": "Showing {shown} of {total} signs"
@@ -207,5 +205,11 @@
     "choose": "Basemap",
     "tint": "Recolour to match the theme (leave off for aerial imagery)",
     "adminOnly": "Only an administrator can add a basemap."
+  },
+  "detect": {
+    "subtitle": "Find features in satellite and aerial imagery",
+    "where": "Where",
+    "searchPlace": "Search for a city or place",
+    "km": "{count} km"
   }
 }

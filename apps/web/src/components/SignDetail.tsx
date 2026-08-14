@@ -8,6 +8,7 @@ import {
   mapillaryCategory,
   mapillaryImageUrl,
   mapillaryName,
+  colorForClass,
 } from "../lib/signClass";
 
 function Row({ label, children }: { label: string; children: React.ReactNode }) {
@@ -27,7 +28,7 @@ export default function SignDetail({
   onClose: () => void;
 }) {
   const t = useTranslations();
-  const color = CLASS_COLOR[sign.class_name];
+  const color = colorForClass(sign.class_name);
   const sourceUrl = mapillaryImageUrl(sign.image_id);
   const category = mapillaryCategory(sign.source_value);
   const name = mapillaryName(sign.source_value);
@@ -42,7 +43,7 @@ export default function SignDetail({
           aria-hidden
         />
         <h2 className="text-sm font-semibold flex-1 truncate">
-          {t(`classes.${sign.class_name}`)}
+          {t.has(`classes.${sign.class_name}`) ? t(`classes.${sign.class_name}`) : sign.class_name}
         </h2>
         <button
           onClick={onClose}

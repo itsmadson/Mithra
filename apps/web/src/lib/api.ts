@@ -52,7 +52,7 @@ export interface JobStatus {
   finished_at: string | null;
   tile_count: number;
   failed_tile_count: number;
-  counts: Partial<Record<FeatureClass, number>>;
+  counts: Record<string, number>;
   total: number;
   failed_count: number;
 }
@@ -338,4 +338,72 @@ export function updateBasemap(id: string, patch: { is_default?: boolean; tint?: 
 
 export function deleteBasemap(id: string) {
   return request<void>(`/api/basemaps/${id}`, { method: "DELETE" });
+}
+
+export interface CatalogSource {
+  key: string;
+  label_en: string;
+  label_fa: string;
+  kind: string;
+  gsd_m: number | null;
+  viewpoint: string;
+  licence: string;
+  bulk_use: string;
+  needs_credentials: boolean;
+  notes_en: string;
+}
+
+export interface CatalogTarget {
+  key: string;
+  label_en: string;
+  label_fa: string;
+  geometry: string;
+  min_gsd_m: number;
+  viewpoints: string[];
+  coarser_alternative: string | null;
+  notes_en: string;
+}
+
+export interface TargetAvailability {
+  key: string;
+  label_en: string;
+  label_fa: string;
+  available: boolean;
+  reason: string;
+  alternative: string | null;
+  detectors: string[];
+}
+
+export function getCatalog() {
+  return request<{
+    sources: CatalogSource[];
+    targets: CatalogTarget[];
+    detectors: { key: string; label: string; targets: string[]; open_vocabulary: boolean; needs_gpu: boolean; notes: string }[];
+  }>("/api/catalog");
+}
+
+export function getAvailability(source: string, gsdM?: number) {
+  const query = gsdM ? `&gsd_m=${gsdM}` : "";
+  return request<{
+    source: string;
+    gsd_m: number | null;
+    viewpoint: string;
+    bulk_use: string;
+    targets: TargetAvailability[];
+  }>(`/api/catalog/availability?source=${encodeURIComponent(source)}${query}`);
+}
+
+/** Start a detection run over an area with a chosen imagery source. */
+export function createDetectionRun(body: {
+  name?: string;
+  bbox: Bbox;
+  source_kind: string;
+  source_config?: Record<string, unknown>;
+  targets: string[];
+  detector: string;
+}) {
+  return request<{ id: string; status: string }>("/api/runs", {
+    method: "POST",
+    body: JSON.stringify(body),
+  });
 }
