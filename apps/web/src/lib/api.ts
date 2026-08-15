@@ -443,3 +443,28 @@ export interface SystemCapability {
 export function getCapability() {
   return request<SystemCapability>("/api/system/capability");
 }
+
+export interface UploadedRaster {
+  path: string;
+  filename: string;
+  bytes: number;
+  bounds: [number, number, number, number];
+  gsd_m: number | null;
+}
+
+/** Upload a raster; the response reports what its pixels can support. */
+export async function uploadRaster(file: File): Promise<UploadedRaster> {
+  const body = new FormData();
+  body.append("file", file);
+  const response = await fetch(`${API_BASE}/api/uploads`, {
+    method: "POST",
+    credentials: "include",
+    body,
+  });
+  if (response.status === 401) throw new Unauthorized();
+  if (!response.ok) {
+    const detail = await response.json().catch(() => ({}));
+    throw new Error(detail.detail ?? `upload failed: ${response.status}`);
+  }
+  return response.json();
+}

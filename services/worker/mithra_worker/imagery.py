@@ -66,7 +66,13 @@ def pixel_size_for(bbox: Bbox, gsd_m: float) -> tuple[int, int]:
     return max(1, round(width_m / gsd_m)), max(1, round(height_m / gsd_m))
 
 
-def read_cog(url: str, bbox: Bbox, max_size: int = 2048) -> Chip:
+def read_cog(
+    url: str,
+    bbox: Bbox,
+    max_size: int = 2048,
+    width: int | None = None,
+    height: int | None = None,
+) -> Chip:
     """Read a window from a Cloud-Optimised GeoTIFF, local or remote.
 
     The file reports its own resolution; nothing here may claim one on its
@@ -77,7 +83,12 @@ def read_cog(url: str, bbox: Bbox, max_size: int = 2048) -> Chip:
 
     try:
         with Reader(url) as image:
-            part = image.part(bbox, dst_crs="EPSG:4326", max_size=max_size)
+            # An explicit grid when the caller has one: bands of a single
+            # scene must land on the same pixels to be stacked.
+            if width and height:
+                part = image.part(bbox, dst_crs="EPSG:4326", width=width, height=height)
+            else:
+                part = image.part(bbox, dst_crs="EPSG:4326", max_size=max_size)
             # Ground resolution of what actually came back, not of the source's
             # best overview: rio-tiler may have decimated to honour max_size.
             west, south, east, north = bbox
@@ -242,17 +253,35 @@ def search_stac(
 
 def read_stac_scene(scene: dict, bbox: Bbox, bands: tuple[str, ...] = ("red", "green", "blue"),
                     max_size: int = 2048) -> Chip:
-    """Read one scene's bands over an area, as an RGB-ordered chip."""
+    """Read one scene's bands over an area, onto a single grid.
+
+    Sentinel-2 does not deliver its bands at one resolution: red and
+    near-infrared are 10 m, short-wave infrared is 20 m. Read independently
+    they come back different sizes and cannot be stacked — and worse, a naive
+    stack that happened to work would silently misalign every pixel.
+
+    So the first band sets the grid and the rest are resampled onto it. The
+    reported resolution is the grid's, not the sharpest band's, because that is
+    what the detector actually sees.
+    """
     import numpy as np
 
     arrays = []
+    grid: tuple[int, int] | None = None
     gsd = None
+
     for band in bands:
         href = scene["assets"].get(band)
         if href is None:
             raise ImageryError(f"scene {scene.get('id')} has no band {band!r}")
-        chip = read_cog(href, bbox, max_size=max_size)
+
+        if grid is None:
+            chip = read_cog(href, bbox, max_size=max_size)
+            grid = (chip.width, chip.height)
+            gsd = chip.gsd_m
+        else:
+            chip = read_cog(href, bbox, width=grid[0], height=grid[1])
+
         arrays.append(chip.data[0] if chip.data.ndim == 3 else chip.data)
-        gsd = chip.gsd_m
 
     return Chip(data=np.stack(arrays), bounds=bbox, gsd_m=gsd or 0.0)

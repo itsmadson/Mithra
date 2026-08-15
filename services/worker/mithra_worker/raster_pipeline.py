@@ -30,6 +30,15 @@ from mithra_worker.sources import SOURCES_BY_KEY, resolve_gsd
 STAC_COLLECTIONS = {"sentinel2": "sentinel-2-l2a", "naip": "naip"}
 # NDWI needs green and near-infrared, in that order.
 WATER_BANDS = ("green", "nir")
+# Land cover needs a third band; asked for only when the detector needs it,
+# because every extra band is another range request over the network.
+LANDCOVER_BANDS = ("red", "nir", "swir16")
+
+BANDS_FOR_DETECTOR = {
+    "ndwi-water": WATER_BANDS,
+    "spectral-landcover": LANDCOVER_BANDS,
+    "sam3": ("red", "green", "blue"),
+}
 
 
 class RunRefused(RuntimeError):
@@ -145,6 +154,11 @@ def detector_for(key: str):
 
         return NdwiWaterDetector()
 
+    if key == "spectral-landcover":
+        from mithra_ml.landcover import LandCoverDetector
+
+        return LandCoverDetector()
+
     if key == "sam3":
         from mithra_ml.sam import Sam3Detector
 
@@ -164,7 +178,8 @@ def detect_over_area(
     Returns the detections and the provenance of the imagery they came from.
     """
     check_targets(source_key, targets, config.get("gsd_m"))
-    chip, provenance = fetch_chip(source_key, config, bbox, max_size=max_size)
+    bands = BANDS_FOR_DETECTOR.get(detector_key, WATER_BANDS)
+    chip, provenance = fetch_chip(source_key, config, bbox, bands=bands, max_size=max_size)
     detections = detector_for(detector_key).detect(chip, targets)
     provenance["gsd_m"] = round(chip.gsd_m, 2)
     provenance["pixels"] = [chip.width, chip.height]

@@ -233,6 +233,21 @@ DETECTORS: tuple[Detector, ...] = (
         notes="Green and near-infrared bands. Works at Sentinel-2 resolution, needs no weights.",
     ),
     Detector(
+        key="spectral-landcover",
+        label="Spectral land cover (NDVI / NDBI)",
+        targets=frozenset({"forest_cover", "cropland", "built_up"}),
+        runtime=Runtime.CPU,
+        ram_gb=2.0,
+        weights="none - spectral indices",
+        licence="public method",
+        benchmarks=(
+            Benchmark("accuracy", 0.70, "typical for index-based cover at 10 m",
+                      "index thresholds, not a trained model"),
+        ),
+        implemented=True,
+        notes="Red, near-infrared and short-wave infrared. Coarse by design: where cover is, not whose field it is.",
+    ),
+    Detector(
         key="clip-zeroshot",
         label="CLIP zero-shot (street-level signs)",
         targets=frozenset({"sign"}),

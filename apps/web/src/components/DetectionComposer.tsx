@@ -5,11 +5,13 @@ import { useEffect, useState } from "react";
 import {
   createDetectionRun,
   getCapability,
+  uploadRaster,
   getAvailability,
   getCatalog,
   type Bbox,
   type CatalogSource,
   type SystemCapability,
+  type UploadedRaster,
   type TargetAvailability,
 } from "../lib/api";
 import { IconAlert, IconLayers } from "./icons";
@@ -39,6 +41,7 @@ export function DetectionComposer({
   const [chosen, setChosen] = useState<string[]>([]);
   const [bulkUse, setBulkUse] = useState<string>("allowed");
   const [capability, setCapability] = useState<SystemCapability | null>(null);
+  const [uploaded, setUploaded] = useState<UploadedRaster | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -58,7 +61,7 @@ export function DetectionComposer({
   // different for every source and guessing it in the client would drift.
   useEffect(() => {
     if (!source) return;
-    getAvailability(source)
+    getAvailability(source, source === "upload" ? uploaded?.gsd_m ?? undefined : undefined)
       .then((body) => {
         setTargets(body.targets);
         setBulkUse(body.bulk_use);
@@ -67,12 +70,14 @@ export function DetectionComposer({
         );
       })
       .catch((e) => setError(e instanceof Error ? e.message : String(e)));
-  }, [source]);
+  }, [source, uploaded]);
 
   const selected = sources.find((s) => s.key === source);
 
   async function start() {
-    if (!bbox || chosen.length === 0 || busy) return;
+    // An uploaded raster carries its own extent; everything else needs one
+    // chosen on the map.
+    if ((!bbox && !uploaded) || chosen.length === 0 || busy) return;
     setBusy(true);
     setError(null);
     try {
@@ -81,9 +86,14 @@ export function DetectionComposer({
       const recommended = capability?.recommended?.[chosen[0]]?.detector;
       const detector =
         recommended ?? targets.find((t) => t.key === chosen[0])?.detectors[0] ?? "ndwi-water";
+      // One of the two is present: the button is disabled otherwise.
+      const area = (uploaded?.bounds ?? bbox) as Bbox;
       const run = await createDetectionRun({
-        bbox,
+        bbox: area,
         source_kind: source,
+        source_config: uploaded
+          ? { path: uploaded.path, gsd_m: uploaded.gsd_m }
+          : undefined,
         targets: chosen,
         detector,
       });
@@ -122,6 +132,39 @@ export function DetectionComposer({
           </p>
         )}
       </div>
+
+      {selected?.kind === "upload" && (
+        <div>
+          <label className="text-xs text-[var(--fg-faint)]">{t("compose.file")}</label>
+          <input
+            type="file"
+            accept=".tif,.tiff,.jp2"
+            onChange={async (event) => {
+              const file = event.target.files?.[0];
+              if (!file) return;
+              setError(null);
+              try {
+                const result = await uploadRaster(file);
+                setUploaded(result);
+              } catch (e) {
+                setError(e instanceof Error ? e.message : String(e));
+                setUploaded(null);
+              }
+            }}
+            className="mt-1 w-full rounded-[var(--radius-sm)] border border-[var(--line)] bg-[var(--panel-2)] px-2.5 py-2 text-[12px] text-[var(--fg-muted)] file:me-2 file:rounded file:border-0 file:bg-[var(--panel)] file:px-2 file:py-1 file:text-[var(--fg)]"
+          />
+          {uploaded && (
+            <p className="mt-1.5 text-[11px] text-[var(--fg-muted)]" dir="ltr">
+              {uploaded.filename} · {uploaded.gsd_m ?? "?"} m/px
+            </p>
+          )}
+          {!uploaded && (
+            <p className="mt-1.5 text-[11px] text-[var(--fg-faint)]">
+              {t("compose.uploadFirst")}
+            </p>
+          )}
+        </div>
+      )}
 
       <div>
         <label className="text-xs text-[var(--fg-faint)]">{t("compose.targets")}</label>
@@ -197,7 +240,7 @@ export function DetectionComposer({
 
       <button
         onClick={start}
-        disabled={!bbox || chosen.length === 0 || busy}
+        disabled={(!bbox && !uploaded) || chosen.length === 0 || busy}
         className="flex items-center justify-center gap-2 rounded-[var(--radius-sm)] bg-[var(--accent)] px-3 py-2.5 text-[13px] font-semibold text-[var(--accent-ink)] transition-[opacity,transform] duration-150 hover:opacity-90 active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-40"
       >
         <IconLayers size={14} />

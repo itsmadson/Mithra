@@ -109,7 +109,9 @@
     "starting": "Starting…",
     "needArea": "Choose an area on the map first.",
     "tryInstead": "try instead:",
-    "licenceWarning": "Check this service's terms before running a model across it."
+    "licenceWarning": "Check this service's terms before running a model across it.",
+    "file": "Raster file",
+    "uploadFirst": "Upload a file to see what it can detect."
   },
   "jobReason": {
     "street_not_found": "Street not found in OpenStreetMap"
