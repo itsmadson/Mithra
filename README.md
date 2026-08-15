@@ -45,7 +45,8 @@ will be asked to prove it.
 | Surveys | What has been surveyed, and run another |
 | Signs | Every sign across every survey, on one map |
 | Review | Judge what the model was unsure about |
-| Settings | System state, basemaps, accounts |
+| Detect | Find features in satellite, aerial or uploaded imagery |
+| Settings | What this server can run, system state, basemaps, accounts |
 
 Persian and English, right-to-left and left-to-right, dark and light.
 
@@ -142,10 +143,17 @@ Deeper detail in [`docs/`](docs/): [architecture](docs/architecture.md),
 
 ## Honest limitations
 
-- **Classification is not trained yet.** Out of the box it runs CLIP zero-shot, which
-  is frequently wrong on regulatory signs — it will confidently call a pedestrian
-  crossing a guide sign. The review queue exists to fix exactly this; see
-  [docs/model.md](docs/model.md).
+- **Three of eleven detectors are built.** Water (NDWI), land cover (NDVI/NDBI) and
+  SAM 3 ship in this release. The other eight are declared with their hardware and
+  their published accuracy so the console can plan around them — each is one adapter
+  away, not a redesign. See [docs/model.md](docs/model.md).
+- **SAM 3 has not been run on a GPU by its author.** The adapter is complete and the
+  hardware check refuses it where it cannot run, so a laptop gets a clear message
+  rather than a crash. Run `python scripts/check_sam.py` on the GPU host before
+  trusting a count from it.
+- **The street-sign classifier is untrained.** CLIP zero-shot is frequently wrong on
+  regulatory signs — it will confidently call a pedestrian crossing a guide sign. The
+  review queue exists to fix exactly this.
 - **Coverage is the imagery provider's coverage.** No imagery on a street means no
   signs found there, which is not the same as no signs being there. Surveys say so
   rather than reporting zero.
