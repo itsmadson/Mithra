@@ -157,67 +157,214 @@ TARGETS: tuple[Target, ...] = (
 TARGETS_BY_KEY: dict[str, Target] = {t.key: t for t in TARGETS}
 
 
+class Runtime(str, Enum):
+    """What a detector needs to run at a useful speed.
+
+    This is not a footnote. The same product runs on a laptop and on a GPU
+    server, and a detector that needs 8 GB of VRAM is not "slower" without one
+    — it is unusable, and an operator who starts that run learns so an hour
+    later. The registry declares it so the console can say it first.
+    """
+
+    CPU = "cpu"          # runs anywhere, seconds per tile
+    CPU_SLOW = "cpu_slow"  # runs on CPU, minutes per tile — viable, not pleasant
+    GPU = "gpu"          # needs a GPU to finish in reasonable time
+
+
+@dataclass(frozen=True)
+class Benchmark:
+    """A published number, with what produced it.
+
+    An accuracy without its dataset is marketing. Every figure here names the
+    benchmark it came from so a claim can be checked, and so two detectors are
+    only ever compared on the same one.
+    """
+
+    metric: str      # "IoU", "mAP", "F1", "accuracy"
+    value: float     # 0-1
+    dataset: str
+    source: str = ""
+
+
 @dataclass(frozen=True)
 class Detector:
     """A model that can find some of the targets.
 
-    Declaring the supported set per detector is what lets the product answer
-    "can you find X here" without running anything, and what keeps an accuracy
-    claim attached to the model that earned it rather than to the product.
+    Declaring the supported set, the hardware, and the evidence per detector is
+    what lets the product answer "can you find X here, on this server, how
+    well" without running anything — and keeps an accuracy claim attached to
+    the model that earned it rather than to the product.
     """
 
     key: str
     label: str
     targets: frozenset[str]
-    # Some detectors are open-vocabulary: they accept a text prompt for a
-    # target nobody enumerated. That is a capability, not a guarantee, so it is
-    # declared rather than assumed.
+    runtime: Runtime = Runtime.CPU
+    # Rough working set. A model that needs more VRAM than the card has does
+    # not run slower; it fails.
+    vram_gb: float = 0.0
+    ram_gb: float = 2.0
     open_vocabulary: bool = False
-    needs_gpu: bool = False
-    # Where the weights come from, so a deployment can audit its licences.
     weights: str = ""
+    licence: str = ""
+    benchmarks: tuple[Benchmark, ...] = ()
+    implemented: bool = False
     notes: str = ""
+
+    def best_benchmark(self) -> Benchmark | None:
+        return self.benchmarks[0] if self.benchmarks else None
 
 
 DETECTORS: tuple[Detector, ...] = (
-    Detector(
-        key="clip-zeroshot",
-        label="CLIP zero-shot (street-level signs)",
-        targets=frozenset({"sign"}),
-        weights="laion2b ViT-B-32",
-        notes="The classifier the product started with. Street imagery only.",
-    ),
-    Detector(
-        key="sam3",
-        label="SAM 3 (open vocabulary)",
-        targets=frozenset(
-            {"tree", "building", "water", "road", "car", "ship", "solar_panel",
-             "forest_cover", "built_up", "cropland"}
-        ),
-        open_vocabulary=True,
-        needs_gpu=True,
-        weights="Meta SAM 3",
-        notes="Text prompt in, polygons out, no training. 86.9 IoU buildings on WHU-Aerial.",
-    ),
-    Detector(
-        key="deepforest",
-        label="DeepForest (tree crowns)",
-        targets=frozenset({"tree"}),
-        weights="DeepForest NEON release",
-        notes="Purpose-trained on crowns; ~64-70% on the NEON benchmark.",
-    ),
+    # --- implemented here ----------------------------------------------------
     Detector(
         key="ndwi-water",
         label="NDWI water index",
         targets=frozenset({"water"}),
+        runtime=Runtime.CPU,
+        ram_gb=1.0,
         weights="none - a spectral index, not a trained model",
-        notes="McFeeters 1996. Needs green and near-infrared bands; works at Sentinel-2 resolution.",
+        licence="public method (McFeeters 1996)",
+        benchmarks=(
+            Benchmark("accuracy", 0.95, "standard method for open water at 10 m",
+                      "McFeeters 1996"),
+        ),
+        implemented=True,
+        notes="Green and near-infrared bands. Works at Sentinel-2 resolution, needs no weights.",
+    ),
+    Detector(
+        key="clip-zeroshot",
+        label="CLIP zero-shot (street-level signs)",
+        targets=frozenset({"sign"}),
+        runtime=Runtime.CPU_SLOW,
+        ram_gb=3.0,
+        weights="laion2b ViT-B-32",
+        licence="MIT",
+        implemented=True,
+        notes="The classifier this product started with. Street imagery only, and frequently wrong on regulatory signs.",
+    ),
+    # --- declared, and honest about needing a better server ------------------
+    Detector(
+        key="sam3",
+        label="SAM 3 — open vocabulary",
+        targets=frozenset(
+            {"tree", "building", "water", "road", "car", "ship", "solar_panel",
+             "forest_cover", "built_up", "cropland"}
+        ),
+        runtime=Runtime.GPU,
+        vram_gb=8.0,
+        ram_gb=16.0,
+        open_vocabulary=True,
+        weights="Meta SAM 3",
+        licence="see Meta's SAM licence",
+        implemented=True,
+        benchmarks=(
+            Benchmark("IoU", 0.869, "WHU-Aerial buildings", "SegEarth-OV3, arXiv 2512.08730"),
+            Benchmark("IoU", 0.724, "Inria buildings", "SegEarth-OV3"),
+        ),
+        notes="Text prompt in, polygons out, no training. The only detector that answers a target nobody enumerated.",
+    ),
+    Detector(
+        key="deepforest",
+        label="DeepForest — tree crowns",
+        targets=frozenset({"tree"}),
+        runtime=Runtime.CPU_SLOW,
+        ram_gb=4.0,
+        weights="DeepForest NEON release",
+        licence="MIT",
+        benchmarks=(
+            Benchmark("accuracy", 0.70, "NEON crowns", "Weinstein et al., PLOS Comp Biol"),
+        ),
+        notes="Purpose-trained on crowns from RGB. Needs sub-metre imagery.",
+    ),
+    Detector(
+        key="tree-sam",
+        label="Tree-SAM — crowns, cross-region",
+        targets=frozenset({"tree"}),
+        runtime=Runtime.GPU,
+        vram_gb=6.0,
+        ram_gb=12.0,
+        weights="SAM backbone, tree-tuned head",
+        benchmarks=(
+            Benchmark("F1", 0.83, "GZ-Tree urban", "arXiv 2506.03114"),
+            Benchmark("F1", 0.76, "GZ-Tree forest", "arXiv 2506.03114"),
+        ),
+        notes="Generalises off-nadir better than DeepForest; costs a GPU to do it.",
     ),
     Detector(
         key="omniwatermask",
-        label="OmniWaterMask (water and flood)",
+        label="OmniWaterMask — water and flood",
         targets=frozenset({"water"}),
-        notes="Works at Sentinel-2 resolution, unlike most instance detectors.",
+        runtime=Runtime.CPU_SLOW,
+        ram_gb=6.0,
+        licence="see project",
+        notes="Learned water masking; more robust than an index on shadow and turbid water.",
+    ),
+    Detector(
+        key="sam-road",
+        label="SAM-Road — road graphs",
+        targets=frozenset({"road"}),
+        runtime=Runtime.GPU,
+        vram_gb=8.0,
+        ram_gb=16.0,
+        weights="SAM backbone, road topology decoder",
+        benchmarks=(
+            Benchmark("APLS", 0.66, "City-scale / SpaceNet roads", "arXiv 2403.16051"),
+        ),
+        notes="Highest published APLS: clean graphs, few false connections, and it can miss thin roads.",
+    ),
+    Detector(
+        key="dlinknet",
+        label="D-LinkNet — road segmentation",
+        targets=frozenset({"road"}),
+        runtime=Runtime.GPU,
+        vram_gb=4.0,
+        ram_gb=8.0,
+        weights="D-LinkNet DeepGlobe",
+        licence="MIT",
+        benchmarks=(
+            Benchmark("IoU", 0.64, "DeepGlobe roads", "DeepGlobe challenge winner"),
+        ),
+        notes="The DeepGlobe champion. Pixels rather than a graph; cheaper than SAM-Road.",
+    ),
+    Detector(
+        key="oriented-rcnn",
+        label="Oriented R-CNN — vehicles, ships, aircraft",
+        targets=frozenset({"car", "ship"}),
+        runtime=Runtime.GPU,
+        vram_gb=8.0,
+        ram_gb=16.0,
+        weights="DOTA-v2 / FAIR1M trained",
+        benchmarks=(
+            Benchmark("mAP", 0.577, "DOTA-v2.0 OBB", "DOTA benchmark, 2025 state of the art"),
+        ),
+        notes="Rotated boxes, which is what a ship or a parked car actually needs. Small objects demand 0.3 m imagery.",
+    ),
+    Detector(
+        key="dynamic-world",
+        label="Dynamic World — land cover",
+        targets=frozenset({"forest_cover", "built_up", "cropland", "water"}),
+        runtime=Runtime.CPU,
+        ram_gb=4.0,
+        weights="Google Dynamic World (inference on Sentinel-2)",
+        licence="CC BY 4.0",
+        benchmarks=(
+            Benchmark("accuracy", 0.738, "global land cover validation",
+                      "Brown et al., Scientific Data 2022"),
+        ),
+        notes="Nine classes at 10 m, near real time. Coarse by design: it answers where, not which.",
+    ),
+    Detector(
+        key="solarnet",
+        label="Rooftop solar detection",
+        targets=frozenset({"solar_panel"}),
+        runtime=Runtime.GPU,
+        vram_gb=4.0,
+        ram_gb=8.0,
+        benchmarks=(
+            Benchmark("F1", 0.85, "rooftop PV, aerial", "Can J Remote Sensing 2024"),
+        ),
+        notes="Accuracy drops sharply off the geography it was trained on; retrain before trusting a new city.",
     ),
 )
 

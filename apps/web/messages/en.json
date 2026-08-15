@@ -228,5 +228,20 @@
     "where": "Where",
     "searchPlace": "Search for a city or place",
     "km": "{count} km"
+  },
+  "capability": {
+    "title": "What this server can run",
+    "noGpu": "no GPU",
+    "ready": "ready",
+    "slow": "slow",
+    "needsBetter": "needs a better server",
+    "moveToGpu": "{count} models cannot run here. They need a host with a GPU.",
+    "allReady": "Every installed model runs on this server.",
+    "tier": {
+      "gpu": "GPU server",
+      "small_gpu": "small GPU",
+      "strong_cpu": "strong CPU",
+      "modest": "modest server"
+    }
   }
 }

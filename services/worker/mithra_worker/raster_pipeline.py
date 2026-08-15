@@ -123,11 +123,32 @@ def fetch_chip(source_key: str, config: dict, bbox: tuple, bands: tuple[str, ...
 
 
 def detector_for(key: str):
-    """The detector a run asked for, or a reason it is not available here."""
+    """The detector a run asked for, if this machine can actually run it.
+
+    The hardware check happens here rather than at the model: a run refused for
+    want of a GPU should fail in milliseconds with a sentence an operator can
+    act on, not after loading eight gigabytes of weights.
+    """
+    from mithra_ml.catalog import DETECTORS_BY_KEY
+    from mithra_ml.hardware import fitness
+
+    declared = DETECTORS_BY_KEY.get(key)
+    if declared is None:
+        raise RunRefused(f"unknown detector {key!r}")
+
+    verdict = fitness(declared)
+    if not verdict.runnable:
+        raise RunRefused(f"{key} cannot run on this server: {verdict.reason}")
+
     if key == "ndwi-water":
         from mithra_ml.water import NdwiWaterDetector
 
         return NdwiWaterDetector()
+
+    if key == "sam3":
+        from mithra_ml.sam import Sam3Detector
+
+        return Sam3Detector()
 
     raise RunRefused(
         f"detector {key!r} is declared in the catalogue but not implemented in this build"

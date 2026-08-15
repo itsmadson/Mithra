@@ -57,7 +57,21 @@ def catalog(_user=Depends(current_user)) -> dict:
                 "label": d.label,
                 "targets": sorted(d.targets),
                 "open_vocabulary": d.open_vocabulary,
-                "needs_gpu": d.needs_gpu,
+                "runtime": d.runtime.value,
+                "vram_gb": d.vram_gb,
+                "implemented": d.implemented,
+                # The evidence travels with the claim, so a chosen detector can
+                # be justified rather than merely named.
+                "benchmark": (
+                    {
+                        "metric": d.best_benchmark().metric,
+                        "value": d.best_benchmark().value,
+                        "dataset": d.best_benchmark().dataset,
+                        "source": d.best_benchmark().source,
+                    }
+                    if d.best_benchmark()
+                    else None
+                ),
                 "notes": d.notes,
             }
             for d in DETECTORS

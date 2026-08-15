@@ -67,9 +67,31 @@ def test_the_water_detector_is_available():
 
 
 def test_a_declared_but_unbuilt_detector_says_so_plainly():
-    """The catalogue lists SAM 3; this build does not ship it, and admits it."""
-    with pytest.raises(RunRefused, match="not implemented in this build"):
+    """The catalogue lists models this release does not ship, and admits it."""
+    with pytest.raises(RunRefused, match="not built into this release"):
+        detector_for("tree-sam")
+
+
+def test_a_detector_this_machine_cannot_run_is_refused_before_loading_weights():
+    """SAM is built, and still refused on a machine without the hardware.
+
+    The refusal has to happen here rather than inside the model: loading eight
+    gigabytes of weights to discover there is no GPU wastes minutes and tells
+    the operator nothing they can act on.
+    """
+    from mithra_ml.hardware import fitness
+    from mithra_ml.catalog import DETECTORS_BY_KEY
+
+    if fitness(DETECTORS_BY_KEY["sam3"]).runnable:
+        pytest.skip("this machine can run SAM; the refusal path needs a smaller one")
+
+    with pytest.raises(RunRefused, match="cannot run on this server"):
         detector_for("sam3")
+
+
+def test_an_unknown_detector_is_refused():
+    with pytest.raises(RunRefused, match="unknown detector"):
+        detector_for("magic-eye")
 
 
 # --- fetching ----------------------------------------------------------------

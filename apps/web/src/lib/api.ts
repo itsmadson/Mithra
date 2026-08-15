@@ -410,3 +410,36 @@ export function createDetectionRun(body: {
     body: JSON.stringify(body),
   });
 }
+
+export interface DetectorFitness {
+  key: string;
+  label: string;
+  targets: string[];
+  implemented: boolean;
+  runtime: string;
+  vram_gb: number;
+  open_vocabulary: boolean;
+  benchmark: { metric: string; value: number; dataset: string; source: string } | null;
+  runnable: boolean;
+  reason: string;
+  speed: string;
+  notes: string;
+}
+
+export interface SystemCapability {
+  machine: {
+    tier: "gpu" | "small_gpu" | "strong_cpu" | "modest";
+    cpu_count: number;
+    ram_gb: number;
+    has_gpu: boolean;
+    gpu_name: string;
+    vram_gb: number;
+    disk_free_gb: number;
+  };
+  detectors: DetectorFitness[];
+  recommended: Record<string, { detector: string | null; evidence: string; available: boolean }>;
+}
+
+export function getCapability() {
+  return request<SystemCapability>("/api/system/capability");
+}

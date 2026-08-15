@@ -3,6 +3,7 @@
 import { useLocale, useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
 import { AppShell } from "../../../components/AppShell";
+import { ServerCapability } from "../../../components/ServerCapability";
 import { IconAlert } from "../../../components/icons";
 import {
   API_BASE,
@@ -186,6 +187,8 @@ export default function SettingsPage() {
               </div>
             )}
           </Card>
+
+          <ServerCapability />
 
           <Card title={t("settings.models")}>
             <p className="mb-2 text-xs leading-relaxed text-[var(--fg-muted)]">

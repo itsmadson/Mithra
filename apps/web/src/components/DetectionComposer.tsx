@@ -4,10 +4,12 @@ import { useLocale, useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
 import {
   createDetectionRun,
+  getCapability,
   getAvailability,
   getCatalog,
   type Bbox,
   type CatalogSource,
+  type SystemCapability,
   type TargetAvailability,
 } from "../lib/api";
 import { IconAlert, IconLayers } from "./icons";
@@ -36,8 +38,15 @@ export function DetectionComposer({
   const [targets, setTargets] = useState<TargetAvailability[]>([]);
   const [chosen, setChosen] = useState<string[]>([]);
   const [bulkUse, setBulkUse] = useState<string>("allowed");
+  const [capability, setCapability] = useState<SystemCapability | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    // What this server can run decides which detector answers, and whether it
+    // can answer at all — asked once, alongside the catalogue.
+    getCapability().then(setCapability).catch(() => setCapability(null));
+  }, []);
 
   useEffect(() => {
     getCatalog()
@@ -67,7 +76,11 @@ export function DetectionComposer({
     setBusy(true);
     setError(null);
     try {
-      const detector = targets.find((t) => t.key === chosen[0])?.detectors[0] ?? "ndwi-water";
+      // The most accurate detector this machine can actually run, chosen by
+      // published benchmark rather than by order in a list.
+      const recommended = capability?.recommended?.[chosen[0]]?.detector;
+      const detector =
+        recommended ?? targets.find((t) => t.key === chosen[0])?.detectors[0] ?? "ndwi-water";
       const run = await createDetectionRun({
         bbox,
         source_kind: source,
@@ -159,6 +172,27 @@ export function DetectionComposer({
           <IconAlert size={12} className="mt-px shrink-0" />
           {error}
         </p>
+      )}
+
+      {chosen.length > 0 && capability && (
+        <div className="rounded-[var(--radius-sm)] border border-[var(--line)] bg-[var(--panel-2)] px-2.5 py-2">
+          {chosen.map((key) => {
+            const plan = capability.recommended?.[key];
+            return (
+              <p key={key} className="text-[11px] leading-relaxed">
+                <span className="text-[var(--fg-muted)]">{key}</span>{" "}
+                {plan?.available ? (
+                  <span className="text-[var(--fg)]">
+                    → {plan.detector}{" "}
+                    <span className="text-[var(--fg-faint)]">({plan.evidence})</span>
+                  </span>
+                ) : (
+                  <span className="text-[var(--warn)]">{plan?.evidence}</span>
+                )}
+              </p>
+            );
+          })}
+        </div>
       )}
 
       <button
