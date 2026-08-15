@@ -59,12 +59,18 @@ You need Docker and a [Mapillary access token](https://www.mapillary.com/dashboa
 ```bash
 git clone https://github.com/itsmadson/Mithra.git
 cd Mithra
-echo 'MAPILLARY_TOKEN=MLY|your|token' > .env
+cp .env.example .env        # then put your Mapillary token in it
 
-docker compose up -d
+docker compose up -d        # database, queue, migrations, API, worker, console
 ```
 
-Open <http://localhost:3000>. The first account you create becomes the administrator
+Open <http://localhost:3000>. That is the whole thing running — there is nothing
+to start by hand, and `docker compose down` stops all of it without touching the
+data.
+
+If port 3000 is taken on your machine, set `WEB_PORT` in `.env` and rebuild the
+web image (`docker compose build web`), since the console's API address is baked
+in at build time. The first account you create becomes the administrator
 of a new organisation; there is no default password to change.
 
 ### Images

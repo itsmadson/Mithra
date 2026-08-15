@@ -18,6 +18,19 @@ VENV="$ROOT/.venv/bin"
 API_PORT="${API_PORT:-8020}"
 WEB_PORT="${WEB_PORT:-3100}"
 
+# The browser suite runs its own API and console against a throwaway database.
+# Those ports are the same ones compose publishes, on purpose — the tests
+# exercise the same addresses the product uses — so the two cannot run at once.
+# Saying that here beats a bind error that reads like a broken test.
+for port in "$API_PORT" "$WEB_PORT"; do
+  if ss -tln 2>/dev/null | grep -q ":${port} "; then
+    echo "!! port ${port} is already in use." >&2
+    echo "   The end-to-end suite needs it. If the stack is running, stop it first:" >&2
+    echo "     docker compose stop api web" >&2
+    exit 1
+  fi
+done
+
 export PYTHONPATH="services/api:services/worker:packages/ml"
 export MAPILLARY_TOKEN="${MAPILLARY_TOKEN:-MLY|e2e|placeholder}"
 export DATABASE_URL="${DATABASE_URL:-postgresql+psycopg://mithra:mithra@localhost:5434/mithra}"

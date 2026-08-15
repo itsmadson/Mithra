@@ -5,7 +5,14 @@ FROM python:3.13-slim AS base
 
 # psycopg needs libpq; geoalchemy/shapely need geos.
 RUN apt-get update \
- && apt-get install -y --no-install-recommends libpq5 libgeos-c1v5 curl \
+ && apt-get install -y --no-install-recommends \
+      libpq5 \
+      libgeos-c1v5 \
+      # rasterio and pyproj link against these at import time; without them the
+      # worker starts fine and fails only when a run touches imagery.
+      libexpat1 \
+      libcurl4 \
+      curl \
  && rm -rf /var/lib/apt/lists/*
 
 ENV PYTHONUNBUFFERED=1 \
