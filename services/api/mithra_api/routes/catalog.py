@@ -116,3 +116,43 @@ def availability_for_source(
             for a in items
         ],
     }
+
+
+@router.get("/plan/{target_key}")
+def plan_for_target(target_key: str, _user=Depends(current_user)) -> dict:
+    """How this target would be detected here: sources, models, evidence.
+
+    Answers the question a user actually has when they pick something from the
+    list — from what imagery, by which model, and how well — before committing
+    an hour of compute to finding out.
+    """
+    from mithra_ml.hardware import detection_plan
+
+    plan = detection_plan(target_key)
+    if not plan.get("known"):
+        raise HTTPException(status_code=404, detail="unknown target")
+    return plan
+
+
+@router.get("/domains")
+def domains(_user=Depends(current_user)) -> dict:
+    """The taxonomy, grouped the way a person asks for it.
+
+    Seventy targets as a flat list is a wall of nouns; grouped by the question
+    they answer — cover, use, buildings, transport, condition — it is a menu.
+    """
+    from collections import defaultdict
+
+    grouped: dict[str, list] = defaultdict(list)
+    for target in TARGETS:
+        grouped[target.domain.value if target.domain else "other"].append(
+            {
+                "key": target.key,
+                "label_en": target.label_en,
+                "label_fa": target.label_fa,
+                "geometry": target.geometry.value,
+                "min_gsd_m": target.min_gsd_m,
+                "viewpoints": sorted(target.viewpoints),
+            }
+        )
+    return {"domains": [{"key": k, "targets": v} for k, v in sorted(grouped.items())]}

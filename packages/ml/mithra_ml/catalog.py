@@ -52,6 +52,7 @@ class Target:
     label_fa: str
     geometry: Geometry
     min_gsd_m: float
+    domain: "Domain" = None  # type: ignore[assignment]
     # Which camera positions can see this at all.
     viewpoints: frozenset[str] = frozenset({Viewpoint.OVERHEAD.value})
     # What to offer instead when the imagery is too coarse. A user who wants
@@ -61,97 +62,163 @@ class Target:
     notes_en: str = ""
 
 
-# Ordered roughly by how sharp the imagery has to be.
+class Domain(str, Enum):
+    """What kind of question a target answers.
+
+    A municipality does not ask "detect objects". It asks how much of the city
+    is built, which roofs carry solar, what condition the asphalt is in, where
+    the informal settlements are. Grouping by that question is what lets a
+    console offer sixty targets without becoming a wall of nouns.
+    """
+
+    LAND_COVER = "land_cover"      # what physically covers the ground
+    LAND_USE = "land_use"          # what people do there
+    BUILDING = "building"          # structures, and what kind
+    TRANSPORT = "transport"        # the network and its surfaces
+    STREET = "street"              # what stands beside a road
+    CONDITION = "condition"        # the state of a thing, not its presence
+    WATER = "water"
+    ENERGY = "energy"
+    AGRICULTURE = "agriculture"
+    VEHICLE = "vehicle"
+
+
+def _t(key, en, fa, geometry, gsd, domain, viewpoints=("overhead",),
+       alternative=None, notes=""):
+    """Shorthand: this file is a table, and reads better as one."""
+    return Target(
+        key=key, label_en=en, label_fa=fa, geometry=geometry, min_gsd_m=gsd,
+        domain=domain, viewpoints=frozenset(viewpoints),
+        coarser_alternative=alternative, notes_en=notes,
+    )
+
+
+_OVERHEAD = ("overhead",)
+_STREET = ("street",)
+_BOTH = ("overhead", "street")
+_POLY = Geometry.POLYGON
+_POINT = Geometry.POINT
+
+# The catalogue. Ordered by domain, then by how sharp the imagery must be.
 TARGETS: tuple[Target, ...] = (
-    Target(
-        key="car",
-        label_en="Vehicle",
-        label_fa="خودرو",
-        geometry=Geometry.POINT,
-        min_gsd_m=0.3,
-        viewpoints=frozenset({Viewpoint.OVERHEAD.value, Viewpoint.STREET.value}),
-        notes_en="A car is about 4 m long; below 0.3 m/px counting degrades quickly.",
-    ),
-    Target(
-        key="solar_panel",
-        label_en="Solar panel",
-        label_fa="پنل خورشیدی",
-        geometry=Geometry.POLYGON,
-        min_gsd_m=0.3,
-    ),
-    Target(
-        key="sign",
-        label_en="Road sign",
-        label_fa="تابلوی راه",
-        geometry=Geometry.POINT,
-        min_gsd_m=0.1,
-        viewpoints=frozenset({Viewpoint.STREET.value}),
-        notes_en="A sign face is invisible from above, at any resolution.",
-    ),
-    Target(
-        key="tree",
-        label_en="Tree",
-        label_fa="درخت",
-        geometry=Geometry.POLYGON,
-        min_gsd_m=1.0,
-        viewpoints=frozenset({Viewpoint.OVERHEAD.value, Viewpoint.STREET.value}),
-        coarser_alternative="forest_cover",
-        notes_en="Individual crowns. Needs aerial or very-high-resolution satellite imagery.",
-    ),
-    Target(
-        key="building",
-        label_en="Building",
-        label_fa="ساختمان",
-        geometry=Geometry.POLYGON,
-        min_gsd_m=1.0,
-        viewpoints=frozenset({Viewpoint.OVERHEAD.value, Viewpoint.STREET.value}),
-        coarser_alternative="built_up",
-    ),
-    Target(
-        key="ship",
-        label_en="Ship",
-        label_fa="شناور",
-        geometry=Geometry.POINT,
-        min_gsd_m=1.0,
-    ),
-    Target(
-        key="road",
-        label_en="Road",
-        label_fa="راه",
-        geometry=Geometry.POLYGON,
-        min_gsd_m=2.0,
-    ),
-    Target(
-        key="built_up",
-        label_en="Built-up area",
-        label_fa="محدودهٔ ساخته‌شده",
-        geometry=Geometry.POLYGON,
-        min_gsd_m=10.0,
-        notes_en="Where settlement is, not which buildings.",
-    ),
-    Target(
-        key="forest_cover",
-        label_en="Forest cover",
-        label_fa="پوشش جنگلی",
-        geometry=Geometry.POLYGON,
-        min_gsd_m=10.0,
-        notes_en="Canopy extent rather than individual trees.",
-    ),
-    Target(
-        key="water",
-        label_en="Water",
-        label_fa="پهنهٔ آبی",
-        geometry=Geometry.POLYGON,
-        min_gsd_m=10.0,
-        notes_en="Lakes, rivers, coastline, flood extent.",
-    ),
-    Target(
-        key="cropland",
-        label_en="Cropland",
-        label_fa="زمین کشاورزی",
-        geometry=Geometry.POLYGON,
-        min_gsd_m=10.0,
-    ),
+    # --- land cover: what covers the ground -------------------------------
+    _t("water", "Water", "پهنهٔ آبی", _POLY, 10.0, Domain.WATER,
+       notes="Lakes, rivers, coastline, flood extent."),
+    _t("river", "River", "رودخانه", _POLY, 10.0, Domain.WATER, alternative="water"),
+    _t("reservoir", "Reservoir", "سد و مخزن", _POLY, 10.0, Domain.WATER, alternative="water"),
+    _t("wetland", "Wetland", "تالاب", _POLY, 10.0, Domain.LAND_COVER, alternative="water"),
+    _t("snow_ice", "Snow and ice", "برف و یخ", _POLY, 10.0, Domain.LAND_COVER),
+    _t("forest_cover", "Forest cover", "پوشش جنگلی", _POLY, 10.0, Domain.LAND_COVER,
+       notes="Canopy extent rather than individual trees."),
+    _t("shrubland", "Shrubland", "بوته‌زار", _POLY, 10.0, Domain.LAND_COVER,
+       alternative="forest_cover"),
+    _t("grassland", "Grassland", "مرتع", _POLY, 10.0, Domain.LAND_COVER),
+    _t("bare_ground", "Bare ground", "زمین بایر", _POLY, 10.0, Domain.LAND_COVER),
+    _t("built_up", "Built-up area", "محدودهٔ ساخته‌شده", _POLY, 10.0, Domain.LAND_COVER,
+       notes="Where settlement is, not which buildings."),
+
+    # --- land use: what people do there -----------------------------------
+    _t("residential_area", "Residential area", "منطقهٔ مسکونی", _POLY, 5.0, Domain.LAND_USE,
+       alternative="built_up"),
+    _t("commercial_area", "Commercial area", "منطقهٔ تجاری", _POLY, 5.0, Domain.LAND_USE,
+       alternative="built_up"),
+    _t("industrial_area", "Industrial area", "منطقهٔ صنعتی", _POLY, 5.0, Domain.LAND_USE,
+       alternative="built_up"),
+    _t("informal_settlement", "Informal settlement", "سکونتگاه غیررسمی", _POLY, 1.0,
+       Domain.LAND_USE, alternative="built_up",
+       notes="Dense small roofs and irregular street pattern; needs sub-metre imagery."),
+    _t("construction_site", "Construction site", "کارگاه ساختمانی", _POLY, 1.0, Domain.LAND_USE),
+    _t("quarry", "Quarry or mine", "معدن", _POLY, 5.0, Domain.LAND_USE),
+    _t("landfill", "Landfill", "محل دفن زباله", _POLY, 5.0, Domain.LAND_USE),
+    _t("cemetery", "Cemetery", "قبرستان", _POLY, 1.0, Domain.LAND_USE),
+    _t("park", "Park or green space", "پارک", _POLY, 2.0, Domain.LAND_USE),
+    _t("sports_pitch", "Sports pitch", "زمین ورزشی", _POLY, 1.0, Domain.LAND_USE),
+
+    # --- buildings, and what kind -----------------------------------------
+    _t("building", "Building", "ساختمان", _POLY, 1.0, Domain.BUILDING, _BOTH,
+       alternative="built_up"),
+    _t("building_residential", "Residential building", "ساختمان مسکونی", _POLY, 0.5,
+       Domain.BUILDING, _BOTH, alternative="building"),
+    _t("building_apartment", "Apartment block", "مجتمع مسکونی", _POLY, 0.5,
+       Domain.BUILDING, _BOTH, alternative="building"),
+    _t("building_commercial", "Commercial building", "ساختمان تجاری", _POLY, 0.5,
+       Domain.BUILDING, _BOTH, alternative="building"),
+    _t("building_industrial", "Industrial building", "ساختمان صنعتی", _POLY, 1.0,
+       Domain.BUILDING, _BOTH, alternative="building"),
+    _t("warehouse", "Warehouse", "انبار", _POLY, 1.0, Domain.BUILDING, alternative="building"),
+    _t("greenhouse", "Greenhouse", "گلخانه", _POLY, 1.0, Domain.BUILDING),
+    _t("school", "School", "مدرسه", _POLY, 0.5, Domain.BUILDING, _BOTH, alternative="building"),
+    _t("hospital", "Hospital", "بیمارستان", _POLY, 0.5, Domain.BUILDING, _BOTH,
+       alternative="building"),
+    _t("religious_building", "Mosque or religious building", "مسجد و بنای مذهبی", _POLY, 0.5,
+       Domain.BUILDING, _BOTH, alternative="building"),
+    _t("building_under_construction", "Building under construction", "ساختمان در حال ساخت",
+       _POLY, 0.5, Domain.BUILDING, _BOTH, alternative="construction_site"),
+    _t("roof_material", "Roof material", "جنس بام", _POLY, 0.3, Domain.BUILDING,
+       notes="Metal, tile, concrete, asbestos. Needs very high resolution."),
+
+    # --- transport and its surfaces ---------------------------------------
+    _t("road", "Road", "راه", _POLY, 2.0, Domain.TRANSPORT, _BOTH),
+    _t("road_surface", "Road surface type", "نوع روسازی", _POLY, 0.1, Domain.TRANSPORT, _STREET,
+       notes="Asphalt, concrete, gravel, dirt — read from the street, not from above."),
+    _t("sidewalk", "Sidewalk", "پیاده‌رو", _POLY, 0.3, Domain.TRANSPORT, _BOTH),
+    _t("crosswalk", "Crosswalk", "خط عابر", _POLY, 0.15, Domain.TRANSPORT, _BOTH),
+    _t("parking", "Parking area", "پارکینگ", _POLY, 0.5, Domain.TRANSPORT),
+    _t("bridge", "Bridge", "پل", _POLY, 1.0, Domain.TRANSPORT, _BOTH),
+    _t("railway", "Railway", "راه‌آهن", _POLY, 2.0, Domain.TRANSPORT),
+    _t("runway", "Runway", "باند فرودگاه", _POLY, 5.0, Domain.TRANSPORT),
+
+    # --- condition: the state of a thing, not its presence -----------------
+    _t("pavement_distress", "Pavement distress", "خرابی آسفالت", _POLY, 0.05,
+       Domain.CONDITION, _STREET,
+       notes="Cracking, potholes, patching. ASTM D6433 categories, from street imagery."),
+    _t("pothole", "Pothole", "چاله", _POINT, 0.05, Domain.CONDITION, _STREET,
+       alternative="pavement_distress"),
+    _t("road_marking_wear", "Faded road marking", "کم‌رنگی خط‌کشی", _POLY, 0.05,
+       Domain.CONDITION, _STREET),
+    _t("facade_condition", "Facade condition", "وضعیت نما", _POLY, 0.05, Domain.CONDITION,
+       _STREET),
+    _t("graffiti", "Graffiti", "دیوارنویسی", _POLY, 0.05, Domain.CONDITION, _STREET),
+    _t("litter", "Litter and dumping", "زباله رهاشده", _POINT, 0.05, Domain.CONDITION, _STREET),
+
+    # --- street furniture --------------------------------------------------
+    _t("sign", "Road sign", "تابلوی راه", _POINT, 0.1, Domain.STREET, _STREET,
+       notes="A sign face is invisible from above, at any resolution."),
+    _t("traffic_light", "Traffic light", "چراغ راهنما", _POINT, 0.05, Domain.STREET, _STREET),
+    _t("street_light", "Street light", "روشنایی معبر", _POINT, 0.05, Domain.STREET, _BOTH),
+    _t("utility_pole", "Utility pole", "تیر برق", _POINT, 0.05, Domain.STREET, _STREET),
+    _t("manhole", "Manhole", "دریچهٔ منهول", _POINT, 0.05, Domain.STREET, _STREET),
+    _t("bus_stop", "Bus stop", "ایستگاه اتوبوس", _POINT, 0.05, Domain.STREET, _STREET),
+    _t("bench", "Bench", "نیمکت", _POINT, 0.05, Domain.STREET, _STREET),
+    _t("waste_bin", "Waste bin", "سطل زباله", _POINT, 0.05, Domain.STREET, _STREET),
+    _t("guardrail", "Guardrail", "حفاظ کنار جاده", _POLY, 0.05, Domain.STREET, _STREET),
+    _t("fire_hydrant", "Fire hydrant", "شیر آتش‌نشانی", _POINT, 0.05, Domain.STREET, _STREET),
+    _t("tree", "Tree", "درخت", _POLY, 1.0, Domain.LAND_COVER, _BOTH,
+       alternative="forest_cover",
+       notes="Individual crowns. Needs aerial or very-high-resolution satellite imagery."),
+
+    # --- energy ------------------------------------------------------------
+    _t("solar_panel", "Solar panel", "پنل خورشیدی", _POLY, 0.3, Domain.ENERGY),
+    _t("wind_turbine", "Wind turbine", "توربین بادی", _POINT, 1.0, Domain.ENERGY),
+    _t("power_line", "Power line", "خط انتقال برق", _POLY, 0.5, Domain.ENERGY, _BOTH),
+    _t("substation", "Substation", "پست برق", _POLY, 1.0, Domain.ENERGY),
+    _t("storage_tank", "Storage tank", "مخزن", _POLY, 1.0, Domain.ENERGY),
+
+    # --- agriculture -------------------------------------------------------
+    _t("cropland", "Cropland", "زمین کشاورزی", _POLY, 10.0, Domain.AGRICULTURE),
+    _t("field_boundary", "Field boundary", "مرز قطعات زراعی", _POLY, 3.0, Domain.AGRICULTURE,
+       alternative="cropland"),
+    _t("orchard", "Orchard", "باغ", _POLY, 1.0, Domain.AGRICULTURE, alternative="cropland"),
+    _t("irrigation_pivot", "Irrigation pivot", "آبیاری دورانی", _POLY, 10.0,
+       Domain.AGRICULTURE),
+
+    # --- vehicles and vessels ---------------------------------------------
+    _t("car", "Vehicle", "خودرو", _POINT, 0.3, Domain.VEHICLE, _BOTH,
+       notes="A car is about 4 m long; below 0.3 m/px counting degrades quickly."),
+    _t("truck", "Truck", "کامیون", _POINT, 0.5, Domain.VEHICLE, _BOTH),
+    _t("bus", "Bus", "اتوبوس", _POINT, 0.5, Domain.VEHICLE, _BOTH),
+    _t("ship", "Ship", "شناور", _POINT, 1.0, Domain.VEHICLE),
+    _t("aircraft", "Aircraft", "هواپیما", _POINT, 1.0, Domain.VEHICLE),
 )
 
 TARGETS_BY_KEY: dict[str, Target] = {t.key: t for t in TARGETS}
@@ -262,9 +329,12 @@ DETECTORS: tuple[Detector, ...] = (
     Detector(
         key="sam3",
         label="SAM 3 — open vocabulary",
+        # Open vocabulary: any target whose shape is visible. Enumerated from
+        # the taxonomy rather than hand-listed so a new target is offered the
+        # moment it is declared.
         targets=frozenset(
-            {"tree", "building", "water", "road", "car", "ship", "solar_panel",
-             "forest_cover", "built_up", "cropland"}
+            t.key for t in TARGETS
+            if t.geometry is Geometry.POLYGON or t.domain is Domain.VEHICLE
         ),
         runtime=Runtime.GPU,
         vram_gb=8.0,
@@ -345,7 +415,8 @@ DETECTORS: tuple[Detector, ...] = (
     Detector(
         key="oriented-rcnn",
         label="Oriented R-CNN — vehicles, ships, aircraft",
-        targets=frozenset({"car", "ship"}),
+        targets=frozenset({"car", "truck", "bus", "ship", "aircraft", "wind_turbine",
+                           "storage_tank"}),
         runtime=Runtime.GPU,
         vram_gb=8.0,
         ram_gb=16.0,
@@ -368,6 +439,93 @@ DETECTORS: tuple[Detector, ...] = (
                       "Brown et al., Scientific Data 2022"),
         ),
         notes="Nine classes at 10 m, near real time. Coarse by design: it answers where, not which.",
+    ),
+    Detector(
+        key="eurosat-lulc",
+        label="EuroSAT land use / land cover",
+        targets=frozenset({
+            "forest_cover", "cropland", "built_up", "water", "river",
+            "grassland", "shrubland", "bare_ground", "residential_area",
+            "industrial_area", "irrigation_pivot",
+        }),
+        runtime=Runtime.CPU_SLOW,
+        ram_gb=4.0,
+        weights="ResNet-50 / EfficientNet on EuroSAT",
+        licence="MIT (dataset CC BY)",
+        benchmarks=(
+            Benchmark("accuracy", 0.988, "EuroSAT 10-class", "EfficientNet, 2025"),
+            Benchmark("accuracy", 0.970, "EuroSAT 10-class", "ResNet-50 transfer"),
+        ),
+        notes="Patch classification on Sentinel-2. Ten classes, very high accuracy, coarse polygons.",
+    ),
+    Detector(
+        key="bigearthnet",
+        label="BigEarthNet multi-label cover",
+        targets=frozenset({
+            "forest_cover", "cropland", "wetland", "water", "grassland",
+            "shrubland", "bare_ground", "built_up", "orchard", "snow_ice",
+        }),
+        runtime=Runtime.GPU,
+        vram_gb=6.0,
+        ram_gb=12.0,
+        weights="Sentinel-1/2 multi-label model",
+        benchmarks=(
+            Benchmark("F1", 0.75, "BigEarthNet-19 multi-label", "BigEarthNet-MM"),
+        ),
+        notes="Several covers can be true of one patch at once, which is what mixed landscapes actually look like.",
+    ),
+    Detector(
+        key="vistas-street",
+        label="Mapillary Vistas street segmentation",
+        targets=frozenset({
+            "road", "road_surface", "sidewalk", "crosswalk", "sign",
+            "traffic_light", "street_light", "utility_pole", "manhole",
+            "bench", "waste_bin", "guardrail", "bus_stop", "fire_hydrant", "litter",
+            "building", "tree", "car", "truck", "bus", "power_line",
+        }),
+        runtime=Runtime.GPU,
+        vram_gb=8.0,
+        ram_gb=16.0,
+        weights="Vistas-trained segmentation backbone",
+        licence="research licence — check before commercial use",
+        benchmarks=(
+            Benchmark("mIoU", 0.61, "Mapillary Vistas (66 classes)", "Vistas benchmark"),
+        ),
+        notes="The street-level counterpart to SAM: 66 to 150 classes of everything beside a road.",
+    ),
+    Detector(
+        key="pavement-distress",
+        label="Pavement distress (ASTM D6433)",
+        targets=frozenset({
+            "pavement_distress", "pothole", "road_marking_wear", "road_surface",
+        }),
+        runtime=Runtime.GPU,
+        vram_gb=6.0,
+        ram_gb=12.0,
+        weights="Mask R-CNN / YOLO on street-level pavement datasets",
+        benchmarks=(
+            Benchmark("mAP", 0.72, "UWGB-STREETCRACK / UAV-PDD2023",
+                      "instance segmentation of cracks and potholes"),
+        ),
+        notes="Longitudinal, transverse and alligator cracking, patching, potholes — the asphalt question, answered from the street.",
+    ),
+    Detector(
+        key="building-type-fusion",
+        label="Building type from aerial + street",
+        targets=frozenset({
+            "building_residential", "building_apartment", "building_commercial",
+            "building_industrial", "school", "hospital", "religious_building",
+            "warehouse", "building_under_construction",
+        }),
+        runtime=Runtime.GPU,
+        vram_gb=8.0,
+        ram_gb=16.0,
+        weights="aerial + street-view fusion classifier",
+        benchmarks=(
+            Benchmark("accuracy", 0.80, "transnational building type/function",
+                      "arXiv 2409.09692"),
+        ),
+        notes="A roof says a building exists; the facade says what it is. Needs both viewpoints for the same footprint.",
     ),
     Detector(
         key="solarnet",

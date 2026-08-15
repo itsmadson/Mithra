@@ -111,7 +111,8 @@
     "tryInstead": "try instead:",
     "licenceWarning": "Check this service's terms before running a model across it.",
     "file": "Raster file",
-    "uploadFirst": "Upload a file to see what it can detect."
+    "uploadFirst": "Upload a file to see what it can detect.",
+    "how": "how?"
   },
   "jobReason": {
     "street_not_found": "Street not found in OpenStreetMap"
@@ -245,5 +246,13 @@
       "strong_cpu": "strong CPU",
       "modest": "modest server"
     }
+  },
+  "plan": {
+    "sources": "From which imagery",
+    "models": "With which model",
+    "chosen": "chosen",
+    "otherTask": "measured on a different task",
+    "close": "Close",
+    "noSource": "No available imagery source can see this."
   }
 }

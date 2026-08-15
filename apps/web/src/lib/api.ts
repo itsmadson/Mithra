@@ -468,3 +468,67 @@ export async function uploadRaster(file: File): Promise<UploadedRaster> {
   }
   return response.json();
 }
+
+export interface DetectionPlan {
+  target: string;
+  known: boolean;
+  label_en: string;
+  label_fa: string;
+  domain: string;
+  geometry: string;
+  min_gsd_m: number;
+  viewpoints: string[];
+  coarser_alternative: string | null;
+  notes_en: string;
+  sources: {
+    key: string;
+    label_en: string;
+    label_fa: string;
+    gsd_m: number | null;
+    viewpoint: string;
+    licence: string;
+    bulk_use: string;
+    usable: boolean;
+    reason: string;
+  }[];
+  models: {
+    key: string;
+    label: string;
+    runtime: string;
+    vram_gb: number;
+    implemented: boolean;
+    runnable_here: boolean;
+    reason: string;
+    speed: string;
+    open_vocabulary: boolean;
+    benchmark: {
+      metric: string;
+      value: number;
+      dataset: string;
+      source: string;
+      measures_this_target: boolean;
+    } | null;
+    notes: string;
+  }[];
+  recommended: { detector: string | null; evidence: string };
+}
+
+export function getPlan(target: string) {
+  return request<DetectionPlan>(`/api/catalog/plan/${encodeURIComponent(target)}`);
+}
+
+export interface CatalogDomain {
+  key: string;
+  targets: {
+    key: string;
+    label_en: string;
+    label_fa: string;
+    geometry: string;
+    min_gsd_m: number;
+    viewpoints: string[];
+  }[];
+}
+
+export function getDomains() {
+  return request<{ domains: CatalogDomain[] }>("/api/catalog/domains");
+}

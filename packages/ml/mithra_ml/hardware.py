@@ -184,15 +184,32 @@ def best_detector_for(target: str, machine: Machine | None = None) -> tuple[str 
         blocked = fitness(candidates[0], machine)
         return None, blocked.reason
 
-    def score(d: Detector) -> float:
+    def score(d: Detector) -> tuple[int, float]:
         best = d.best_benchmark()
-        return best.value if best else 0.0
+        # A purpose-trained detector outranks an open-vocabulary one for its
+        # own target: the generalist's score was measured on another class.
+        return (0 if d.open_vocabulary else 1, best.value if best else 0.0)
 
     winner = max(runnable, key=score)
     best = winner.best_benchmark()
-    evidence = (
-        f"{best.metric} {best.value:.0%} on {best.dataset}" if best else "no published benchmark"
-    )
+
+    if best is None:
+        evidence = "no published benchmark"
+    elif winner.open_vocabulary:
+        # Quoting a generalist's score as evidence for this target would be a
+        # borrowed number. Say whose task it was measured on, and name the
+        # specialist that would do better if it were available.
+        specialists = [
+            d for d in candidates if not d.open_vocabulary and d.best_benchmark()
+        ]
+        better = max(specialists, key=lambda d: d.best_benchmark().value, default=None)
+        evidence = f"general-purpose model; its {best.metric} {best.value:.0%} was measured on {best.dataset}"
+        if better is not None:
+            b = better.best_benchmark()
+            evidence += f" — {better.label} scores {b.metric} {b.value:.0%} on this task but is not built into this release"
+    else:
+        evidence = f"{best.metric} {best.value:.0%} on {best.dataset}"
+
     return winner.key, evidence
 
 
@@ -240,4 +257,111 @@ def capability(machine: Machine | None = None) -> dict:
             }
             for d in DETECTORS
         ],
+    }
+
+
+def detection_plan(target_key: str, machine: Machine | None = None) -> dict:
+    """How this target would actually be detected: source, model, evidence.
+
+    The question a user asks when they pick "pothole" is not "is it supported"
+    — it is "from what imagery, by which model, and how well". Answering it
+    before the run is the difference between a tool and a slot machine.
+    """
+    from mithra_ml.catalog import TARGETS_BY_KEY, availability
+
+    machine = machine or measure()
+    target = TARGETS_BY_KEY.get(target_key)
+    if target is None:
+        return {"target": target_key, "known": False}
+
+    # Imported here: the worker owns the source registry, and the catalogue
+    # must not depend on it the other way round.
+    try:
+        from mithra_worker.sources import SOURCES
+    except ImportError:  # pragma: no cover - ml package used standalone
+        SOURCES = ()
+
+    sources = []
+    for source in SOURCES:
+        verdict = availability(target_key, source.gsd_m, source.viewpoint)
+        sources.append(
+            {
+                "key": source.key,
+                "label_en": source.label_en,
+                "label_fa": source.label_fa,
+                "gsd_m": source.gsd_m,
+                "viewpoint": source.viewpoint,
+                "licence": source.licence,
+                "bulk_use": source.bulk_use.value,
+                "usable": verdict.available,
+                "reason": verdict.reason,
+            }
+        )
+
+    models = []
+    for detector in DETECTORS:
+        if target_key not in detector.targets:
+            continue
+        verdict = fitness(detector, machine)
+        best = detector.best_benchmark()
+        models.append(
+            {
+                "key": detector.key,
+                "label": detector.label,
+                "runtime": detector.runtime.value,
+                "vram_gb": detector.vram_gb,
+                "implemented": detector.implemented,
+                "runnable_here": verdict.runnable,
+                "reason": verdict.reason,
+                "speed": verdict.speed,
+                "open_vocabulary": detector.open_vocabulary,
+                "benchmark": (
+                    {
+                        "metric": best.metric,
+                        "value": best.value,
+                        "dataset": best.dataset,
+                        "source": best.source,
+                        # An open-vocabulary model's published score was earned
+                        # on some other class. SAM's building IoU says nothing
+                        # about cracks in asphalt, and presenting it beside a
+                        # crack benchmark would be a comparison of two
+                        # different questions.
+                        "measures_this_target": not detector.open_vocabulary,
+                    }
+                    if best
+                    else None
+                ),
+                "notes": detector.notes,
+            }
+        )
+
+    # Best first: what it scored, then whether it can run here. A model that
+    # wins on paper but not on this machine still belongs in the list, marked.
+    # Specialists before generalists, then by score. A model trained for this
+    # target beats one that merely can attempt it, even when the generalist
+    # publishes a bigger number — because that number was earned elsewhere.
+    models.sort(
+        key=lambda m: (
+            m["runnable_here"],
+            not m["open_vocabulary"],
+            m["benchmark"]["value"] if m["benchmark"] else 0.0,
+        ),
+        reverse=True,
+    )
+    chosen, evidence = best_detector_for(target_key, machine)
+
+    return {
+        "target": target_key,
+        "known": True,
+        "label_en": target.label_en,
+        "label_fa": target.label_fa,
+        "domain": target.domain.value if target.domain else None,
+        "geometry": target.geometry.value,
+        "min_gsd_m": target.min_gsd_m,
+        "viewpoints": sorted(target.viewpoints),
+        "coarser_alternative": target.coarser_alternative,
+        "notes_en": target.notes_en,
+        "sources": sources,
+        "models": models,
+        "recommended": {"detector": chosen, "evidence": evidence},
     }

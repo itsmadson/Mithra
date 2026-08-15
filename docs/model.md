@@ -127,3 +127,57 @@ python scripts/check_sam.py
 It reports the machine, whether the weights load, and what SAM finds on a real
 scene, so the first honest number comes from a deliberate check rather than
 from a production run.
+
+
+---
+
+# The taxonomy
+
+Seventy-one targets across ten domains, because "detect objects" is not a
+question anybody asks. A municipality asks how much of the city is built, which
+roofs carry solar, what condition the asphalt is in, where the informal
+settlements are — and those are different questions with different imagery,
+different models and different failure modes.
+
+| Domain | Targets | Examples |
+|---|---|---|
+| Land cover | 8 | forest, shrubland, grassland, bare ground, snow, built-up |
+| Land use | 10 | residential, commercial, industrial, informal settlement, quarry, landfill |
+| Buildings | 12 | residential, apartment, commercial, industrial, school, hospital, mosque, warehouse, greenhouse, under construction, roof material |
+| Transport | 8 | road, road surface type, sidewalk, crosswalk, parking, bridge, railway, runway |
+| Condition | 6 | pavement distress, pothole, faded markings, facade condition, graffiti, litter |
+| Street furniture | 10 | traffic light, street light, utility pole, manhole, bus stop, bench, bin, guardrail, hydrant |
+| Water | 3 | water, river, reservoir |
+| Energy | 5 | solar panel, wind turbine, power line, substation, storage tank |
+| Agriculture | 4 | cropland, field boundary, orchard, irrigation pivot |
+| Vehicles | 5 | car, truck, bus, ship, aircraft |
+
+## Two viewpoints, two different products
+
+Overhead imagery at 0.3 m answers 53 of them. Street-level panoramas at 0.05 m
+answer 35 — and the overlap is smaller than it looks, because the two see
+genuinely different things:
+
+- **Only from above**: land cover, land use, field boundaries, parking extent,
+  roof material, irrigation pivots. A panorama at five centimetres per pixel
+  still cannot see the shape of a lake.
+- **Only from the street**: road surface type (asphalt, concrete, gravel),
+  pavement distress, faded markings, facade condition, manholes, sign faces.
+  Satellite imagery cannot read a crack in asphalt or the front of a shop at
+  any resolution, because it is looking at the wrong side of the world.
+
+That is why the catalogue gates on viewpoint before resolution.
+
+## Every target answers "how would you detect this?"
+
+`GET /api/catalog/plan/{target}` returns, for one target: every imagery source
+with whether it can see it and why not, every model that claims it with its
+published benchmark and whether this server can run it, and which one would be
+chosen. The console shows it inline when a user asks.
+
+The rule that keeps it honest: **a specialist outranks a generalist for its own
+target, even when the generalist publishes a bigger number**. SAM 3's 87% IoU
+was measured on WHU-Aerial buildings; quoting it beside a pavement-crack
+benchmark would compare two different questions. The API marks such a score
+`measures_this_target: false` and the console prints "measured on a different
+task" next to it.

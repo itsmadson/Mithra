@@ -15,6 +15,7 @@ import {
   type TargetAvailability,
 } from "../lib/api";
 import { IconAlert, IconLayers } from "./icons";
+import { TargetPlan } from "./TargetPlan";
 
 /**
  * Compose a detection run: an area, an imagery source, and what to find.
@@ -42,6 +43,7 @@ export function DetectionComposer({
   const [bulkUse, setBulkUse] = useState<string>("allowed");
   const [capability, setCapability] = useState<SystemCapability | null>(null);
   const [uploaded, setUploaded] = useState<UploadedRaster | null>(null);
+  const [inspecting, setInspecting] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -172,8 +174,8 @@ export function DetectionComposer({
           {targets.map((target) => {
             const active = chosen.includes(target.key);
             return (
+              <div key={target.key}>
               <button
-                key={target.key}
                 disabled={!target.available}
                 onClick={() =>
                   setChosen((prev) =>
@@ -204,10 +206,33 @@ export function DetectionComposer({
                     </span>
                   )}
                 </span>
+                <span
+                  role="button"
+                  tabIndex={0}
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    setInspecting(inspecting === target.key ? null : target.key);
+                  }}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter") setInspecting(target.key);
+                  }}
+                  className="shrink-0 self-center rounded-full border border-[var(--line)] px-1.5 text-[10px] text-[var(--fg-faint)] transition-colors duration-150 hover:border-[var(--accent)] hover:text-[var(--accent)]"
+                >
+                  {t("compose.how")}
+                </span>
               </button>
+                {/* Inline, under the row it explains. Rendered after the list
+                    it would be seventy rows from the thing that was asked. */}
+                {inspecting === target.key && (
+                  <div className="mt-1.5">
+                    <TargetPlan target={target.key} onClose={() => setInspecting(null)} />
+                  </div>
+                )}
+              </div>
             );
           })}
         </div>
+
       </div>
 
       {error && (

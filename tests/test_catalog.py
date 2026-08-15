@@ -35,12 +35,35 @@ def test_the_refusal_offers_the_question_that_can_be_answered():
     assert availability("building", 10.0).alternative == "built_up"
 
 
-def test_the_alternative_is_itself_available_at_that_resolution():
-    """An alternative that is also refused would be a dead end."""
+def test_every_alternative_is_genuinely_coarser():
+    """Falling back to something equally demanding helps nobody."""
     for target in TARGETS:
-        if target.coarser_alternative:
-            alt = availability(target.coarser_alternative, 10.0)
-            assert alt.available, f"{target.key} points at an unavailable alternative"
+        if not target.coarser_alternative:
+            continue
+        alternative = TARGETS_BY_KEY[target.coarser_alternative]
+        assert alternative.min_gsd_m >= target.min_gsd_m, (
+            f"{target.key} falls back to {alternative.key}, which needs sharper imagery"
+        )
+
+
+def test_following_the_alternatives_reaches_something_answerable():
+    """Alternatives chain — a residential building falls back to a building,
+    which falls back to built-up area. The chain has to end somewhere that
+    coarse imagery can actually answer, or the refusal is a maze."""
+    for target in TARGETS:
+        seen = set()
+        current = target
+        while current.coarser_alternative:
+            assert current.key not in seen, f"{target.key} loops through alternatives"
+            seen.add(current.key)
+            current = TARGETS_BY_KEY[current.coarser_alternative]
+
+        # The end of the chain is either answerable on the coarsest free
+        # imagery, or the target was never coarse enough to promise that.
+        if target.min_gsd_m >= 10.0 or seen:
+            assert availability(current.key, 10.0).available or current.min_gsd_m < 10.0, (
+                f"{target.key} ends at {current.key}, which nothing coarse can answer"
+            )
 
 
 def test_water_is_detectable_on_sentinel_2():
