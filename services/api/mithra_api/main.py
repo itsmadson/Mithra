@@ -2,6 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from mithra_api.routes import (
+    audit,
     auth,
     basemaps,
     catalog,
@@ -30,6 +31,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+app.include_router(audit.router)
 app.include_router(auth.router)
 app.include_router(basemaps.router)
 app.include_router(catalog.router)

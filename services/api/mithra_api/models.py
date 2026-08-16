@@ -329,3 +329,45 @@ class Label(Base):
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )
+
+
+class AuditEvent(Base):
+    """Who did what, and when.
+
+    Every organisation that buys software like this is eventually asked to
+    account for a number: who started the run that produced it, who overrode the
+    model's judgement, who deleted the survey it came from. Reconstructing that
+    from application logs is a forensic exercise; recording it as it happens is
+    a row.
+
+    Deliberately append-only. There is no update path and no delete route: a log
+    that can be edited by the people it describes answers a different question
+    than the one it was kept for. Rows outlive the account that made them, so
+    the actor's email is copied in rather than joined — an account deleted next
+    year must not erase what it did last year.
+    """
+
+    __tablename__ = "audit_events"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        PgUUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    org_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("organisations.id", ondelete="CASCADE"), index=True, nullable=True
+    )
+    # Null once the account is gone; the email beside it is what remains.
+    actor_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+    actor_email: Mapped[str] = mapped_column(String(255))
+    # A verb and a thing: "run.created", "feature.labelled", "account.disabled".
+    action: Mapped[str] = mapped_column(String(64), index=True)
+    subject_type: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    subject_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    # What changed, in whatever shape the action needs. Never credentials.
+    detail: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+    # Where from. Useful precisely once, when somebody asks.
+    ip: Mapped[str | None] = mapped_column(String(45), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        server_default=func.now(), index=True
+    )

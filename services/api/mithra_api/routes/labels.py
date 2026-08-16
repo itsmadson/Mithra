@@ -1,6 +1,6 @@
 import uuid
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Request, Query
 # A detection may be a polygon now, and ST_X only accepts points. The
 # list needs one location to show; the centroid is it. The map layer
 # keeps the real outline, through the GeoJSON route.
@@ -10,6 +10,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from mithra_api.auth import current_user, same_org, visible_jobs
+from mithra_api.audit import Action, record
 from mithra_api.db import get_session
 from mithra_api.models import Label, Feature, User
 from mithra_api.schemas import FeatureList, FeatureOut
@@ -78,6 +79,7 @@ def queue(
 @router.post("", status_code=201)
 def create_label(
     payload: LabelCreate,
+    request: Request,
     session: Session = Depends(get_session),
     user: User = Depends(current_user),
 ) -> dict[str, str]:
@@ -94,6 +96,25 @@ def create_label(
             labelled_by_id=user.id,
         )
     )
+    # A person overriding the model is the single event most worth keeping:
+    # it is the moment the inventory stops being what the model said and starts
+    # being what somebody decided, and the old class is not recoverable
+    # afterwards because the row is overwritten in place.
+    record(
+        session,
+        action=Action.FEATURE_LABELLED,
+        actor=user,
+        subject_type="feature",
+        subject_id=feature.id,
+        detail={
+            "from": feature.class_name,
+            "to": payload.class_name,
+            "model_version": feature.model_version,
+            "confidence": feature.confidence,
+        },
+        request=request,
+    )
+
     feature.class_name = payload.class_name
     feature.needs_review = False
     session.commit()

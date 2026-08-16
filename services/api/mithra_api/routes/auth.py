@@ -17,6 +17,7 @@ from mithra_api.auth import (
     has_any_user,
     start_session,
 )
+from mithra_api.audit import Action, record
 from mithra_api.db import get_session
 from mithra_api.models import Organisation, User, UserRole
 from mithra_api.security import (
@@ -94,6 +95,7 @@ def register(
     registration is an unlocked door.
     """
     first_account = not has_any_user(db)
+    admin = None
     org_id = None
     if first_account:
         # The first account brings its organisation into being. Everything
@@ -128,6 +130,22 @@ def register(
 
     if first_account:
         start_session(db, user, response, request.headers.get("user-agent"))
+        record(db, action=Action.LOGIN, actor=user, request=request)
+
+    # The new account is the subject; the actor is whoever made it. For the
+    # first account those are the same person, which is exactly what the log
+    # should show.
+    record(
+        db,
+        action=Action.ACCOUNT_CREATED,
+        actor=user if first_account else admin,
+        org_id=org_id,
+        subject_type="user",
+        subject_id=user.id,
+        detail={"email": user.email, "role": user.role},
+        request=request,
+    )
+    db.commit()
     return _out(user)
 
 
@@ -143,6 +161,18 @@ def login(
     # One message and one code for "no such account" and "wrong password":
     # distinguishing them tells an attacker which emails are registered.
     if user is None or not verify_password(user.password_hash, payload.password):
+        # Recorded with the email that was tried, which is the whole point: a
+        # run of failures against one address is the signal somebody is looking
+        # for, and it cannot be reconstructed later.
+        record(
+            db,
+            action=Action.LOGIN_FAILED,
+            actor=user,
+            actor_email=payload.email.lower(),
+            org_id=user.org_id if user else None,
+            request=request,
+        )
+        db.commit()
         raise HTTPException(status_code=401, detail="invalid email or password")
     if not user.is_active:
         raise HTTPException(status_code=403, detail="account disabled")
@@ -152,14 +182,24 @@ def login(
         user.password_hash = hash_password(payload.password)
 
     start_session(db, user, response, request.headers.get("user-agent"))
+    record(db, action=Action.LOGIN, actor=user, request=request)
+    db.commit()
     return _out(user)
 
 
 @router.post("/logout", status_code=204)
 def logout(
-    request: Request, response: Response, db: DbSession = Depends(get_session)
+    request: Request,
+    response: Response,
+    # Resolved before the session is deleted: afterwards there is nobody to
+    # name, and signing out is exactly the event worth naming.
+    actor: User | None = Depends(current_user_optional),
+    db: DbSession = Depends(get_session),
 ) -> None:
     end_session(db, request, response)
+    if actor is not None:
+        record(db, action=Action.LOGOUT, actor=actor, request=request)
+        db.commit()
 
 
 @router.get("/me")
@@ -187,6 +227,7 @@ class UserUpdate(BaseModel):
 def update_user(
     user_id: uuid.UUID,
     payload: UserUpdate,
+    request: Request,
     admin: User = Depends(current_admin),
     db: DbSession = Depends(get_session),
 ) -> UserOut:
@@ -201,12 +242,29 @@ def update_user(
         if payload.role is not None and payload.role != UserRole.ADMIN:
             raise HTTPException(status_code=422, detail="cannot demote your own account")
 
+    # Recorded as before-and-after, because "role changed" without the values
+    # answers none of the questions anyone asks a log.
+    changes: dict[str, dict[str, object]] = {}
     if payload.role is not None:
         if payload.role not in (UserRole.ADMIN, UserRole.OPERATOR):
             raise HTTPException(status_code=422, detail="unknown role")
+        if payload.role != user.role:
+            changes["role"] = {"from": user.role, "to": payload.role}
         user.role = payload.role
     if payload.is_active is not None:
+        if payload.is_active != user.is_active:
+            changes["is_active"] = {"from": user.is_active, "to": payload.is_active}
         user.is_active = payload.is_active
 
+    if changes:
+        record(
+            db,
+            action=Action.ACCOUNT_UPDATED,
+            actor=admin,
+            subject_type="user",
+            subject_id=user.id,
+            detail={"email": user.email, "changes": changes},
+            request=request,
+        )
     db.commit()
     return _out(user)

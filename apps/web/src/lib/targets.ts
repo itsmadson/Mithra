@@ -80,3 +80,40 @@ export function formatArea(m2: number | null | undefined): string | null {
   if (m2 >= 10_000) return `${(m2 / 10_000).toFixed(2)} ha`;
   return `${Math.round(m2)} m²`;
 }
+
+/**
+ * A shade of the domain's colour, for one class within it.
+ *
+ * Colouring purely by domain makes forest cover and built-up area the same
+ * green, which is right on a map — they are both land cover — and wrong in a
+ * chart where they are adjacent segments of one bar. Hue keeps carrying the
+ * domain; a lightness step separates the classes inside it.
+ *
+ * Mixing toward the foreground rather than toward white means the step
+ * lightens on the dark theme and darkens on the light one, without a second
+ * palette to keep in sync.
+ */
+export function classShade(domain: string | null | undefined, indexInDomain: number): string {
+  const base = domainColor(domain);
+  if (indexInDomain <= 0) return base;
+  // Four steps before it wraps: beyond that the shades stop being tellable
+  // apart, and a domain with more than four classes present in one chart wants
+  // direct labels doing the work anyway.
+  const mix = [100, 78, 58, 40][Math.min(indexInDomain, 3)];
+  return `color-mix(in oklab, ${base} ${mix}%, var(--fg))`;
+}
+
+/** Assigns each class its position within its own domain, in a stable order. */
+export function shadeMap(
+  entries: { key: string; domain?: string | null }[],
+): Record<string, string> {
+  const seen: Record<string, number> = {};
+  const out: Record<string, string> = {};
+  for (const entry of entries) {
+    const domain = entry.domain ?? "other";
+    const index = seen[domain] ?? 0;
+    seen[domain] = index + 1;
+    out[entry.key] = classShade(domain, index);
+  }
+  return out;
+}

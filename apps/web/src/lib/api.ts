@@ -342,6 +342,10 @@ export interface Overview {
   features: {
     total: number;
     by_class: Record<string, number>;
+    /** Class counts rolled up into the ten catalogue domains. */
+    by_domain?: Record<string, number>;
+    /** The catalogue's names and domain per class, so the console shows neither keys nor guesses. */
+    class_labels?: Record<string, { en: string | null; fa: string | null; domain: string }>;
     needs_review: number;
     failed: number;
     confident_share: number;
@@ -356,6 +360,10 @@ export interface Overview {
     total: number;
     per_day: { date: string; count: number }[];
     by_class: Record<string, number>;
+    /** Class counts rolled up into the ten catalogue domains. */
+    by_domain?: Record<string, number>;
+    /** The catalogue's names and domain per class, so the console shows neither keys nor guesses. */
+    class_labels?: Record<string, { en: string | null; fa: string | null; domain: string }>;
     needed_per_class: number;
     short_by: Record<string, number>;
   };
@@ -617,4 +625,37 @@ export interface CatalogDomain {
 
 export function getDomains() {
   return request<{ domains: CatalogDomain[] }>("/api/catalog/domains");
+}
+
+export interface AuditEvent {
+  id: string;
+  action: string;
+  actor_email: string;
+  subject_type: string | null;
+  subject_id: string | null;
+  detail: Record<string, unknown> | null;
+  ip: string | null;
+  created_at: string;
+}
+
+export interface AuditActions {
+  actions: { key: string; count: number }[];
+  actors: { key: string; count: number }[];
+}
+
+/** The audit log. Administrators only; the server enforces that, not the menu. */
+export function listAudit(
+  query: { action?: string; actor?: string; q?: string; limit?: number; offset?: number } = {},
+) {
+  const params = new URLSearchParams();
+  if (query.action) params.set("action", query.action);
+  if (query.actor) params.set("actor", query.actor);
+  if (query.q) params.set("q", query.q);
+  params.set("limit", String(query.limit ?? 100));
+  params.set("offset", String(query.offset ?? 0));
+  return request<{ items: AuditEvent[]; total: number }>(`/api/audit?${params}`);
+}
+
+export function getAuditActions() {
+  return request<AuditActions>("/api/audit/actions");
 }

@@ -75,6 +75,28 @@ def overview(
     )
 
     total_signs = sum(by_class.values())
+
+    # The same grouping the inventory colours by, computed once here so the
+    # dashboard and the inventory cannot disagree about what a domain contains.
+    def _catalogue(class_name: str):
+        try:
+            from mithra_ml.catalog import TARGETS_BY_KEY
+
+            return TARGETS_BY_KEY.get(class_name)
+        except ImportError:  # pragma: no cover - API served without the ml package
+            return None
+
+    by_domain: dict[str, int] = {}
+    class_labels: dict[str, dict[str, str | None]] = {}
+    for class_name, count in by_class.items():
+        target = _catalogue(class_name)
+        domain = target.domain.value if target and target.domain else "other"
+        by_domain[domain] = by_domain.get(domain, 0) + count
+        class_labels[class_name] = {
+            "en": target.label_en if target else None,
+            "fa": target.label_fa if target else None,
+            "domain": domain,
+        }
     needs_review = (
         session.scalar(
             select(func.count())
@@ -257,6 +279,9 @@ def overview(
         "features": {
             "total": total_signs,
             "by_class": by_class,
+            # Grouped and named, so the console never has to guess either.
+            "by_domain": by_domain,
+            "class_labels": class_labels,
             "needs_review": needs_review,
             "failed": failed_signs,
             # Share of features the pipeline was confident enough to keep. This is

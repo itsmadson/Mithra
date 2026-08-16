@@ -2,12 +2,13 @@
 
 import { useLocale, useTranslations } from "next-intl";
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { AppShell } from "../../components/AppShell";
 import { Histogram, StackedShare, StatTile, TimeSeries } from "../../components/charts";
 import { IconAlert } from "../../components/icons";
 import { getOverview, type Overview, type FeatureClass } from "../../lib/api";
-import { colorForClass, CLASS_ORDER } from "../../lib/signClass";
+import { CLASS_ORDER, colorForClass } from "../../lib/signClass";
+import { domainColor, humanise, shadeMap } from "../../lib/targets";
 
 const RANGES = [7, 30, 90] as const;
 
@@ -33,6 +34,24 @@ function Panel({
   );
 }
 
+
+/** Classes biggest first — the order the chart stacks and the legend lists. */
+function sortedClasses(data: Overview): [string, number][] {
+  return Object.entries(data.features.by_class)
+    .filter(([, count]) => count > 0)
+    .sort((a, b) => b[1] - a[1]);
+}
+
+/** One shade per class, stepped within its domain so neighbours stay apart. */
+function shadesFor(data: Overview): Record<string, string> {
+  return shadeMap(
+    sortedClasses(data).map(([key]) => ({
+      key,
+      domain: data.features.class_labels?.[key]?.domain,
+    })),
+  );
+}
+
 const STATUS_TONE: Record<string, string> = {
   succeeded: "var(--c-city)",
   partial: "var(--warn)",
@@ -55,6 +74,24 @@ export default function DashboardPage() {
   const [days, setDays] = useState<number>(30);
   const [data, setData] = useState<Overview | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  // The same colour and the same name the inventory uses. Two screens that
+  // name one thing differently are two things, as far as the reader knows.
+  const classParts = useMemo(() => {
+    if (!data) return [];
+    const ordered = sortedClasses(data);
+    const shades = shadesFor(data);
+    return ordered.map(([cls, count]) => {
+      const meta = data.features.class_labels?.[cls];
+      const catalogued = locale === "fa" ? meta?.fa : meta?.en;
+      return {
+        key: cls,
+        label: catalogued || (t.has(`classes.${cls}`) ? t(`classes.${cls}`) : humanise(cls)),
+        value: count,
+        color: shades[cls],
+      };
+    });
+  }, [data, locale, t]);
 
   useEffect(() => {
     let cancelled = false;
@@ -182,23 +219,27 @@ export default function DashboardPage() {
             </Panel>
 
             <Panel title={t("dashboard.byClass")} hint={t("dashboard.byClassHint")}>
-              {data && (
-                <StackedShare
-                  parts={Object.entries(data.features.by_class)
-                    .filter(([, count]) => count > 0)
-                    .sort((a, b) => b[1] - a[1])
-                    .map(([cls, count]) => ({
-                      key: cls,
-                      label: t.has(`classes.${cls}`) ? t(`classes.${cls}`) : cls,
-                      value: count,
-                      color: colorForClass(cls),
-                    }))}
-                />
-              )}
+              {data && <StackedShare parts={classParts} />}
             </Panel>
           </div>
 
           <div className="grid gap-4 lg:grid-cols-[1fr_1.2fr]">
+            <Panel title={t("dashboard.byDomain")} hint={t("dashboard.byDomainHint")}>
+              {data && (
+                <StackedShare
+                  parts={Object.entries(data.features.by_domain ?? {})
+                    .filter(([, count]) => count > 0)
+                    .sort((a, b) => b[1] - a[1])
+                    .map(([domain, count]) => ({
+                      key: domain,
+                      label: t.has(`domains.${domain}`) ? t(`domains.${domain}`) : humanise(domain),
+                      value: count,
+                      color: domainColor(domain),
+                    }))}
+                />
+              )}
+            </Panel>
+
             <Panel title={t("dashboard.confidence")} hint={t("dashboard.confidenceHint")}>
               {data && (
                 <Histogram

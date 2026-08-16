@@ -1,12 +1,13 @@
 import json
 import uuid
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Request, Query
 from geoalchemy2.functions import ST_AsGeoJSON
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from mithra_api.auth import current_user, same_org, visible_jobs
+from mithra_api.audit import Action, record
 from mithra_api.db import get_session
 from mithra_api.models import Run, RunKind, RunReason, RunStatus, Feature, FeatureReason, User
 from mithra_api.schemas import (
@@ -63,6 +64,7 @@ def _counts(session: Session, run_id: uuid.UUID) -> tuple[dict[str, int], int]:
 @router.post("", response_model=RunCreated, status_code=201)
 def create_job(
     payload: RunCreate,
+    request: Request,
     session: Session = Depends(get_session),
     user: User = Depends(current_user),
 ) -> RunCreated:
@@ -134,6 +136,24 @@ def create_job(
         raise HTTPException(
             status_code=503, detail="job queue unavailable, job not started"
         ) from exc
+
+    # Recorded after the queue accepted it: a run that never started is not a
+    # run somebody performed, and a log full of them is noise.
+    record(
+        session,
+        action=Action.RUN_CREATED,
+        actor=user,
+        subject_type="run",
+        subject_id=job.id,
+        detail={
+            "name": job.name,
+            "source": job.source_kind,
+            "targets": job.targets,
+            "detector": job.detector,
+        },
+        request=request,
+    )
+    session.commit()
 
     return RunCreated(id=job.id, status=job.status)
 
@@ -237,6 +257,7 @@ def get_job(
 @router.delete("/{run_id}", status_code=204)
 def delete_job(
     run_id: uuid.UUID,
+    request: Request,
     session: Session = Depends(get_session),
     user: User = Depends(current_user),
 ) -> None:
@@ -252,5 +273,17 @@ def delete_job(
     if user.role != UserRole.ADMIN and job.owner_id != user.id:
         raise HTTPException(status_code=403, detail="only the owner may delete this survey")
 
+    # Written before the delete, while there is still something to describe —
+    # and it names what was destroyed, since that is the question asked
+    # afterwards.
+    record(
+        session,
+        action=Action.RUN_DELETED,
+        actor=user,
+        subject_type="run",
+        subject_id=job.id,
+        detail={"name": job.name, "features": sum(_counts(session, job.id)[0].values())},
+        request=request,
+    )
     session.delete(job)
     session.commit()

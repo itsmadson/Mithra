@@ -25,6 +25,7 @@ import {
   IconSettings,
   IconSun,
   IconDatabase,
+  IconClock,
 } from "./icons";
 
 export type Theme = "dark" | "light";
@@ -53,10 +54,12 @@ export function useTheme(): [Theme, (t: Theme) => void] {
 
 type Section = {
   href: string;
-  key: "dashboard" | "detect" | "surveys" | "inventory" | "review" | "settings";
+  key: "dashboard" | "detect" | "surveys" | "inventory" | "review" | "audit" | "settings";
   icon: typeof IconLayers;
   /** Which live number belongs beside this section, if any. */
   badge?: (s: Stats) => number;
+  /** Hidden from operators. Not a permission — the API is. */
+  adminOnly?: boolean;
 };
 
 const SECTIONS: Section[] = [
@@ -65,6 +68,9 @@ const SECTIONS: Section[] = [
   { href: "/surveys", key: "surveys", icon: IconLayers, badge: (s) => s.surveys.running },
   { href: "/inventory", key: "inventory", icon: IconDatabase, badge: (s) => s.features.total },
   { href: "/label", key: "review", icon: IconFlag, badge: (s) => s.features.needs_review },
+  // Administrators only, because the endpoint behind it is. The menu hiding it
+  // is a courtesy; the server refusing it is the control.
+  { href: "/audit", key: "audit", icon: IconClock, adminOnly: true },
   { href: "/settings", key: "settings", icon: IconSettings },
 ];
 
@@ -183,7 +189,7 @@ export function AppShell({
           </span>
         </Link>
 
-        {SECTIONS.map(({ href, key, icon: Icon, badge }) => {
+        {SECTIONS.filter((section) => !section.adminOnly || account?.role === "admin").map(({ href, key, icon: Icon, badge }) => {
           const target = `${base}${href}`;
           const active =
             href === "" ? pathname === base || pathname === `${base}/` : pathname.startsWith(target);
