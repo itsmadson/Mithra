@@ -65,16 +65,16 @@ multiply, and the answers would be noise.
 
 # The model registry
 
-Eleven detectors, each declaring what it finds, what it needs to run, and the
+Seventeen detectors, each declaring what it finds, what it needs to run, and the
 published number that justifies choosing it. Where two answer the same target,
 the one with the better score wins — if the hardware allows it.
 
 | Target | Detector | Benchmark | Needs |
 |---|---|---|---|
-| **water** | NDWI index | standard method for open water at 10 m | CPU, no weights |
+| **water** | **NDWI index — built** | standard method for open water at 10 m | CPU, no weights |
 | water (robust) | OmniWaterMask | — | CPU, slow |
 | **tree** | Tree-SAM | F1 0.83 urban / 0.76 forest (GZ-Tree) | GPU 6 GB |
-| tree (CPU) | DeepForest | 70% (NEON crowns) | CPU, slow |
+| tree (CPU) | **DeepForest — built** | 70% (NEON crowns) | CPU, slow |
 | **building** | SAM 3 | IoU 0.87 (WHU-Aerial), 0.72 (Inria) | GPU 8 GB |
 | **road** | SAM-Road | APLS 0.66 (SpaceNet / city-scale) | GPU 8 GB |
 | road (cheaper) | D-LinkNet | IoU 0.64 (DeepGlobe) | GPU 4 GB |
@@ -92,6 +92,22 @@ Sources: [SegEarth-OV3](https://arxiv.org/html/2512.08730v2) ·
 [DOTA benchmark](https://captain-whu.github.io/DOTA/) ·
 [Dynamic World](https://www.nature.com/articles/s41597-022-01307-4) ·
 [rooftop PV](https://www.tandfonline.com/doi/full/10.1080/07038992.2024.2363236)
+
+## What the imagery has to be
+
+Three independent questions decide whether a target is answerable, and the
+console asks them in this order because each can rule out the next:
+
+1. **Viewpoint.** A manhole cover is invisible from orbit and a roof is invisible
+   from the pavement. No resolution fixes the wrong vantage point.
+2. **Imagery kind.** A rendered basemap has arbitrarily fine "resolution" and
+   nothing to detect. DeepForest over OpenStreetMap tiles of a wooded park found
+   **one** crown; over Esri aerial of the same park at 0.48 m/px it found **313**.
+   The model was identical. Tile services must therefore declare `photo` or
+   `map`, and detection over `map` is refused.
+3. **Resolution.** Below roughly two pixels across an object there is nothing for
+   any model to work with, so each target carries the coarsest GSD at which it is
+   still findable.
 
 Two of the eleven are built into this release: the NDWI index and SAM 3. The
 rest are declared with their requirements so the console can plan around them

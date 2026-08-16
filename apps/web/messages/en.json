@@ -112,7 +112,14 @@
     "licenceWarning": "Check this service's terms before running a model across it.",
     "file": "Raster file",
     "uploadFirst": "Upload a file to see what it can detect.",
-    "how": "how?"
+    "how": "how?",
+    "tileUrl": "Tile service URL",
+    "tileKind": {
+      "photo": "Photographs",
+      "map": "Drawn map"
+    },
+    "tileKindHint": "Aerial or satellite imagery, such as Esri World Imagery. Detection needs photographs of the ground.",
+    "tileKindMapWarning": "A rendered basemap, such as OpenStreetMap. Detection is refused: there are no objects in a drawing of a place, only symbols for them."
   },
   "jobReason": {
     "street_not_found": "Street not found in OpenStreetMap"

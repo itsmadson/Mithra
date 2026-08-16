@@ -24,6 +24,24 @@ class SourceKind(str, Enum):
     UPLOAD = "upload"
 
 
+class ImageryKind(str, Enum):
+    """Photograph, or drawing.
+
+    The third axis, after viewpoint and resolution, and the one that is easiest
+    to miss: a cartographic basemap has arbitrarily fine "resolution" and no
+    information a detector can use. Running a tree model over OpenStreetMap
+    tiles finds one crown in a park full of them — not because the model is
+    weak, but because there are no trees in a drawing of a park, only green
+    polygons.
+    """
+
+    PHOTO = "photo"
+    MAP = "map"
+    # A user-supplied tile service could be either, and only the operator
+    # knows which.
+    UNKNOWN = "unknown"
+
+
 class BulkUse(str, Enum):
     """Whether the licence permits running a model over the whole area."""
 
@@ -49,6 +67,8 @@ class ImagerySource:
     bulk_use: BulkUse
     # Overhead or street: decides what is visible at all, independent of GSD.
     viewpoint: str = "overhead"
+    # Photograph or drawing: decides whether there is anything to detect.
+    imagery_kind: str = ImageryKind.PHOTO.value
     needs_credentials: bool = False
     notes_en: str = ""
 
@@ -92,11 +112,14 @@ SOURCES: tuple[ImagerySource, ...] = (
         label_fa="سرویس کاشی دلخواه",
         kind=SourceKind.XYZ,
         gsd_m=0.3,
+        imagery_kind=ImageryKind.UNKNOWN.value,
         licence="whatever the operator's endpoint carries",
         bulk_use=BulkUse.CHECK_YOUR_LICENCE,
         notes_en=(
-            "Any {z}/{x}/{y} endpoint. Consumer basemaps generally forbid bulk "
-            "inference; use imagery you are licensed for."
+            "Any {z}/{x}/{y} endpoint. Say whether it serves photographs or a "
+            "drawn map — a detector finds nothing in cartography. Consumer "
+            "basemaps generally forbid bulk inference too; use imagery you are "
+            "licensed for."
         ),
     ),
     ImagerySource(

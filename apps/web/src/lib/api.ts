@@ -350,6 +350,7 @@ export interface CatalogSource {
   kind: string;
   gsd_m: number | null;
   viewpoint: string;
+  imagery_kind: string;
   licence: string;
   bulk_use: string;
   needs_credentials: boolean;

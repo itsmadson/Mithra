@@ -31,6 +31,7 @@ def catalog(_user=Depends(current_user)) -> dict:
                 "kind": s.kind.value,
                 "gsd_m": s.gsd_m,
                 "viewpoint": s.viewpoint,
+                "imagery_kind": s.imagery_kind,
                 "licence": s.licence,
                 "bulk_use": s.bulk_use.value,
                 "needs_credentials": s.needs_credentials,

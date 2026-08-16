@@ -357,6 +357,7 @@ DETECTORS: tuple[Detector, ...] = (
         ram_gb=4.0,
         weights="DeepForest NEON release",
         licence="MIT",
+        implemented=True,
         benchmarks=(
             Benchmark("accuracy", 0.70, "NEON crowns", "Weinstein et al., PLOS Comp Biol"),
         ),

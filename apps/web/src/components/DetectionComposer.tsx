@@ -43,6 +43,10 @@ export function DetectionComposer({
   const [bulkUse, setBulkUse] = useState<string>("allowed");
   const [capability, setCapability] = useState<SystemCapability | null>(null);
   const [uploaded, setUploaded] = useState<UploadedRaster | null>(null);
+  const [tileTemplate, setTileTemplate] = useState("");
+  // Photographs or a drawing: only the operator knows what their endpoint
+  // serves, and a detector finds nothing in cartography.
+  const [tileKind, setTileKind] = useState<"photo" | "map">("photo");
   const [inspecting, setInspecting] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -95,7 +99,9 @@ export function DetectionComposer({
         source_kind: source,
         source_config: uploaded
           ? { path: uploaded.path, gsd_m: uploaded.gsd_m }
-          : undefined,
+          : source === "xyz"
+            ? { template: tileTemplate.trim(), imagery_kind: tileKind }
+            : undefined,
         targets: chosen,
         detector,
       });
@@ -165,6 +171,39 @@ export function DetectionComposer({
               {t("compose.uploadFirst")}
             </p>
           )}
+        </div>
+      )}
+
+      {selected?.kind === "xyz" && (
+        <div>
+          <label className="text-xs text-[var(--fg-faint)]">{t("compose.tileUrl")}</label>
+          <input
+            type="url"
+            dir="ltr"
+            value={tileTemplate}
+            onChange={(e) => setTileTemplate(e.target.value)}
+            placeholder="https://.../{z}/{y}/{x}"
+            className="mt-1 w-full rounded-[var(--radius-sm)] border border-[var(--line)] bg-[var(--panel-2)] px-2.5 py-2 text-[12px] text-[var(--fg)] focus:border-[var(--accent)] focus:outline-none"
+          />
+          <div className="mt-2 flex gap-1.5">
+            {(["photo", "map"] as const).map((kind) => (
+              <button
+                key={kind}
+                onClick={() => setTileKind(kind)}
+                className="flex-1 rounded-[var(--radius-sm)] border px-2.5 py-1.5 text-[12px] transition-colors duration-150"
+                style={{
+                  borderColor: tileKind === kind ? "var(--accent)" : "var(--line)",
+                  color: tileKind === kind ? "var(--accent)" : "var(--fg-muted)",
+                  background: tileKind === kind ? "var(--panel-2)" : undefined,
+                }}
+              >
+                {t(`compose.tileKind.${kind}`)}
+              </button>
+            ))}
+          </div>
+          <p className="mt-1.5 text-[11px] leading-relaxed text-[var(--fg-muted)]">
+            {tileKind === "map" ? t("compose.tileKindMapWarning") : t("compose.tileKindHint")}
+          </p>
         </div>
       )}
 

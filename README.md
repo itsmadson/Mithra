@@ -149,10 +149,18 @@ Deeper detail in [`docs/`](docs/): [architecture](docs/architecture.md),
 
 ## Honest limitations
 
-- **Three of eleven detectors are built.** Water (NDWI), land cover (NDVI/NDBI) and
-  SAM 3 ship in this release. The other eight are declared with their hardware and
-  their published accuracy so the console can plan around them — each is one adapter
-  away, not a redesign. See [docs/model.md](docs/model.md).
+- **Five of seventeen detectors are built.** Water (NDWI), land cover (NDVI/NDBI),
+  tree crowns (DeepForest), sign classification (CLIP) and SAM 3 ship in this
+  release. The other twelve are declared with their hardware and their published
+  accuracy so the console can plan around them — each is one adapter away, not a
+  redesign. Seventy-one targets are catalogued; the console says, per target, which
+  imagery source and which model would answer it and how well.
+  See [docs/model.md](docs/model.md).
+- **A drawn map is not imagery.** Pointing a detector at OpenStreetMap tiles finds
+  almost nothing — not because the model is weak but because a rendered basemap
+  contains symbols, not objects. Tile services must be declared as photographs or
+  as cartography, and detection over cartography is refused rather than returning
+  a confident zero.
 - **SAM 3 has not been run on a GPU by its author.** The adapter is complete and the
   hardware check refuses it where it cannot run, so a laptop gets a clear message
   rather than a crash. Run `python scripts/check_sam.py` on the GPU host before

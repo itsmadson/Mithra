@@ -44,7 +44,8 @@ ARG WITH_ML=true
 RUN if [ "$WITH_ML" = "true" ]; then \
       pip install --no-cache-dir --index-url https://download.pytorch.org/whl/cpu \
         "torch>=2.4" "torchvision" && \
-      pip install --no-cache-dir "open_clip_torch>=2.26"; \
+      pip install --no-cache-dir "open_clip_torch>=2.26" && \
+      pip install --no-cache-dir "deepforest>=1.5"; \
     fi
 
 COPY services services

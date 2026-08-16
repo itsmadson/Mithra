@@ -38,11 +38,39 @@ BANDS_FOR_DETECTOR = {
     "ndwi-water": WATER_BANDS,
     "spectral-landcover": LANDCOVER_BANDS,
     "sam3": ("red", "green", "blue"),
+    "deepforest": ("red", "green", "blue"),
 }
 
 
 class RunRefused(RuntimeError):
     """The run cannot produce an honest answer, and says why before starting."""
+
+
+def check_imagery_kind(source_key: str, config: dict) -> None:
+    """Refuse to detect anything in a drawing.
+
+    A cartographic tile service passes every other check — it is overhead, it
+    is arbitrarily sharp — and yields nothing, because the pixels are a
+    rendering of a map rather than a photograph of the ground. The operator is
+    the only one who knows which their endpoint serves, so they are asked.
+    """
+    from mithra_worker.sources import ImageryKind
+
+    source = SOURCES_BY_KEY.get(source_key)
+    if source is None:
+        raise RunRefused(f"unknown imagery source {source_key!r}")
+
+    kind = config.get("imagery_kind", source.imagery_kind)
+    if kind == ImageryKind.MAP.value:
+        raise RunRefused(
+            "this source serves a drawn map rather than photographs; "
+            "a detector finds nothing in cartography"
+        )
+    if kind == ImageryKind.UNKNOWN.value:
+        raise RunRefused(
+            "say whether this tile service serves photographs or a drawn map "
+            "(imagery_kind: photo or map) — a model cannot detect objects in a rendering"
+        )
 
 
 def check_targets(source_key: str, targets: list[str], gsd_m: float | None) -> None:
@@ -154,6 +182,11 @@ def detector_for(key: str):
 
         return NdwiWaterDetector()
 
+    if key == "deepforest":
+        from mithra_ml.trees import DeepForestDetector
+
+        return DeepForestDetector()
+
     if key == "spectral-landcover":
         from mithra_ml.landcover import LandCoverDetector
 
@@ -177,6 +210,7 @@ def detect_over_area(
 
     Returns the detections and the provenance of the imagery they came from.
     """
+    check_imagery_kind(source_key, config)
     check_targets(source_key, targets, config.get("gsd_m"))
     bands = BANDS_FOR_DETECTOR.get(detector_key, WATER_BANDS)
     chip, provenance = fetch_chip(source_key, config, bbox, bands=bands, max_size=max_size)

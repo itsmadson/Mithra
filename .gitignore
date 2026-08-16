@@ -12,3 +12,6 @@ test-results/
 playwright-report/
 .claude/settings.local.json*
 tests/e2e/package-lock.json
+
+# DeepForest's trainer writes here on import; nothing in it is ours.
+lightning_logs/

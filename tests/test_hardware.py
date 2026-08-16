@@ -80,9 +80,21 @@ def test_a_laptop_falls_back_to_what_it_can_run():
 
 
 def test_a_target_with_no_runnable_detector_says_why():
-    key, reason = best_detector_for("tree", LAPTOP)
+    """Solar panels need a model this machine has not the memory to hold."""
+    key, reason = best_detector_for("solar_panel", LAPTOP)
     assert key is None
-    assert reason
+    assert "8 GB" in reason  # what the machine has, not just that it is short
+
+
+def test_trees_are_answerable_on_a_laptop():
+    """DeepForest is small and runs on CPU, so crowns need no GPU.
+
+    This used to assert the opposite. It is the single clearest measure of
+    whether a modest server can do useful work.
+    """
+    key, evidence = best_detector_for("tree", LAPTOP)
+    assert key == "deepforest"
+    assert "%" in evidence
 
 
 def test_an_unknown_target_is_refused():
