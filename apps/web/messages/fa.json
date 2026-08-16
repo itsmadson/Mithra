@@ -131,7 +131,8 @@
     "review": "بازبینی",
     "settings": "تنظیمات",
     "dashboard": "داشبورد",
-    "detect": "شناسایی"
+    "detect": "شناسایی",
+    "inventory": "سیاهه"
   },
   "signs": {
     "subtitle": "نمایش {shown} از {total} تابلو"
@@ -262,5 +263,60 @@
     "close": "بستن",
     "noSource": "هیچ منبع تصویری موجود این عارضه را نمی‌بیند.",
     "declareKind": "پیش از اجرا مشخص کنید این سرویس تصویر هوایی می‌دهد یا نقشهٔ ترسیمی."
+  },
+  "inventory": {
+    "filters": "پالایه‌ها",
+    "clear": "پاک‌سازی",
+    "everything": "همه",
+    "needsReview": "نیازمند بازبینی",
+    "class": "نوع",
+    "run": "اجرا",
+    "minConfidence": "اطمینان",
+    "anyConfidence": "هر میزان اطمینان",
+    "noClasses": "هنوز چیزی شناسایی نشده است.",
+    "showFewer": "نمایش کمتر",
+    "showAll": "نمایش هر {count}",
+    "untitledRun": "اجرای بی‌نام",
+    "searchPlaceholder": "جست‌وجوی نوع، اجرا یا شناسهٔ تصویر",
+    "clearSearch": "پاک کردن جست‌وجو",
+    "selected": "{count} مورد انتخاب شده",
+    "copyIds": "رونوشت شناسه‌ها",
+    "copiedIds": "{count} شناسه رونوشت شد",
+    "copyFailed": "رونوشت در حافظه انجام نشد",
+    "clearSelection": "لغو انتخاب",
+    "selectAll": "انتخاب همهٔ سطرهای این صفحه",
+    "selectRow": "انتخاب سطر",
+    "sortedBy": "مرتب‌شده بر پایهٔ",
+    "range": "{from}–{to} از {total}",
+    "noneFound": "موردی یافت نشد",
+    "previous": "پیشین",
+    "next": "پسین",
+    "export": "برون‌ریزی CSV",
+    "compact": "فشرده",
+    "comfortable": "معمولی",
+    "map": "نقشه",
+    "unsureShort": "نامطمئن",
+    "emptyAll": "سیاهه خالی است",
+    "emptyAllHint": "از صفحهٔ شناسایی یک اجرا آغاز کنید؛ هرچه یافته شود اینجا می‌آید.",
+    "emptyFiltered": "چیزی با این پالایه‌ها همخوان نیست",
+    "emptyFilteredHint": "بازهٔ اطمینان را بازتر کنید، یک نوع را بردارید، یا عبارت دیگری بجویید.",
+    "columns": {
+      "class": "نوع",
+      "confidence": "اطمینان",
+      "area": "مساحت",
+      "run": "اجرا",
+      "model": "مدل",
+      "where": "موقعیت"
+    }
+  },
+  "command": {
+    "title": "پنل فرمان",
+    "placeholder": "به صفحه‌ای بروید یا فرمانی اجرا کنید",
+    "go": "رفتن به",
+    "act": "کنش‌ها",
+    "toggleTheme": "تغییر روشن و تاریک",
+    "switchLanguage": "تغییر زبان",
+    "noMatch": "چیزی با «{query}» همخوان نیست",
+    "open": "فرمان‌ها"
   }
 }

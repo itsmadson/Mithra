@@ -155,3 +155,84 @@ export function IconChart({ size = 16, className }: IconProps) {
     </svg>
   );
 }
+
+/* Sort indicators. Three states, because "unsorted" and "sorted ascending" have
+   to be tellable apart at a glance in a header row — an arrow that only appears
+   when active leaves you guessing whether the column can be sorted at all. */
+
+export function IconSortNone({ size = 16, className }: IconProps) {
+  return (
+    <svg {...base(size, className)}>
+      <path d="M8 9l4-4 4 4" />
+      <path d="M8 15l4 4 4-4" />
+    </svg>
+  );
+}
+
+export function IconSortAsc({ size = 16, className }: IconProps) {
+  return (
+    <svg {...base(size, className)}>
+      <path d="M6 14l6-7 6 7" />
+    </svg>
+  );
+}
+
+export function IconSortDesc({ size = 16, className }: IconProps) {
+  return (
+    <svg {...base(size, className)}>
+      <path d="M6 10l6 7 6-7" />
+    </svg>
+  );
+}
+
+export function IconFilter({ size = 16, className }: IconProps) {
+  return (
+    <svg {...base(size, className)}>
+      <path d="M3 5h18l-7 8v6l-4-2v-4z" />
+    </svg>
+  );
+}
+
+export function IconCheck({ size = 16, className }: IconProps) {
+  return (
+    <svg {...base(size, className)}>
+      <path d="M4 12.5l5 5L20 6.5" />
+    </svg>
+  );
+}
+
+export function IconCommand({ size = 16, className }: IconProps) {
+  return (
+    <svg {...base(size, className)}>
+      <path d="M9 6a3 3 0 10-3 3h12a3 3 0 10-3-3v12a3 3 0 103-3H6a3 3 0 10 3 3z" />
+    </svg>
+  );
+}
+
+export function IconArrowRight({ size = 16, className }: IconProps) {
+  return (
+    <svg {...base(size, className)}>
+      <path d="M5 12h13" />
+      <path d="M13 6l6 6-6 6" />
+    </svg>
+  );
+}
+
+export function IconClock({ size = 16, className }: IconProps) {
+  return (
+    <svg {...base(size, className)}>
+      <circle cx="12" cy="12" r="8.5" />
+      <path d="M12 7.5V12l3 2" />
+    </svg>
+  );
+}
+
+export function IconDatabase({ size = 16, className }: IconProps) {
+  return (
+    <svg {...base(size, className)}>
+      <ellipse cx="12" cy="6" rx="7.5" ry="3" />
+      <path d="M4.5 6v12c0 1.7 3.4 3 7.5 3s7.5-1.3 7.5-3V6" />
+      <path d="M4.5 12c0 1.7 3.4 3 7.5 3s7.5-1.3 7.5-3" />
+    </svg>
+  );
+}

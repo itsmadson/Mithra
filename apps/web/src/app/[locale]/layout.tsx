@@ -4,6 +4,7 @@ import localFont from "next/font/local";
 import "maplibre-gl/dist/maplibre-gl.css";
 import "../globals.css";
 import { StaleBuildRecovery } from "../../components/StaleBuildRecovery";
+import { ToastProvider } from "../../components/Toast";
 import { currentBuildId } from "../../lib/buildId";
 
 /*
@@ -69,7 +70,9 @@ export default async function LocaleLayout({
       </head>
       <body>
         <StaleBuildRecovery buildId={buildId} />
-        <NextIntlClientProvider messages={messages}>{children}</NextIntlClientProvider>
+        <NextIntlClientProvider messages={messages}>
+          <ToastProvider>{children}</ToastProvider>
+        </NextIntlClientProvider>
       </body>
     </html>
   );

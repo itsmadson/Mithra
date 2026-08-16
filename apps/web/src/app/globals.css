@@ -51,6 +51,28 @@
   --c-info: #be67b7;
   --c-unknown: #7b8b9c;
 
+
+  /* Domain colours: the inventory holds seventy-one kinds of thing across ten
+     domains, and a class-per-hue palette would need seventy-one hues. Colour
+     encodes the domain; the class is always direct-labelled beside it.
+     Hue carries meaning where meaning exists — water is blue, vegetation is
+     green, damage is red — and lightness alternates along the domain order so
+     that adjacent entries stay distinguishable to a red-green reader, who gets
+     little help from hue. Generated and checked against the lightness band,
+     chroma floor, CVD separation and contrast on this surface; changing one
+     means re-running the check on all ten. */
+  --d-water: #006dd2;
+  --d-land_cover: #00ae60;
+  --d-land_use: #b1425f;
+  --d-building: #ac70df;
+  --d-transport: #535ab9;
+  --d-condition: #dd6846;
+  --d-street: #8e5600;
+  --d-energy: #bb8800;
+  --d-agriculture: #30762b;
+  --d-vehicle: #009dc9;
+  --d-other: #7b8b9c;
+
   --danger: #ff6b6b;
   --warn: #e0a53a;
   --ok: #1FA7A0;
@@ -89,6 +111,20 @@
   --c-city: #008d59;
   --c-info: #a3489d;
   --c-unknown: #61728a;
+
+  /* Stepped for sand, not flipped from the dark set: the same hues at dark-mode
+     lightness disappear into a light ground. Validated separately. */
+  --d-water: #005a9c;
+  --d-land_cover: #009c5f;
+  --d-land_use: #9b1a45;
+  --d-building: #966bcb;
+  --d-transport: #6233a4;
+  --d-condition: #cd6130;
+  --d-street: #7e4500;
+  --d-energy: #b07c00;
+  --d-agriculture: #4a6400;
+  --d-vehicle: #009eb3;
+  --d-other: #61728a;
 
   --shadow: 0 8px 24px -14px rgb(15 30 45 / 0.25), 0 2px 6px -3px rgb(15 30 45 / 0.12);
   --shadow-lg: 0 24px 60px -28px rgb(15 30 45 / 0.3), 0 4px 12px -6px rgb(15 30 45 / 0.16);

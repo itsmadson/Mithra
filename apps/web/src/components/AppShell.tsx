@@ -4,6 +4,7 @@ import { useLocale, useTranslations } from "next-intl";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import { CommandPalette } from "./CommandPalette";
 import {
   Unauthorized,
   getStats,
@@ -23,6 +24,7 @@ import {
   IconPin,
   IconSettings,
   IconSun,
+  IconDatabase,
 } from "./icons";
 
 export type Theme = "dark" | "light";
@@ -51,7 +53,7 @@ export function useTheme(): [Theme, (t: Theme) => void] {
 
 type Section = {
   href: string;
-  key: "dashboard" | "detect" | "surveys" | "signs" | "review" | "settings";
+  key: "dashboard" | "detect" | "surveys" | "inventory" | "review" | "settings";
   icon: typeof IconLayers;
   /** Which live number belongs beside this section, if any. */
   badge?: (s: Stats) => number;
@@ -61,7 +63,7 @@ const SECTIONS: Section[] = [
   { href: "", key: "dashboard", icon: IconChart },
   { href: "/detect", key: "detect", icon: IconTarget },
   { href: "/surveys", key: "surveys", icon: IconLayers, badge: (s) => s.surveys.running },
-  { href: "/signs", key: "signs", icon: IconPin, badge: (s) => s.features.total },
+  { href: "/inventory", key: "inventory", icon: IconDatabase, badge: (s) => s.features.total },
   { href: "/label", key: "review", icon: IconFlag, badge: (s) => s.features.needs_review },
   { href: "/settings", key: "settings", icon: IconSettings },
 ];
@@ -153,6 +155,7 @@ export function AppShell({
 
   return (
     <div className="flex h-dvh">
+      <CommandPalette onToggleTheme={() => setTheme(theme === "dark" ? "light" : "dark")} />
       <nav
         aria-label={t("nav.label")}
         className="flex w-[68px] shrink-0 flex-col items-center gap-1 border-e border-[var(--line)] bg-[var(--panel)] py-3 lg:w-[196px] lg:items-stretch lg:px-3"

@@ -59,7 +59,13 @@ export interface JobStatus {
 
 export interface Feature {
   id: string;
-  class_name: FeatureClass;
+  /**
+   * Free text from the catalogue, not one of the five sign classes. The
+   * detector decides what it is called, and there are seventy-one of them —
+   * typing this as a union meant the compiler enforced a taxonomy the product
+   * outgrew, and every land-cover row was a lie to the type system.
+   */
+  class_name: string;
   confidence: number;
   lon: number;
   lat: number;
@@ -72,6 +78,15 @@ export interface Feature {
   model_version: string | null;
   /** ok | crop_failed | no_detection | classify_failed */
   reason: string | null;
+  /** Square metres, for anything with an outline; null for a point. */
+  area_m2?: number | null;
+  /** Which run produced this, so a surprising row can be traced to its source. */
+  run_id?: string | null;
+  run_name?: string | null;
+  domain?: string | null;
+  label_en?: string | null;
+  label_fa?: string | null;
+  created_at?: string | null;
 }
 
 export const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
@@ -204,6 +219,75 @@ export interface Stats {
 
 export function getStats() {
   return request<Stats>("/api/stats");
+}
+
+export interface InventoryQuery {
+  classes?: string[];
+  needsReview?: boolean;
+  runId?: string;
+  detector?: string;
+  minConfidence?: number;
+  maxConfidence?: number;
+  q?: string;
+  sort?: "created_at" | "class_name" | "confidence" | "area_m2";
+  direction?: "asc" | "desc";
+  limit?: number;
+  offset?: number;
+}
+
+function inventoryParams(query: InventoryQuery): URLSearchParams {
+  const params = new URLSearchParams();
+  // Repeated rather than comma-joined: a class key could contain a comma one
+  // day, and the server reads a list either way.
+  for (const cls of query.classes ?? []) params.append("class_name", cls);
+  if (query.needsReview !== undefined) params.set("needs_review", String(query.needsReview));
+  if (query.runId) params.set("run_id", query.runId);
+  if (query.detector) params.set("detector", query.detector);
+  if (query.minConfidence !== undefined) params.set("min_confidence", String(query.minConfidence));
+  if (query.maxConfidence !== undefined) params.set("max_confidence", String(query.maxConfidence));
+  if (query.q) params.set("q", query.q);
+  return params;
+}
+
+/**
+ * The inventory, filtered and paged by the server.
+ *
+ * This used to fetch a flat two thousand rows and filter them in the browser,
+ * which quietly stopped showing detections once an organisation had more than
+ * two thousand of them.
+ */
+export function listInventory(query: InventoryQuery = {}) {
+  const params = inventoryParams(query);
+  params.set("sort", query.sort ?? "created_at");
+  params.set("direction", query.direction ?? "desc");
+  params.set("limit", String(query.limit ?? 100));
+  params.set("offset", String(query.offset ?? 0));
+  return request<{ items: Feature[]; total: number | null }>(`/api/features?${params}`);
+}
+
+export interface FacetCount {
+  key: string;
+  count: number;
+  /** A run's human name, or a class's catalogue label in English. */
+  label?: string | null;
+  /** The catalogue's Persian label for a class. */
+  label_fa?: string | null;
+  /** Which of the ten domains this class belongs to, for colour. */
+  domain?: string | null;
+}
+
+export interface Facets {
+  classes: FacetCount[];
+  domains: FacetCount[];
+  runs: FacetCount[];
+  detectors: FacetCount[];
+  total: number;
+  needs_review: number;
+}
+
+/** What is in the inventory right now, so filters offer what exists. */
+export function getFacets(query: InventoryQuery = {}) {
+  return request<Facets>(`/api/features/facets?${inventoryParams(query)}`);
 }
 
 export function listAllSigns(

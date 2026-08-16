@@ -131,7 +131,8 @@
     "review": "Review",
     "settings": "Settings",
     "dashboard": "Dashboard",
-    "detect": "Detect"
+    "detect": "Detect",
+    "inventory": "Inventory"
   },
   "signs": {
     "subtitle": "Showing {shown} of {total} signs"
@@ -262,5 +263,60 @@
     "close": "Close",
     "noSource": "No available imagery source can see this.",
     "declareKind": "Say whether this tile service serves photographs or a drawn map before running it."
+  },
+  "inventory": {
+    "filters": "Filters",
+    "clear": "Clear",
+    "everything": "Everything",
+    "needsReview": "Needs review",
+    "class": "Class",
+    "run": "Run",
+    "minConfidence": "Confidence",
+    "anyConfidence": "Any confidence",
+    "noClasses": "Nothing detected yet.",
+    "showFewer": "Show fewer",
+    "showAll": "Show all {count}",
+    "untitledRun": "Untitled run",
+    "searchPlaceholder": "Search class, run, or image id",
+    "clearSearch": "Clear search",
+    "selected": "{count} selected",
+    "copyIds": "Copy ids",
+    "copiedIds": "{count} ids copied",
+    "copyFailed": "Could not copy to the clipboard",
+    "clearSelection": "Clear selection",
+    "selectAll": "Select all rows on this page",
+    "selectRow": "Select row",
+    "sortedBy": "Sorted by",
+    "range": "{from}–{to} of {total}",
+    "noneFound": "Nothing matches",
+    "previous": "Previous",
+    "next": "Next",
+    "export": "Export CSV",
+    "compact": "Compact",
+    "comfortable": "Comfortable",
+    "map": "Map",
+    "unsureShort": "unsure",
+    "emptyAll": "The inventory is empty",
+    "emptyAllHint": "Run a detection from the Detect screen and everything it finds will appear here.",
+    "emptyFiltered": "No detections match these filters",
+    "emptyFilteredHint": "Widen the confidence range, clear a class, or search for something else.",
+    "columns": {
+      "class": "Class",
+      "confidence": "Confidence",
+      "area": "Area",
+      "run": "Run",
+      "model": "Model",
+      "where": "Location"
+    }
+  },
+  "command": {
+    "title": "Command palette",
+    "placeholder": "Jump to a screen, or run a command",
+    "go": "Go to",
+    "act": "Actions",
+    "toggleTheme": "Switch light and dark",
+    "switchLanguage": "Switch language",
+    "noMatch": "Nothing matches “{query}”",
+    "open": "Commands"
   }
 }

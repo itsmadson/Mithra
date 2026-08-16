@@ -127,7 +127,50 @@ class FeatureOut(BaseModel):
     image_id: str | None = None
     model_version: str | None = None
     reason: str | None = None
+    # Which run produced this, and when. A row in an inventory that cannot say
+    # where it came from is not auditable, and "which survey was that from" is
+    # the first question anyone asks about a surprising detection.
+    run_id: uuid.UUID | None = None
+    run_name: str | None = None
+    domain: str | None = None
+    # The catalogue's names, so the console never shows a database key to a
+    # person. Null for legacy sign classes that predate the catalogue.
+    label_en: str | None = None
+    label_fa: str | None = None
+    created_at: datetime | None = None
 
 
 class FeatureList(BaseModel):
     items: list[FeatureOut]
+    # The inventory is paged on the server, so the client cannot count what it
+    # has not been sent. Without a total, "1–50 of ?" is the best a table can
+    # say, and every filter becomes a guess about how much it removed.
+    total: int | None = None
+
+
+class FacetCount(BaseModel):
+    key: str
+    count: int
+    # A run's key is its id and its name is what a person recognises it by;
+    # both are needed, and packing them into one string to avoid a field is how
+    # a parser ends up in a filter panel.
+    label: str | None = None
+    label_fa: str | None = None
+    domain: str | None = None
+
+
+class FeatureFacets(BaseModel):
+    """How the current filter divides up, before it is applied.
+
+    A filter panel that lists every possible class is a catalogue; one that
+    lists the classes actually present, with counts, is a description of the
+    data. Enterprise inventories are searched by people who do not know what is
+    in them yet.
+    """
+
+    classes: list[FacetCount]
+    domains: list[FacetCount]
+    runs: list[FacetCount]
+    detectors: list[FacetCount]
+    total: int
+    needs_review: int
