@@ -33,7 +33,8 @@ export function TargetPlan({ target, onClose }: { target: string; onClose: () =>
         <div className="min-w-0">
           <h3 className="text-[13px] font-semibold">{fa ? plan.label_fa : plan.label_en}</h3>
           <p className="mt-0.5 text-[11px] text-[var(--fg-faint)]" dir="ltr">
-            {plan.domain} · {plan.geometry} · ≤ {plan.min_gsd_m} m/px ·{" "}
+            {t.has(`domains.${plan.domain}`) ? t(`domains.${plan.domain}`) : plan.domain} ·{" "}
+            {plan.geometry} · ≤ {plan.min_gsd_m} m/px ·{" "}
             {plan.viewpoints.join(" + ")}
           </p>
         </div>

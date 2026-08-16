@@ -71,6 +71,9 @@ class ImagerySource:
     imagery_kind: str = ImageryKind.PHOTO.value
     needs_credentials: bool = False
     notes_en: str = ""
+    # The console is Persian-first. A source that explains itself only in
+    # English explains itself to half the people using it.
+    notes_fa: str = ""
 
 
 SOURCES: tuple[ImagerySource, ...] = (
@@ -85,6 +88,7 @@ SOURCES: tuple[ImagerySource, ...] = (
         viewpoint="street",
         needs_credentials=True,
         notes_en="Panoramas from the street, not from above. The only source that sees a feature face.",
+        notes_fa="پانوراما از سطح خیابان، نه از بالا. تنها منبعی که نمای روبه‌روی عارضه را می‌بیند.",
     ),
     ImagerySource(
         key="sentinel2",
@@ -95,6 +99,7 @@ SOURCES: tuple[ImagerySource, ...] = (
         licence="Copernicus open data",
         bulk_use=BulkUse.ALLOWED,
         notes_en="Global, revisits every five days, free to redistribute. Coarse: 10 m per pixel.",
+        notes_fa="پوشش جهانی، بازدید هر پنج روز، بازنشر آزاد. درشت‌دانه: ۱۰ متر بر پیکسل.",
     ),
     ImagerySource(
         key="naip",
@@ -105,6 +110,7 @@ SOURCES: tuple[ImagerySource, ...] = (
         licence="US public domain",
         bulk_use=BulkUse.ALLOWED,
         notes_en="United States only.",
+        notes_fa="فقط ایالات متحده.",
     ),
     ImagerySource(
         key="xyz",
@@ -121,6 +127,11 @@ SOURCES: tuple[ImagerySource, ...] = (
             "basemaps generally forbid bulk inference too; use imagery you are "
             "licensed for."
         ),
+        notes_fa=(
+            "هر نشانی {z}/{x}/{y}. مشخص کنید تصویر هوایی می‌دهد یا نقشهٔ ترسیمی — "
+            "مدل در نقشه چیزی نمی‌یابد. نقشه‌های پایهٔ عمومی هم معمولاً پردازش انبوه "
+            "را منع می‌کنند؛ از تصویری استفاده کنید که پروانهٔ آن را دارید."
+        ),
     ),
     ImagerySource(
         key="cog",
@@ -131,6 +142,7 @@ SOURCES: tuple[ImagerySource, ...] = (
         licence="the operator's own",
         bulk_use=BulkUse.CHECK_YOUR_LICENCE,
         notes_en="Resolution is read from the file header.",
+        notes_fa="تفکیک‌پذیری از سرایند فایل خوانده می‌شود.",
     ),
     ImagerySource(
         key="upload",
@@ -141,6 +153,7 @@ SOURCES: tuple[ImagerySource, ...] = (
         licence="the operator's own",
         bulk_use=BulkUse.ALLOWED,
         notes_en="Drone or aerial imagery you own. Resolution is read from the file.",
+        notes_fa="تصویر پهپادی یا هوایی متعلق به خودتان. تفکیک‌پذیری از فایل خوانده می‌شود.",
     ),
 )
 

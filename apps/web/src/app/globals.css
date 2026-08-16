@@ -160,6 +160,27 @@ html[lang="fa"] body {
   line-height: 1.75;
 }
 
+/* The rule above sets the base, which fixed sizes ignore — and the dense parts
+   of this console are all fixed sizes. Persian at 10px is not small, it is
+   unreadable: the dots and the ascenders that distinguish پ from ب disappear
+   before the letterform does. So the two smallest steps get a floor in Persian
+   rather than being written twice everywhere they appear.
+
+   These select Tailwind's arbitrary-value classes by name, which is safe
+   because the class strings are literal in the markup. If a step is renamed,
+   this stops applying rather than applying to the wrong thing. */
+html[lang="fa"] .text-\[10px\] {
+  font-size: 11.5px;
+}
+
+html[lang="fa"] .text-\[10\.5px\] {
+  font-size: 12px;
+}
+
+html[lang="fa"] .text-\[11px\] {
+  font-size: 12.5px;
+}
+
 html[lang="en"] body {
   font-size: 15px;
   line-height: 1.6;

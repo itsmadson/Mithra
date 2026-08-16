@@ -78,6 +78,25 @@ export function DetectionComposer({
       .catch((e) => setError(e instanceof Error ? e.message : String(e)));
   }, [source, uploaded]);
 
+  // The catalogue answers in English because it is a library; the console
+  // says it in the language the operator is reading. Anything the catalogue
+  // adds later falls back to its own sentence rather than to nothing.
+  function refusal(target: TargetAvailability): string {
+    const code = target.reason_code;
+    if (!code || !t.has(`refusal.${code}`)) return target.reason;
+    const values = { ...(target.reason_values ?? {}) };
+    for (const key of ["viewpoint", "seen_from"]) {
+      const raw = values[key];
+      if (typeof raw === "string") {
+        values[key] = raw
+          .split(" and ")
+          .map((v) => (t.has(`viewpoints.${v}`) ? t(`viewpoints.${v}`) : v))
+          .join(t("refusalAnd"));
+      }
+    }
+    return t(`refusal.${code}`, values);
+  }
+
   const selected = sources.find((s) => s.key === source);
 
   async function start() {
@@ -130,7 +149,7 @@ export function DetectionComposer({
         </select>
         {selected && (
           <p className="mt-1.5 text-[11px] leading-relaxed text-[var(--fg-muted)]">
-            {selected.notes_en}
+            {(fa && selected.notes_fa) || selected.notes_en}
           </p>
         )}
         {bulkUse === "check_your_licence" && (
@@ -240,8 +259,12 @@ export function DetectionComposer({
                   {/* The reason lives next to the thing it refuses. */}
                   {!target.available && (
                     <span className="block text-[11px] leading-relaxed text-[var(--fg-faint)]">
-                      {target.reason}
-                      {target.alternative && ` — ${t("compose.tryInstead")} ${target.alternative}`}
+                      {refusal(target)}
+                      {target.alternative &&
+                        ` — ${t("compose.tryInstead")} ${
+                          (fa ? target.alternative_label_fa : target.alternative_label_en) ??
+                          target.alternative
+                        }`}
                     </span>
                   )}
                 </span>

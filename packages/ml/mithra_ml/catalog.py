@@ -554,6 +554,12 @@ class Availability:
     reason: str = ""
     alternative: str | None = None
     detectors: tuple[str, ...] = field(default_factory=tuple)
+    # The same refusal, in a form a console can phrase in its own language.
+    # The English sentence above stays for API consumers and logs; a Persian
+    # operator should not be told "needs imagery of 0.5 m/pixel or sharper" in
+    # English on a screen that is otherwise entirely in Persian.
+    reason_code: str = ""
+    reason_values: dict = field(default_factory=dict)
 
 
 def detectors_for(target_key: str) -> tuple[str, ...]:
@@ -576,7 +582,8 @@ def availability(
     """
     target = TARGETS_BY_KEY.get(target_key)
     if target is None:
-        return Availability(target_key, False, reason="unknown target")
+        return Availability(target_key, False, reason="unknown target",
+                            reason_code="unknown_target")
 
     if viewpoint not in target.viewpoints:
         seen_from = " and ".join(sorted(target.viewpoints))
@@ -584,17 +591,21 @@ def availability(
             target_key,
             False,
             reason=f"not visible from {viewpoint} imagery; this is seen from {seen_from}",
+            reason_code="wrong_viewpoint",
+            reason_values={"viewpoint": viewpoint, "seen_from": seen_from},
         )
 
     detectors = detectors_for(target_key)
     if not detectors:
-        return Availability(target_key, False, reason="no detector supports this target")
+        return Availability(target_key, False, reason="no detector supports this target",
+                            reason_code="no_detector")
 
     if gsd_m is None:
         return Availability(
             target_key,
             False,
             reason="this imagery does not report its resolution",
+            reason_code="unknown_resolution",
             detectors=detectors,
         )
 
@@ -604,8 +615,15 @@ def availability(
             f"needs imagery of {target.min_gsd_m:g} m/pixel or sharper; "
             f"this source is {gsd_m:g} m/pixel"
         )
-        return Availability(target_key, False, reason=reason, alternative=alternative,
-                            detectors=detectors)
+        return Availability(
+            target_key,
+            False,
+            reason=reason,
+            reason_code="too_coarse",
+            reason_values={"needs": target.min_gsd_m, "has": gsd_m},
+            alternative=alternative,
+            detectors=detectors,
+        )
 
     return Availability(target_key, True, detectors=detectors)
 

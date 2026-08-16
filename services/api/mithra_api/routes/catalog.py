@@ -36,6 +36,7 @@ def catalog(_user=Depends(current_user)) -> dict:
                 "bulk_use": s.bulk_use.value,
                 "needs_credentials": s.needs_credentials,
                 "notes_en": s.notes_en,
+                "notes_fa": s.notes_fa,
             }
             for s in SOURCES
         ],
@@ -111,7 +112,17 @@ def availability_for_source(
                 "label_fa": TARGETS_BY_KEY[a.target].label_fa,
                 "available": a.available,
                 "reason": a.reason,
+                "reason_code": a.reason_code,
+                "reason_values": a.reason_values,
                 "alternative": a.alternative,
+                # Named, not keyed: "try built_up instead" is the database
+                # talking, and it is unreadable in Persian either way.
+                "alternative_label_en": (
+                    TARGETS_BY_KEY[a.alternative].label_en if a.alternative else None
+                ),
+                "alternative_label_fa": (
+                    TARGETS_BY_KEY[a.alternative].label_fa if a.alternative else None
+                ),
                 "detectors": list(a.detectors),
             }
             for a in items

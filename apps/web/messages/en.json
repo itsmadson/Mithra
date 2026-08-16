@@ -119,7 +119,15 @@
       "map": "Drawn map"
     },
     "tileKindHint": "Aerial or satellite imagery, such as Esri World Imagery. Detection needs photographs of the ground.",
-    "tileKindMapWarning": "A rendered basemap, such as OpenStreetMap. Detection is refused: there are no objects in a drawing of a place, only symbols for them."
+    "tileKindMapWarning": "A rendered basemap, such as OpenStreetMap. Detection is refused: there are no objects in a drawing of a place, only symbols for them.",
+    "title": "Survey a street",
+    "subtitle": "Name a street and Mithra walks its panoramic imagery",
+    "streetLabel": "Street",
+    "streetPlaceholder": "Ahmadabad Boulevard, Mashhad",
+    "noHits": "No street of that name found. Try including the city.",
+    "bufferLabel": "Corridor width",
+    "bufferHelp": "How far either side of the centreline to search. Wider finds signs set back from the road, and more imagery of the next street over.",
+    "bboxHint": "Or draw a box on the map to survey an area instead."
   },
   "jobReason": {
     "street_not_found": "Street not found in OpenStreetMap"
@@ -368,5 +376,17 @@
       "basemap_deleted": "Basemap removed",
       "inventory_exported": "Inventory exported"
     }
-  }
+  },
+  "refusal": {
+    "unknown_target": "Not in the catalogue.",
+    "wrong_viewpoint": "Not visible from {viewpoint} imagery — this is seen from {seen_from}.",
+    "no_detector": "No model in this build detects it.",
+    "unknown_resolution": "This imagery does not say how sharp it is, so nothing can be promised.",
+    "too_coarse": "Needs {needs} m/pixel or sharper; this source is {has} m/pixel."
+  },
+  "viewpoints": {
+    "overhead": "overhead",
+    "street": "street-level"
+  },
+  "refusalAnd": " and "
 }

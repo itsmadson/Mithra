@@ -36,19 +36,28 @@ will be asked to prove it.
   classifier that must prove it beats the model in service before it can replace it.
 - **Takes your own map.** Any XYZ tile service can be added as a basemap, so the
   inventory is read against the map the organisation already trusts.
+- **Answers at inventory scale.** Filtering, searching, sorting and paging happen in
+  the database, so the count in the corner is the real count rather than the count of
+  the first two thousand rows. A filtered view is a URL you can send to somebody.
+- **Records who did what.** Sign-ins, runs, deletions, account changes and label
+  overrides are written to an append-only audit log as they happen — a relabelled
+  detection keeps the class the model chose and how confident it was, which exists
+  nowhere else once the row is overwritten.
 
 ## Screens
 
 | Section | Question it answers |
 |---|---|
 | Dashboard | How big is the inventory, how much is trustworthy, what is waiting |
-| Surveys | What has been surveyed, and run another |
-| Signs | Every sign across every survey, on one map |
-| Review | Judge what the model was unsure about |
 | Detect | Find features in satellite, aerial or uploaded imagery |
+| Surveys | What has been surveyed, and run another |
+| Inventory | Every detection across every run — filter, sort, map, export |
+| Review | Judge what the model was unsure about |
+| Audit | Who changed what, and when (administrators) |
 | Settings | What this server can run, system state, basemaps, accounts |
 
-Persian and English, right-to-left and left-to-right, dark and light.
+Persian and English, right-to-left and left-to-right, dark and light. `⌘K`
+anywhere; `/` focuses search; arrow keys walk a list.
 
 ---
 

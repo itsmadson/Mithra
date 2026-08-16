@@ -447,6 +447,7 @@ export interface CatalogSource {
   bulk_use: string;
   needs_credentials: boolean;
   notes_en: string;
+  notes_fa?: string;
 }
 
 export interface CatalogTarget {
@@ -465,8 +466,15 @@ export interface TargetAvailability {
   label_en: string;
   label_fa: string;
   available: boolean;
+  /** The English sentence, for API consumers and logs. */
   reason: string;
+  /** The same refusal, structured, so the console can say it in its own language. */
+  reason_code?: string;
+  reason_values?: Record<string, string | number>;
   alternative: string | null;
+  /** The fallback target's name, so the console never suggests a database key. */
+  alternative_label_en?: string | null;
+  alternative_label_fa?: string | null;
   detectors: string[];
 }
 
