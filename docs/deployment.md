@@ -39,11 +39,26 @@ reach, precisely because this failure otherwise looks like loading forever.
 |---|---|---|
 | `db` | Everything | Everything |
 | `crops` | Sign crops | The evidence behind every count, and the training set |
-| `models` | Trained probes | A retrain |
+| `models` | Trained probes, downloaded model weights | A retrain, and a few hundred MB re-downloaded |
 | `redis` | Queue state | In-flight surveys |
 
 Crops matter more than they look: they are what makes a count auditable, and they are
 the training data for the classifier that replaces the zero-shot one.
+
+### Upgrading a deployment made before model weights were cached
+
+Earlier images did not create `/app/models`, so Docker created the volume as
+root and the application user could not write to it. Weights were re-downloaded
+on every run until they hit that wall. New deployments are fine; an existing one
+needs its volume handed over once:
+
+```bash
+docker compose run --rm --user root worker chown -R 10001:999 /app/models
+```
+
+Without it, any detector that downloads weights fails with a permission error
+the first time it is used — not at startup, which is what makes it worth doing
+before the next run rather than after.
 
 ## Behind TLS
 
