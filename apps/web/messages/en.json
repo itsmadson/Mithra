@@ -310,7 +310,12 @@
       "run": "Run",
       "model": "Model",
       "where": "Location"
-    }
+    },
+    "relabelAs": "Relabel as…",
+    "apply": "Apply",
+    "applying": "Applying…",
+    "relabelled": "{count} detections relabelled",
+    "relabelledSome": "{count} of {requested} relabelled; the rest had already changed"
   },
   "command": {
     "title": "Command palette",

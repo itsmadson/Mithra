@@ -20,6 +20,7 @@ import {
 import {
   API_BASE,
   getFacets,
+  labelMany,
   listInventory,
   type Facets,
   type Feature,
@@ -33,6 +34,48 @@ const InventoryMap = dynamic(() => import("../../../components/InventoryMap"), {
 });
 
 const PAGE_SIZE = 100;
+
+/**
+ * The filter state, in the address bar.
+ *
+ * "Send me the link to that view" is the most common thing anyone says about a
+ * screen like this, and a console where every link goes to the same unfiltered
+ * table cannot answer it. Reading and writing the query string also makes the
+ * back button mean what it looks like it means.
+ *
+ * Written with replaceState rather than the router: a filter change is not a
+ * navigation, and pushing one through the router would refetch the page on
+ * every keystroke.
+ */
+function queryToSearch(query: InventoryQuery): string {
+  const params = new URLSearchParams();
+  for (const cls of query.classes ?? []) params.append("class", cls);
+  if (query.needsReview) params.set("review", "1");
+  if (query.runId) params.set("run", query.runId);
+  if (query.q) params.set("q", query.q);
+  if (query.minConfidence !== undefined) params.set("min", String(query.minConfidence));
+  if (query.sort && query.sort !== "created_at") params.set("sort", query.sort);
+  if (query.direction && query.direction !== "desc") params.set("dir", query.direction);
+  if (query.offset) params.set("from", String(query.offset));
+  return params.toString();
+}
+
+function searchToQuery(search: string): InventoryQuery {
+  const params = new URLSearchParams(search);
+  const classes = params.getAll("class");
+  const min = params.get("min");
+  const offset = params.get("from");
+  return {
+    classes: classes.length ? classes : undefined,
+    needsReview: params.get("review") === "1" ? true : undefined,
+    runId: params.get("run") ?? undefined,
+    q: params.get("q") ?? undefined,
+    minConfidence: min === null ? undefined : Number(min),
+    sort: (params.get("sort") as InventoryQuery["sort"]) ?? "created_at",
+    direction: (params.get("dir") as "asc" | "desc") ?? "desc",
+    offset: offset === null ? undefined : Number(offset),
+  };
+}
 
 /**
  * The inventory: everything detected, across every run.
@@ -65,6 +108,8 @@ export default function InventoryPage() {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [density, setDensity] = useState<"compact" | "comfortable">("comfortable");
   const [showMap, setShowMap] = useState(true);
+  const [bulkClass, setBulkClass] = useState("");
+  const [busy, setBusy] = useState(false);
   const searchRef = useRef<HTMLInputElement>(null);
 
   // Typing must not fire a request per keystroke, and must not feel laggy
@@ -76,6 +121,28 @@ export default function InventoryPage() {
     }, 250);
     return () => clearTimeout(timer);
   }, [search]);
+
+  // The URL is read after mount, not during render. Seeding state from
+  // window.location while rendering makes the server's HTML and the client's
+  // first render disagree, which React reports as a hydration error and
+  // recovers from by throwing the server's markup away.
+  const hydrated = useRef(false);
+  useEffect(() => {
+    const fromUrl = searchToQuery(window.location.search);
+    setQuery(fromUrl);
+    setSearch(fromUrl.q ?? "");
+    hydrated.current = true;
+  }, []);
+
+  // Keep the address bar in step with what is on screen, once the first read
+  // has happened — otherwise the defaults would immediately overwrite the
+  // filters the link arrived with.
+  useEffect(() => {
+    if (!hydrated.current) return;
+    const search = queryToSearch(query);
+    const url = search ? `${window.location.pathname}?${search}` : window.location.pathname;
+    window.history.replaceState(null, "", url);
+  }, [query]);
 
   useEffect(() => {
     let cancelled = false;
@@ -124,6 +191,32 @@ export default function InventoryPage() {
       (t.has(`classes.${row.class_name}`) ? t(`classes.${row.class_name}`) : humanise(row.class_name)),
     [fa, t],
   );
+
+  async function applyBulkLabel() {
+    if (!bulkClass || selected.size === 0) return;
+    setBusy(true);
+    try {
+      const result = await labelMany([...selected], bulkClass);
+      // The count that comes back is what was actually written, not what was
+      // asked for: a selection made against a list that has since changed is
+      // reported honestly rather than assumed to have all applied.
+      toast.show(
+        result.labelled === result.requested
+          ? t("inventory.relabelled", { count: result.labelled })
+          : t("inventory.relabelledSome", {
+              count: result.labelled,
+              requested: result.requested,
+            }),
+      );
+      setSelected(new Set());
+      setBulkClass("");
+      setQuery((q) => ({ ...q }));
+    } catch (e) {
+      toast.show(e instanceof Error ? e.message : String(e), "error");
+    } finally {
+      setBusy(false);
+    }
+  }
 
   const active = useMemo(() => rows.find((r) => r.id === activeId) ?? null, [rows, activeId]);
   const offset = query.offset ?? 0;
@@ -309,10 +402,37 @@ export default function InventoryPage() {
           </div>
 
           {selected.size > 0 && (
-            <div className="flex items-center gap-3 border-b border-[var(--line)] bg-[var(--panel-2)] px-3 py-2 text-[12px]">
+            <div className="flex flex-wrap items-center gap-2 border-b border-[var(--line)] bg-[var(--panel-2)] px-3 py-2 text-[12px]">
               <span className="text-[var(--fg)]">
                 {t("inventory.selected", { count: selected.size.toLocaleString() })}
               </span>
+
+              {/* Relabelling a selection is the review queue's real shape: an
+                  operator scanning a filtered page sees ten of the same mistake
+                  at once, and fixing them one at a time is ten forms. */}
+              <div className="flex items-center gap-1.5">
+                <select
+                  value={bulkClass}
+                  onChange={(event) => setBulkClass(event.target.value)}
+                  className="rounded-[var(--radius-sm)] border border-[var(--line)] bg-[var(--panel)] px-2 py-1 text-[12px] text-[var(--fg)] focus:border-[var(--accent)] focus:outline-none"
+                >
+                  <option value="">{t("inventory.relabelAs")}</option>
+                  {(facets?.classes ?? []).map((facet) => (
+                    <option key={facet.key} value={facet.key}>
+                      {catalogueLabel(facet, fa) ??
+                        (t.has(`classes.${facet.key}`) ? t(`classes.${facet.key}`) : humanise(facet.key))}
+                    </option>
+                  ))}
+                </select>
+                <button
+                  disabled={!bulkClass || busy}
+                  onClick={applyBulkLabel}
+                  className="rounded-[var(--radius-sm)] bg-[var(--accent)] px-2.5 py-1 font-medium text-[var(--accent-ink)] transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                  {busy ? t("inventory.applying") : t("inventory.apply")}
+                </button>
+              </div>
+
               <button
                 onClick={() => {
                   const ids = [...selected];
@@ -325,6 +445,7 @@ export default function InventoryPage() {
               >
                 {t("inventory.copyIds")}
               </button>
+
               <button
                 onClick={() => setSelected(new Set())}
                 className="ms-auto flex items-center gap-1 text-[var(--fg-muted)] transition-colors hover:text-[var(--fg)]"

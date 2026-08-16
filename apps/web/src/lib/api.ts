@@ -659,3 +659,11 @@ export function listAudit(
 export function getAuditActions() {
   return request<AuditActions>("/api/audit/actions");
 }
+
+/** One class applied to many detections. Returns how many were actually written. */
+export function labelMany(featureIds: string[], className: string) {
+  return request<{ labelled: number; requested: number }>("/api/labels/bulk", {
+    method: "POST",
+    body: JSON.stringify({ feature_ids: featureIds, class_name: className }),
+  });
+}

@@ -310,7 +310,12 @@
       "run": "اجرا",
       "model": "مدل",
       "where": "موقعیت"
-    }
+    },
+    "relabelAs": "برچسب تازه…",
+    "apply": "اعمال",
+    "applying": "در حال اعمال…",
+    "relabelled": "{count} شناسایی برچسب تازه گرفت",
+    "relabelledSome": "{count} از {requested} تغییر کرد؛ بقیه پیش‌تر تغییر کرده بودند"
   },
   "command": {
     "title": "پنل فرمان",

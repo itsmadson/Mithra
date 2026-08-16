@@ -344,3 +344,90 @@ def test_another_organisations_detections_are_not_counted(client, inventory):
     assert all(row["run_name"] != "Somebody else's survey" for row in items(client)["items"])
     # And the largest area in the export is ours, not theirs.
     assert "999999" not in client.get("/api/features/export.csv").text
+
+
+# --- bulk relabelling --------------------------------------------------------
+
+
+def test_one_class_can_be_applied_to_many_detections(client, inventory):
+    ids = [row["id"] for row in items(client, "class_name=water")["items"]]
+    response = client.post(
+        "/api/labels/bulk", json={"feature_ids": ids, "class_name": "reservoir"}
+    )
+    assert response.status_code == 200, response.text
+    assert response.json() == {"labelled": 2, "requested": 2}
+    assert items(client, "class_name=reservoir")["total"] == 2
+
+
+def test_a_catalogue_class_may_be_assigned_not_only_a_sign_class(client, inventory):
+    """The queue holds land cover and tree crowns now. A queue that can only
+    answer in the sign taxonomy cannot judge them."""
+    row = items(client, "class_name=cropland&limit=1")["items"][0]
+    response = client.post(
+        "/api/labels/bulk", json={"feature_ids": [row["id"]], "class_name": "orchard"}
+    )
+    assert response.status_code == 200
+
+
+def test_a_class_that_is_in_no_taxonomy_is_refused(client, inventory):
+    row = items(client, "limit=1")["items"][0]
+    response = client.post(
+        "/api/labels/bulk", json={"feature_ids": [row["id"]], "class_name": "dragon"}
+    )
+    assert response.status_code == 422
+
+
+def test_ids_from_another_organisation_are_skipped_not_refused(client, inventory):
+    """A selection made against a list that has since changed should not fail
+    wholesale — and the count that comes back says what actually happened."""
+    import uuid as _uuid
+
+    ids = [row["id"] for row in items(client, "class_name=water")["items"]]
+    response = client.post(
+        "/api/labels/bulk",
+        json={"feature_ids": [*ids, str(_uuid.uuid4())], "class_name": "reservoir"},
+    )
+    assert response.json() == {"labelled": 2, "requested": 3}
+
+
+def test_a_bulk_relabel_clears_the_review_flag(client, inventory):
+    unsure = items(client, "needs_review=true")["items"]
+    client.post(
+        "/api/labels/bulk",
+        json={"feature_ids": [row["id"] for row in unsure], "class_name": "city_entry"},
+    )
+    assert items(client, "needs_review=true")["total"] == 0
+
+
+def test_an_empty_selection_is_refused(client, inventory):
+    response = client.post("/api/labels/bulk", json={"feature_ids": [], "class_name": "water"})
+    assert response.status_code == 422
+
+
+def test_too_large_a_batch_is_refused(client, inventory):
+    """A mistake applied to five hundred rows is a mistake somebody undoes by
+    hand."""
+    import uuid as _uuid
+
+    response = client.post(
+        "/api/labels/bulk",
+        json={"feature_ids": [str(_uuid.uuid4()) for _ in range(501)], "class_name": "water"},
+    )
+    assert response.status_code == 422
+
+
+def test_the_batch_is_one_audit_event_not_five_hundred(client, inventory):
+    """Five hundred rows would bury every other event in the log."""
+    from mithra_api.models import AuditEvent
+
+    ids = [row["id"] for row in items(client, "class_name=water")["items"]]
+    client.post("/api/labels/bulk", json={"feature_ids": ids, "class_name": "reservoir"})
+
+    with Session(client.engine) as session:
+        from sqlalchemy import select as _select
+
+        events = session.scalars(
+            _select(AuditEvent).where(AuditEvent.action == "feature.labelled")
+        ).all()
+        assert len(events) == 1
+        assert events[0].detail["count"] == 2
