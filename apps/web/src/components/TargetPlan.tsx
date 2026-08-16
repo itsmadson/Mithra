@@ -58,9 +58,16 @@ export function TargetPlan({ target, onClose }: { target: string; onClose: () =>
           <span
             key={source.key}
             className="rounded-full border border-[var(--line)] px-2 py-0.5 text-[10px] text-[var(--fg-muted)]"
-            title={`${source.gsd_m ?? "?"} m/px · ${source.licence}`}
+            title={`${source.gsd_m ?? "?"} m/px · ${source.viewpoint} · ${source.licence}`}
           >
             {fa ? source.label_fa : source.label_en}
+            {source.imagery_kind === "unknown" && (
+              // A tile service the operator has not yet classified: it may be a
+              // drawn map, in which case nothing here will be found.
+              <span className="ms-1 text-[var(--warn)]" title={t("plan.declareKind")}>
+                ?
+              </span>
+            )}
           </span>
         ))}
       </div>

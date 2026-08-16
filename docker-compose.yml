@@ -80,6 +80,17 @@ services:
     # The same crop volume as the API: the worker writes them and the API
     # serves them, and a survey whose crops landed elsewhere is unauditable.
     volumes: ["crops:/app/data/crops", "models:/app/models"]
+    # The image's own check asks for HTTP on :8000, which the worker does not
+    # serve — it reported unhealthy while consuming the queue perfectly well.
+    # Ask instead the question that matters: is this worker's heartbeat fresh
+    # in Redis, which is what the queue itself uses to decide it is alive. An
+    # idle worker beats every seven minutes, so the window has to be wider than
+    # that or a quiet queue would look like a dead one.
+    healthcheck:
+      test: ["CMD", "python", "-c", "import sys,datetime;from redis import Redis;from rq import Worker;c=Redis.from_url('redis://redis:6379/0');ws=Worker.all(connection=c);[w.refresh() for w in ws];now=datetime.datetime.now(datetime.timezone.utc);sys.exit(0 if any(w.last_heartbeat and (now-w.last_heartbeat).total_seconds()<900 for w in ws) else 1)"]
+      interval: 30s
+      timeout: 10s
+      start_period: 30s
     depends_on:
       db: {condition: service_healthy}
       redis: {condition: service_started}

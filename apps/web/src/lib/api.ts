@@ -487,6 +487,7 @@ export interface DetectionPlan {
     label_fa: string;
     gsd_m: number | null;
     viewpoint: string;
+    imagery_kind: string;
     licence: string;
     bulk_use: string;
     usable: boolean;

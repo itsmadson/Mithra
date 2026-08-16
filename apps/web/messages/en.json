@@ -260,6 +260,7 @@
     "chosen": "chosen",
     "otherTask": "measured on a different task",
     "close": "Close",
-    "noSource": "No available imagery source can see this."
+    "noSource": "No available imagery source can see this.",
+    "declareKind": "Say whether this tile service serves photographs or a drawn map before running it."
   }
 }

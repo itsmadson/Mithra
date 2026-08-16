@@ -291,6 +291,9 @@ def detection_plan(target_key: str, machine: Machine | None = None) -> dict:
                 "label_fa": source.label_fa,
                 "gsd_m": source.gsd_m,
                 "viewpoint": source.viewpoint,
+                # Photographs or cartography: a source can pass every other
+                # test and still contain nothing to detect.
+                "imagery_kind": source.imagery_kind,
                 "licence": source.licence,
                 "bulk_use": source.bulk_use.value,
                 "usable": verdict.available,
