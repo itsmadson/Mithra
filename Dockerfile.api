@@ -52,10 +52,20 @@ COPY services services
 COPY packages packages
 
 # Not root: this process talks to the open internet.
-RUN useradd --system --uid 10001 mithra \
- && mkdir -p /app/data/crops \
- && chown -R mithra:mithra /app/data
+RUN useradd --system --uid 10001 --home-dir /app/home mithra \
+ && mkdir -p /app/data/crops /app/home /app/models \
+ && chown -R mithra:mithra /app/data /app/home /app/models
 USER mithra
+
+# Model weights are downloaded on first use and are hundreds of megabytes.
+# They belong on the models volume, not in a home directory that vanishes with
+# the container — otherwise every restart re-downloads them, and a container
+# started without network never works at all. HOME is set because several
+# libraries ignore the specific variables and go looking for ~ regardless.
+ENV HOME=/app/home \
+    HF_HOME=/app/models/huggingface \
+    TORCH_HOME=/app/models/torch \
+    XDG_CACHE_HOME=/app/models/cache
 
 EXPOSE 8000
 HEALTHCHECK --interval=30s --timeout=5s --start-period=20s \

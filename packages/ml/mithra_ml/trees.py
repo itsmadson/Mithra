@@ -44,7 +44,15 @@ class DeepForestDetector:
                 "deepforest is not installed in this image; add it to run tree detection"
             ) from exc
 
+        # DeepForest is built on Lightning, which wants somewhere to write
+        # training logs the moment a trainer exists. We only ever run inference,
+        # so those logs are noise — but without a writable path it refuses to
+        # start at all, and in a container the working directory is not ours.
+        import tempfile
+
         model = deepforest_main.deepforest()
+        model.config["train"]["fast_dev_run"] = False
+        model.create_trainer(logger=False, default_root_dir=tempfile.gettempdir())
         model.load_model("weecology/deepforest-tree")
         self._model = model
         return model
