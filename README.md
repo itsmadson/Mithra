@@ -1,7 +1,9 @@
 # Mithra · میترا
 
 **AI-powered panoramic vision platform for intelligent asset detection and street inventory.**
-
+<p align="center">
+  <img width="100" height="100" alt="jamasp" src="https://github.com/user-attachments/assets/c43eacb1-c0ae-4cc4-a363-bc2915ab2a2f" />
+</p>
 Mithra surveys a street from panoramic street-level imagery and returns a counted,
 mapped, auditable inventory of its signs. Name a street; it resolves the centreline,
 walks the imagery along it, detects and classifies every sign it finds, and puts each
