@@ -1,24 +1,41 @@
 # Mithra · میترا
 
 **AI-powered panoramic vision platform for intelligent asset detection and street inventory.**
+
 <p align="center">
-  <img width="100" height="100" alt="jamasp" src="https://github.com/user-attachments/assets/c43eacb1-c0ae-4cc4-a363-bc2915ab2a2f" />
+  <img width="120" height="120" alt="Mithra" src="docs/brand/mithra.png" />
 </p>
-Mithra surveys a street from panoramic street-level imagery and returns a counted,
-mapped, auditable inventory of its signs. Name a street; it resolves the centreline,
-walks the imagery along it, detects and classifies every sign it finds, and puts each
-one on a map beside the photograph it came from.
+
+Mithra takes imagery — street panoramas, satellite scenes, aerial tiles, a GeoTIFF you
+own — and returns a counted, mapped, auditable inventory of what is in it. Seventy-one
+kinds of thing across ten domains: water and land cover, buildings and land use, roads
+and pavement condition, street furniture, energy infrastructure, crops, vehicles, and
+signs.
+
+Pick an area, pick an imagery source, pick what to look for. Before anything runs, the
+console tells you which model would answer it, on what evidence, and refuses the
+pairings that cannot produce an honest answer — a tree is not findable at ten metres
+per pixel, a manhole is invisible from orbit, and there is nothing to detect in a
+drawn map.
 
 Built for the people who have to answer *how many, of what kind, and where* — and who
 will be asked to prove it.
 
-| Class | Persian |
-|---|---|
-| `direction_guide` | تابلو مسیرنما |
-| `street_name` | تابلو نام معبر |
-| `city_entry` | تابلو ورودی شهر |
-| `informational` | تابلو اطلاعاتی |
-| `unknown` | نامشخص |
+| Domain | What it covers | From |
+|---|---|---|
+| Water | Lakes, rivers, reservoirs, flood extent | Satellite |
+| Land cover | Forest, cropland, built-up, bare ground, snow | Satellite |
+| Land use | Residential, commercial, industrial, quarries, parks | Satellite, aerial |
+| Buildings | Type, roof material, construction state | Aerial, street |
+| Transport | Roads, surface, crossings, bridges, rail, runways | Aerial, street |
+| Condition | Pavement distress, potholes, marking wear, façades | Aerial, street |
+| Street furniture | Signs, lights, poles, hydrants, bins, bus stops | Street |
+| Energy | Solar panels, turbines, power lines, substations | Aerial |
+| Agriculture | Field boundaries, orchards, irrigation pivots | Satellite, aerial |
+| Vehicles | Cars, trucks, buses, ships, aircraft | Aerial |
+
+Each target names the coarsest imagery it can be found in, so the console can refuse a
+pairing before it costs an hour rather than after.
 
 ---
 

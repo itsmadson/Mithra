@@ -1,6 +1,7 @@
 "use client";
 
 import { useLocale, useTranslations } from "next-intl";
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -171,19 +172,18 @@ export function AppShell({
           className="group mb-3 flex items-center gap-2.5 px-1 lg:px-1.5"
           aria-label={t("app.name")}
         >
-          <svg width="22" height="22" viewBox="0 0 24 24" aria-hidden className="shrink-0">
-            <circle
-              cx="12"
-              cy="12"
-              r="9"
-              fill="none"
-              stroke="var(--accent)"
-              strokeWidth="1.6"
-              strokeDasharray="4 3.2"
-              className="origin-center transition-transform duration-500 ease-out group-hover:rotate-45"
-            />
-            <circle cx="12" cy="12" r="3.4" fill="var(--accent)" />
-          </svg>
+          {/* The reduced mark, not the full compass rose: at this size the
+              rose's spokes and its ring of glyphs collapse into a blur, while
+              the aperture at its centre still reads. Both come from the same
+              artwork. */}
+          <Image
+            src="/brand/mark.png"
+            alt=""
+            width={26}
+            height={26}
+            priority
+            className="shrink-0 origin-center transition-transform duration-500 ease-out group-hover:rotate-45"
+          />
           <span className="hidden text-[15px] font-semibold tracking-tight lg:inline">
             {t("app.name")}
           </span>

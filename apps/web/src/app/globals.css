@@ -325,3 +325,15 @@ html[lang="fa"] .uppercase {
 .maplibregl-map {
   direction: ltr;
 }
+
+/* The brand mark lifts off the page rather than sitting flat on it. The shadow
+   is tuned per theme: the depth that reads on midnight stone becomes a smudge
+   on desert sand, because a near-black shadow under a warm light ground is a
+   dirt mark rather than depth. */
+.brand-mark {
+  filter: drop-shadow(0 8px 22px rgb(0 0 0 / 0.45));
+}
+
+:root[data-theme="light"] .brand-mark {
+  filter: drop-shadow(0 5px 14px rgb(90 66 28 / 0.24));
+}

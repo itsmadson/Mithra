@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useLocale, useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -53,20 +54,19 @@ export default function LoginPage() {
   return (
     <main className="grid min-h-dvh place-items-center p-6">
       <div className="w-full max-w-sm">
-        <div className="mb-6 flex items-center justify-center gap-2.5">
-          <svg width="26" height="26" viewBox="0 0 24 24" aria-hidden>
-            <circle
-              cx="12"
-              cy="12"
-              r="9"
-              fill="none"
-              stroke="var(--accent)"
-              strokeWidth="1.6"
-              strokeDasharray="4 3.2"
-            />
-            <circle cx="12" cy="12" r="3.4" fill="var(--accent)" />
-          </svg>
-          <span className="text-lg font-semibold tracking-tight">{t("app.name")}</span>
+        {/* Sign-in is the one screen with room for the full mark, and the
+            first thing anyone sees. The rail shows the reduced one because it
+            has twenty-six pixels; this has ninety. */}
+        <div className="mb-7 flex flex-col items-center gap-3">
+          <Image
+            src="/brand/logo.png"
+            alt=""
+            width={90}
+            height={90}
+            priority
+            className="brand-mark"
+          />
+          <span className="text-[19px] font-semibold tracking-tight">{t("app.name")}</span>
         </div>
 
         <form
