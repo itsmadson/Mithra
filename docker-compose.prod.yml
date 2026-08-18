@@ -1,0 +1,70 @@
+# Mithra, behind an existing nginx.
+#
+# Used together with the base file, never alone:
+#
+#     docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+#
+# What it changes:
+#
+#   * The database and Redis stop being published to the host. In development
+#     they are exposed so a psql or redis-cli can reach them; on a server that
+#     is an open port on the internet for no benefit.
+#   * The API and the console bind to one address, chosen by BIND_ADDR. On a
+#     host whose nginx runs in a container, that has to be an address the
+#     container can route to — the host's LAN or public IP — because 127.0.0.1
+#     inside the nginx container is the nginx container itself.
+#   * Everything restarts unless explicitly stopped, including after a reboot.
+#
+# The images are built from this repository and the code is baked into them.
+# Nothing is bind-mounted, so a deployment cannot drift from what was built,
+# and a change means a rebuild. Only data is on volumes: the database, the
+# crops, the downloaded model weights, and the queue.
+
+services:
+  db:
+    ports: !override []
+    restart: always
+
+  redis:
+    ports: !override []
+    restart: always
+
+  api:
+    # One address, not every interface. nginx reaches it over the host address;
+    # nothing else needs to.
+    ports: !override ["${BIND_ADDR:-127.0.0.1}:${API_PORT:-8092}:8000"]
+    restart: always
+    environment:
+      DATABASE_URL: postgresql+psycopg://${DB_USER:-mithra}:${DB_PASSWORD:-mithra}@db:5432/${DB_NAME:-mithra}
+      REDIS_URL: redis://redis:6379/0
+      MAPILLARY_TOKEN: ${MAPILLARY_TOKEN}
+      CROP_DIR: /app/data/crops
+      # Same-origin in production: nginx serves the console and the API under
+      # one hostname, so the browser never makes a cross-origin request and
+      # this list stays empty rather than being a second place to keep the
+      # domain name correct.
+      CORS_ORIGINS: ${CORS_ORIGINS:-}
+      # The cookie is only sent back over HTTPS. Turn this off only if the
+      # deployment genuinely serves plain HTTP, in which case sign-in works and
+      # the session is interceptable.
+      SESSION_COOKIE_SECURE: ${SESSION_COOKIE_SECURE:-true}
+
+  worker:
+    restart: always
+    environment:
+      DATABASE_URL: postgresql+psycopg://${DB_USER:-mithra}:${DB_PASSWORD:-mithra}@db:5432/${DB_NAME:-mithra}
+      REDIS_URL: redis://redis:6379/0
+      MAPILLARY_TOKEN: ${MAPILLARY_TOKEN}
+      CROP_DIR: /app/data/crops
+
+  web:
+    ports: !override ["${BIND_ADDR:-127.0.0.1}:${WEB_PORT:-3092}:3000"]
+    restart: always
+    build:
+      args:
+        # Empty on purpose. The browser then calls /api/... on whatever host it
+        # loaded the page from, and nginx routes that to the API — so there is
+        # no origin baked into the bundle, no CORS, and no rebuild needed if the
+        # domain changes. Setting this to a full URL is only for the case where
+        # the API lives on a different hostname.
+        NEXT_PUBLIC_API_URL: "${PUBLIC_API_ORIGIN-}"

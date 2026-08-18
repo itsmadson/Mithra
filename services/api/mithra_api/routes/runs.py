@@ -72,8 +72,16 @@ def create_job(
     # Refusing here costs a millisecond; refusing after the run costs an hour
     # and hands back an empty layer that reads as "there is none of that here".
     try:
-        from mithra_worker.raster_pipeline import RunRefused, check_targets
+        from mithra_worker.raster_pipeline import (
+            RunRefused,
+            check_imagery_kind,
+            check_targets,
+        )
 
+        # Both gates, not just the resolution one. A drawn basemap used to be
+        # accepted here and refused an hour later by the worker, which is the
+        # exact cost this check exists to avoid.
+        check_imagery_kind(payload.source_kind, payload.source_config)
         check_targets(payload.source_kind, payload.targets, payload.source_config.get("gsd_m"))
     except RunRefused as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc

@@ -11,6 +11,12 @@ class Settings(BaseSettings):
     https_proxy: str | None = None
     crop_dir: str = "./data/crops"
     low_confidence_threshold: float = 0.45
+    # Behind TLS the session cookie must be Secure, or a single plain-HTTP
+    # request leaks it. It cannot simply default to True: on a plain-HTTP
+    # deployment a Secure cookie is never sent back, and sign-in appears to
+    # succeed and then immediately fail — so it is a deliberate setting rather
+    # than a guess about the environment.
+    session_cookie_secure: bool = False
 
     @field_validator("mapillary_token")
     @classmethod

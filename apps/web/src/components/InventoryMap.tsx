@@ -1,7 +1,7 @@
 "use client";
 
 import maplibregl, { Map as MapLibreMap, type GeoJSONSource } from "maplibre-gl";
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { Feature } from "../lib/api";
 import { SIGNS_ATTRIBUTION, basemapStyle, type BasemapChoice } from "../lib/basemap";
 import { DOMAIN_HEX } from "../lib/targets";
@@ -109,10 +109,16 @@ export default function InventoryMap({
   const container = useRef<HTMLDivElement>(null);
   const map = useRef<MapLibreMap | null>(null);
   const ready = useRef(false);
+  // What the map was constructed with, which is not necessarily what is wanted
+  // by the time it finishes loading.
+  const basemapAtCreation = useRef<string>("default");
+  const themeAtCreation = useRef<"dark" | "light">("dark");
   const collection = useMemo(() => toFeatureCollection(features), [features]);
 
   useEffect(() => {
     if (!container.current || map.current) return;
+    basemapAtCreation.current = basemap?.id ?? "default";
+    themeAtCreation.current = theme;
     const instance = new maplibregl.Map({
       container: container.current,
       style: basemapStyle(theme, SIGNS_ATTRIBUTION, basemap),
@@ -136,6 +142,12 @@ export default function InventoryMap({
       instance.on("mouseleave", DOT, () => {
         instance.getCanvas().style.cursor = "";
       });
+
+      // Record what it was built with, then nudge the restyle effect: if the
+      // basemap list arrived while the map was still loading, this is where
+      // that change gets applied.
+      applied.current = `${basemapAtCreation.current}:${themeAtCreation.current}`;
+      setStyleReady((n) => n + 1);
     });
     map.current = instance;
     return () => {
@@ -174,28 +186,51 @@ export default function InventoryMap({
 
   // Changing the basemap replaces the style, and a style change takes every
   // source and layer with it — so the detections have to be put back.
-  const firstStyle = useRef(true);
+  // Which basemap and theme the map is currently drawn with. Compared against
+  // what is wanted, rather than counting renders: the map is created before its
+  // basemap list has loaded, so the first real change arrives late and an
+  // "ignore the first run" guard swallows exactly the change that matters.
+  const applied = useRef<string | null>(null);
+  const [styleReady, setStyleReady] = useState(0);
+
   useEffect(() => {
-    if (!map.current || !ready.current) return;
-    if (firstStyle.current) {
-      firstStyle.current = false;
-      return;
-    }
+    if (!map.current) return;
+    const wanted = `${basemap?.id ?? "default"}:${theme}`;
+    if (applied.current === null || applied.current === wanted) return;
+    applied.current = wanted;
+
     const instance = map.current;
     ready.current = false;
     instance.setStyle(basemapStyle(theme, SIGNS_ATTRIBUTION, basemap));
+
+    // styledata, not idle: idle waits for tiles, and a basemap whose tiles
+    // never arrive would never reach it — leaving the map permanently
+    // mid-change and every later switch blocked behind it. Whether the imagery
+    // loads is the network's business; whether our layers are back is ours.
     instance.once("styledata", () => {
-      if (instance.getSource(SOURCE)) return;
-      instance.addSource(SOURCE, { type: "geojson", data: collection });
-      addLayers(instance, theme);
+      if (!instance.getSource(SOURCE)) {
+        instance.addSource(SOURCE, { type: "geojson", data: collection });
+        addLayers(instance, theme);
+      }
       ready.current = true;
       instance.setFilter(ACTIVE, ["==", ["get", "id"], activeId ?? ""]);
+      setStyleReady((n) => n + 1);
     });
-    // collection and activeId are read at re-add time, not tracked: a data
-    // change already has its own effect, and listing them here would re-style
-    // the map every time a row arrives.
+    // collection and activeId are read at re-add time rather than tracked:
+    // a data change has its own effect, and listing them here would restyle the
+    // map every time a row arrives.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [basemap, theme]);
+  }, [basemap, theme, styleReady]);
 
-  return <div ref={container} className="h-full w-full" />;
+  return (
+    <div
+      ref={container}
+      className="h-full w-full"
+      // Which basemap this map is drawing. Rendered as an attribute so a
+      // browser test can assert the switch reached the map rather than
+      // inferring it from tiles, which may not load on every network.
+      data-basemap={basemap?.id ?? "default"}
+      data-style-generation={styleReady}
+    />
+  );
 }

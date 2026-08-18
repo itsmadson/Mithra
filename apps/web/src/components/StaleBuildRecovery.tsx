@@ -49,7 +49,11 @@ export function StaleBuildRecovery({ buildId }: { buildId: string }) {
 
     async function check() {
       try {
-        const response = await fetch("/api/build", { cache: "no-store" });
+        // Deliberately not under /api. In production a reverse proxy sends
+        // everything under /api to the backend, which would shadow this route
+        // and silently disable skew detection — the exact failure it exists to
+        // catch, and one that only appears once the app is behind a proxy.
+        const response = await fetch("/build-id", { cache: "no-store" });
         if (!response.ok) return;
         const { id } = (await response.json()) as { id: string };
         if (!cancelled && id && id !== buildId) stale.current = true;

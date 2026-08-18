@@ -431,3 +431,58 @@ def test_the_batch_is_one_audit_event_not_five_hundred(client, inventory):
         ).all()
         assert len(events) == 1
         assert events[0].detail["count"] == 2
+
+
+# --- refusing before the wait, not after -------------------------------------
+
+
+def test_a_drawn_basemap_is_refused_when_the_run_is_created(client, inventory):
+    """It used to be accepted and then failed by the worker an hour later,
+    which is the exact cost checking at creation exists to avoid."""
+    response = client.post(
+        "/api/runs",
+        json={
+            "bbox": [48.68, 31.31, 48.69, 31.32],
+            "source_kind": "xyz",
+            "source_config": {
+                "template": "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
+                "imagery_kind": "map",
+            },
+            "targets": ["tree"],
+            "detector": "deepforest",
+        },
+    )
+    assert response.status_code == 422
+    assert "drawn map" in response.json()["detail"]
+
+
+def test_an_undeclared_tile_service_is_refused_at_creation(client, inventory):
+    response = client.post(
+        "/api/runs",
+        json={
+            "bbox": [48.68, 31.31, 48.69, 31.32],
+            "source_kind": "xyz",
+            "source_config": {"template": "https://example.com/{z}/{x}/{y}.png"},
+            "targets": ["tree"],
+            "detector": "deepforest",
+        },
+    )
+    assert response.status_code == 422
+
+
+def test_a_declared_photographic_service_is_accepted(client, inventory):
+    response = client.post(
+        "/api/runs",
+        json={
+            "bbox": [48.68, 31.31, 48.69, 31.32],
+            "source_kind": "xyz",
+            "source_config": {
+                "template": "https://example.com/{z}/{x}/{y}.png",
+                "imagery_kind": "photo",
+                "gsd_m": 0.5,
+            },
+            "targets": ["tree"],
+            "detector": "deepforest",
+        },
+    )
+    assert response.status_code == 201

@@ -10,6 +10,7 @@ from fastapi import Depends, HTTPException, Request, Response
 from sqlalchemy import delete, select
 from sqlalchemy.orm import Session as DbSession
 
+from mithra_api.config import get_settings
 from mithra_api.db import get_session
 from mithra_api.models import Run, Organisation, Session, User, UserRole
 from mithra_api.security import (
@@ -40,7 +41,10 @@ def start_session(db: DbSession, user: User, response: Response, user_agent: str
         max_age=int((session_expiry() - datetime.now(UTC)).total_seconds()),
         httponly=True,  # JavaScript must not be able to read it
         samesite="lax",  # blocks cross-site form posts while keeping normal navigation
-        secure=False,  # set True behind TLS; false here so localhost works
+        # SESSION_COOKIE_SECURE=true behind TLS. Left false by default so a
+        # plain-HTTP localhost deployment still works; a production deployment
+        # that forgets it is the one thing this file cannot detect for itself.
+        secure=get_settings().session_cookie_secure,
         path="/",
     )
     return token
